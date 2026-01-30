@@ -1,6 +1,6 @@
-# Cashfree MCP CLI
+# Cashfree Agent Skills
 
-Add Cashfree Payments MCP (Model Context Protocol) configuration to your AI coding assistant projects.
+Add Cashfree Payments MCP (Model Context Protocol) and skills configuration to your AI coding assistant projects.
 
 ## Quick Start
 
