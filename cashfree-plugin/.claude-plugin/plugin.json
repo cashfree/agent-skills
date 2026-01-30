@@ -1,0 +1,16 @@
+{
+    "name": "cashfree-payments",
+    "description": "Cashfree Payments documentation and API integration tools for AI coding",
+    "version": "1.0.0",
+    "author": {
+        "name": "Cashfree Payments",
+        "homepage": "https://www.cashfree.com"
+    },
+    "repository": "https://github.com/cashfree/cashfree-mcp",
+    "mcpServers": {
+        "cashfree-payments": {
+            "type": "http",
+            "url": "https://www.cashfree.com/docs/mcp"
+        }
+    }
+}

@@ -1,0 +1,48 @@
+{
+    "name": "@cashfreepayments/agent-skills",
+    "version": "1.0.0",
+    "description": "CLI tool to add Cashfree MCP configurations to AI coding assistants",
+    "main": "dist/index.js",
+    "bin": {
+        "cashfree": "./bin/cashfree.js"
+    },
+    "scripts": {
+        "build": "tsc",
+        "dev": "tsc -w",
+        "test": "vitest",
+        "prepublishOnly": "npm run build"
+    },
+    "keywords": [
+        "cashfree",
+        "mcp",
+        "model-context-protocol",
+        "cli",
+        "cursor",
+        "claude-code",
+        "copilot",
+        "ai-coding"
+    ],
+    "author": "Cashfree Payments",
+    "license": "MIT",
+    "dependencies": {
+        "chalk": "^5.3.0",
+        "commander": "^12.1.0",
+        "fs-extra": "^11.2.0",
+        "inquirer": "^9.2.15"
+    },
+    "devDependencies": {
+        "@types/fs-extra": "^11.0.4",
+        "@types/inquirer": "^9.0.7",
+        "@types/node": "^20.11.0",
+        "typescript": "^5.3.3",
+        "vitest": "^1.2.0"
+    },
+    "engines": {
+        "node": ">=18.0.0"
+    },
+    "files": [
+        "dist",
+        "bin",
+        "templates"
+    ]
+}

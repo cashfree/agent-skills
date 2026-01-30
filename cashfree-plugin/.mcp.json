@@ -1,0 +1,8 @@
+{
+    "mcpServers": {
+        "cashfree-payments": {
+            "type": "http",
+            "url": "https://www.cashfree.com/docs/mcp"
+        }
+    }
+}

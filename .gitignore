@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# System files
+.DS_Store
+*.log
+
+# IDE
+.idea/
+*.swp
+
+# Test outputs
+/tmp-test/
