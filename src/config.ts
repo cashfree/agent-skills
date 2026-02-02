@@ -20,7 +20,10 @@ export type Framework = typeof FRAMEWORKS[number]['value'];
 export const PRODUCTS = [
     { name: 'Payment Gateway (PG)', value: 'pg' },
     { name: 'Verification & Reconciliation (VRS)', value: 'vrs' },
-    { name: 'Subscriptions', value: 'subscriptions' }
+    { name: 'Subscriptions', value: 'subscriptions' },
+    { name: 'Cross Border', value: 'crossBorder' },
+    { name: 'Payouts', value: 'payouts' },
+    { name: 'Risk Shield', value: 'riskShield' }
 ] as const;
 
 export type Product = typeof PRODUCTS[number]['value'];

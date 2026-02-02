@@ -6,6 +6,9 @@ import { FRAMEWORKS, PRODUCTS, type Framework, type Product } from './config.js'
 import { getPGSkillTemplate } from './templates/pg.js';
 import { getVRSSkillTemplate } from './templates/vrs.js';
 import { getSubscriptionsSkillTemplate } from './templates/subscriptions.js';
+import { getCrossBorderSkillTemplate } from './templates/crossBorder.js';
+import { getPayoutsSkillTemplate } from './templates/payouts.js';
+import { getRiskShieldSkillTemplate } from './templates/riskshield.js';
 import { createSkillFile } from './generators/utils.js';
 
 const program = new Command();
@@ -17,14 +20,14 @@ program
 
 program
     .command('add')
-    .argument('<type>', 'Type of product to add (pg, vrs, subscriptions)')
+    .argument('<type>', 'Type of product to add (pg, vrs, subscriptions, crossBorder, payouts, riskShield)')
     .description('Add Cashfree product skill configuration to your project')
     .option('-p, --path <path>', 'Project path', process.cwd())
     .option('-f, --frameworks <frameworks>', 'Comma-separated list of frameworks')
     .action(async (type, options) => {
-        const validProducts: Product[] = ['pg', 'vrs', 'subscriptions'];
+        const validProducts: Product[] = ['pg', 'vrs', 'subscriptions', 'crossBorder', 'payouts', 'riskShield'];
         if (!validProducts.includes(type as Product)) {
-            console.error(chalk.red(`Error: Unknown product '${type}'. Valid options: pg, vrs, subscriptions`));
+            console.error(chalk.red(`Error: Unknown product '${type}'. Valid options: pg, vrs, subscriptions, crossBorder, payouts, riskShield`));
             process.exit(1);
         }
         const product = type as Product;
@@ -54,6 +57,12 @@ program
                     return getVRSSkillTemplate;
                 case 'subscriptions':
                     return getSubscriptionsSkillTemplate;
+                case 'crossBorder':
+                    return getCrossBorderSkillTemplate;
+                case 'payouts':
+                    return getPayoutsSkillTemplate;
+                case 'riskShield':
+                    return getRiskShieldSkillTemplate;
             }
         };
 
