@@ -13,6 +13,15 @@ npx @cashfreepayments/agent-skills add vrs
 
 # Add Subscriptions skills
 npx @cashfreepayments/agent-skills add subscriptions
+
+# Add Cross Border skills
+npx @cashfreepayments/agent-skills add crossBorder
+
+# Add Payouts skills
+npx @cashfreepayments/agent-skills add payouts
+
+# Add Risk Shield skills
+npx @cashfreepayments/agent-skills add riskShield
 ```
 
 This will prompt you to select which AI coding assistants to configure:
@@ -48,6 +57,27 @@ Recurring payments, subscription plans, authorization, and customer management.
 npx @cashfreepayments/agent-skills add subscriptions
 ```
 
+### Cross Border
+International payments, currency conversion, and cross-border transactions.
+
+```bash
+npx @cashfreepayments/agent-skills add crossBorder
+```
+
+### Payouts
+Bulk payouts, vendor payments, and disbursement management.
+
+```bash
+npx @cashfreepayments/agent-skills add payouts
+```
+
+### Risk Shield
+Fraud detection, risk management, and transaction monitoring.
+
+```bash
+npx @cashfreepayments/agent-skills add riskShield
+```
+
 ## Usage
 
 ### Interactive Mode
@@ -71,6 +101,9 @@ npx @cashfreepayments/agent-skills add vrs --path /path/to/project
 npx @cashfreepayments/agent-skills add pg
 npx @cashfreepayments/agent-skills add vrs
 npx @cashfreepayments/agent-skills add subscriptions
+npx @cashfreepayments/agent-skills add crossBorder
+npx @cashfreepayments/agent-skills add payouts
+npx @cashfreepayments/agent-skills add riskShield
 ```
 
 ## What Gets Created
@@ -87,6 +120,9 @@ For each product and framework combination, a skill file is created:
 .cursor/skills/cashfree/pg.md
 .cursor/skills/cashfree/vrs.md
 .cursor/skills/cashfree/subscriptions.md
+.cursor/skills/cashfree/crossBorder.md
+.cursor/skills/cashfree/payouts.md
+.cursor/skills/cashfree/riskShield.md
 ```
 
 ## Skill Files
@@ -117,6 +153,27 @@ Guides your AI assistant on:
 - Managing recurring payments
 - Subscription authorization flows
 - Customer subscription lifecycle
+
+### Cross Border (crossBorder.md)
+Guides your AI assistant on:
+- International payment processing
+- Currency conversion and rates
+- Cross-border compliance
+- Multi-currency transactions
+
+### Payouts (payouts.md)
+Guides your AI assistant on:
+- Bulk payout processing
+- Vendor payment management
+- Disbursement APIs
+- Payout status tracking
+
+### Risk Shield (riskShield.md)
+Guides your AI assistant on:
+- Fraud detection and prevention
+- Risk scoring and analysis
+- Transaction monitoring
+- Security best practices
 
 ## Framework-Specific Locations
 
@@ -158,5 +215,23 @@ AI: *reads vrs.md skill* → Provides bank verification API code
 ```
 You: "Set up a monthly subscription"
 AI: *reads subscriptions.md skill* → Provides subscription plan creation code
+```
+
+**With Cross Border skill:**
+```
+You: "How do I process an international payment?"
+AI: *reads crossBorder.md skill* → Provides cross-border payment API code
+```
+
+**With Payouts skill:**
+```
+You: "How do I send bulk payouts?"
+AI: *reads payouts.md skill* → Provides bulk payout API code
+```
+
+**With Risk Shield skill:**
+```
+You: "How do I implement fraud detection?"
+AI: *reads riskShield.md skill* → Provides risk scoring and monitoring code
 ```
 
