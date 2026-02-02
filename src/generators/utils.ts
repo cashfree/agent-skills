@@ -1,7 +1,5 @@
 import fs from 'fs-extra';
-import path from 'path';
 import chalk from 'chalk';
-import { CASHFREE_MCP_CONFIG } from '../config.js';
 
 export interface GeneratorResult {
     success: boolean;
@@ -14,27 +12,6 @@ export interface GeneratorResult {
  */
 export async function ensureDir(dirPath: string): Promise<void> {
     await fs.ensureDir(dirPath);
-}
-
-export async function writeJsonConfig(
-    filePath: string,
-    config: Record<string, unknown>,
-    mergeKey?: string
-): Promise<boolean> {
-    const isUpdate = await fs.pathExists(filePath);
-
-    if (isUpdate && mergeKey) {
-        const existingConfig = await fs.readJson(filePath);
-        existingConfig[mergeKey] = {
-            ...existingConfig[mergeKey],
-            ...(config as Record<string, Record<string, unknown>>)[mergeKey]
-        };
-        await fs.writeJson(filePath, existingConfig, { spaces: 2 });
-    } else {
-        await fs.writeJson(filePath, config, { spaces: 2 });
-    }
-
-    return isUpdate;
 }
 
 export async function writeTextFile(
@@ -58,15 +35,21 @@ export function logUpdated(file: string): void {
     console.log(chalk.yellow(`  Updated ${file}`));
 }
 
-/**
- * Get standard MCP server config object
- */
-export function getMcpServerConfig(includeType = true): Record<string, unknown> {
-    const config: Record<string, unknown> = {
-        url: CASHFREE_MCP_CONFIG.url
-    };
-    if (includeType) {
-        config.type = CASHFREE_MCP_CONFIG.transport;
+export async function createSkillFile(
+    projectPath: string,
+    baseDir: string,
+    productName: string,
+    getTemplate: () => string
+): Promise<void> {
+    const path = await import('path');
+    const skillsDir = path.join(projectPath, baseDir, 'skills', 'cashfree');
+    const skillPath = path.join(skillsDir, `${productName}.md`);
+
+    await ensureDir(skillsDir);
+
+    const created = await writeTextFile(skillPath, getTemplate());
+    if (created) {
+        const relativePath = path.join(baseDir, 'skills', 'cashfree', `${productName}.md`);
+        logCreated(relativePath);
     }
-    return config;
 }
