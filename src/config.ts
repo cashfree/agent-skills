@@ -21,7 +21,7 @@ export const PRODUCTS = [
     { name: 'Payment Gateway (PG)', value: 'pg' },
     { name: 'Secure ID', value: 'secure-id' },
     { name: 'Subscriptions', value: 'subscriptions' },
-    { name: 'Cross Border', value: 'crossBorder' },
+    { name: 'Cross Border', value: 'cross-border' },
     { name: 'Payouts', value: 'payouts' },
     { name: 'Risk Shield', value: 'riskShield' }
 ] as const;

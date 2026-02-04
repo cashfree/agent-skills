@@ -7,7 +7,8 @@
         "cashfree": "./bin/cashfree.js"
     },
     "scripts": {
-        "build": "tsc",
+        "build": "tsc && npm run copy-templates",
+        "copy-templates": "node -e \"require('fs-extra').copySync('src/templates', 'dist/templates', { filter: (src) => src.endsWith('.md') || src === 'src/templates' })\"",
         "dev": "tsc -w",
         "test": "vitest",
         "prepublishOnly": "npm run build"

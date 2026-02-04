@@ -20,14 +20,14 @@ program
 
 program
     .command('add')
-    .argument('<type>', 'Type of product to add (pg, secure-id, subscriptions, crossBorder, payouts, riskShield)')
+    .argument('<type>', 'Type of product to add (pg, secure-id, subscriptions, cross-border, payouts, riskShield)')
     .description('Add Cashfree product skill configuration to your project')
     .option('-p, --path <path>', 'Project path', process.cwd())
     .option('-f, --frameworks <frameworks>', 'Comma-separated list of frameworks')
     .action(async (type, options) => {
-        const validProducts: Product[] = ['pg', 'secure-id', 'subscriptions', 'crossBorder', 'payouts', 'riskShield'];
+        const validProducts: Product[] = ['pg', 'secure-id', 'subscriptions', 'cross-border', 'payouts', 'riskShield'];
         if (!validProducts.includes(type as Product)) {
-            console.error(chalk.red(`Error: Unknown product '${type}'. Valid options: pg, secure-id, subscriptions, crossBorder, payouts, riskShield`));
+            console.error(chalk.red(`Error: Unknown product '${type}'. Valid options: pg, secure-id, subscriptions, cross-border, payouts, riskShield`));
             process.exit(1);
         }
         const product = type as Product;
@@ -57,7 +57,7 @@ program
                     return getsecureIdSkillTemplate;
                 case 'subscriptions':
                     return getSubscriptionsSkillTemplate;
-                case 'crossBorder':
+                case 'cross-border':
                     return getCrossBorderSkillTemplate;
                 case 'payouts':
                     return getPayoutsSkillTemplate;

@@ -15,7 +15,7 @@ npx @cashfreepayments/agent-skills add secure-id
 npx @cashfreepayments/agent-skills add subscriptions
 
 # Add Cross Border skills
-npx @cashfreepayments/agent-skills add crossBorder
+npx @cashfreepayments/agent-skills add cross-border
 
 # Add Payouts skills
 npx @cashfreepayments/agent-skills add payouts
@@ -61,7 +61,7 @@ npx @cashfreepayments/agent-skills add subscriptions
 International payments, currency conversion, and cross-border transactions.
 
 ```bash
-npx @cashfreepayments/agent-skills add crossBorder
+npx @cashfreepayments/agent-skills add cross-border
 ```
 
 ### Payouts
@@ -101,7 +101,7 @@ npx @cashfreepayments/agent-skills add secure-id --path /path/to/project
 npx @cashfreepayments/agent-skills add pg
 npx @cashfreepayments/agent-skills add secure-id
 npx @cashfreepayments/agent-skills add subscriptions
-npx @cashfreepayments/agent-skills add crossBorder
+npx @cashfreepayments/agent-skills add cross-border
 npx @cashfreepayments/agent-skills add payouts
 npx @cashfreepayments/agent-skills add riskShield
 ```
@@ -120,7 +120,7 @@ For each product and framework combination, a skill file is created:
 .cursor/skills/cashfree/pg.md
 .cursor/skills/cashfree/secure-id.md
 .cursor/skills/cashfree/subscriptions.md
-.cursor/skills/cashfree/crossBorder.md
+.cursor/skills/cashfree/cross-border.md
 .cursor/skills/cashfree/payouts.md
 .cursor/skills/cashfree/riskShield.md
 ```
@@ -154,7 +154,7 @@ Guides your AI assistant on:
 - Subscription authorization flows
 - Customer subscription lifecycle
 
-### Cross Border (crossBorder.md)
+### Cross Border (cross-border.md)
 Guides your AI assistant on:
 - International payment processing
 - Currency conversion and rates
@@ -220,7 +220,7 @@ AI: *reads subscriptions.md skill* → Provides subscription plan creation code
 **With Cross Border skill:**
 ```
 You: "How do I process an international payment?"
-AI: *reads crossBorder.md skill* → Provides cross-border payment API code
+AI: *reads cross-border.md skill* → Provides cross-border payment API code
 ```
 
 **With Payouts skill:**
