@@ -19,7 +19,7 @@ export type Framework = typeof FRAMEWORKS[number]['value'];
  */
 export const PRODUCTS = [
     { name: 'Payment Gateway (PG)', value: 'pg' },
-    { name: 'Verification & Reconciliation (VRS)', value: 'vrs' },
+    { name: 'Secure ID', value: 'secure-id' },
     { name: 'Subscriptions', value: 'subscriptions' },
     { name: 'Cross Border', value: 'crossBorder' },
     { name: 'Payouts', value: 'payouts' },

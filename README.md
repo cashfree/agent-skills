@@ -8,8 +8,8 @@ Add Cashfree Payments product-specific skills to your AI coding assistant projec
 # Add Payment Gateway skills
 npx @cashfreepayments/agent-skills add pg
 
-# Add Verification & Reconciliation skills
-npx @cashfreepayments/agent-skills add vrs
+# Add Secure ID skills
+npx @cashfreepayments/agent-skills add secure-id
 
 # Add Subscriptions skills
 npx @cashfreepayments/agent-skills add subscriptions
@@ -43,11 +43,11 @@ Payment gateway integration, order creation, refunds, payment links, and webhook
 npx @cashfreepayments/agent-skills add pg
 ```
 
-### Verification & Reconciliation (VRS)
+### Secure ID
 Bank account verification, penny drop, UPI verification, and settlement reconciliation.
 
 ```bash
-npx @cashfreepayments/agent-skills add vrs
+npx @cashfreepayments/agent-skills add secure-id
 ```
 
 ### Subscriptions
@@ -93,13 +93,13 @@ npx @cashfreepayments/agent-skills add pg --frameworks cursor,claude-code,gemini
 
 ### Custom Project Path
 ```bash
-npx @cashfreepayments/agent-skills add vrs --path /path/to/project
+npx @cashfreepayments/agent-skills add secure-id --path /path/to/project
 ```
 
 ### Add Multiple Products
 ```bash
 npx @cashfreepayments/agent-skills add pg
-npx @cashfreepayments/agent-skills add vrs
+npx @cashfreepayments/agent-skills add secure-id
 npx @cashfreepayments/agent-skills add subscriptions
 npx @cashfreepayments/agent-skills add crossBorder
 npx @cashfreepayments/agent-skills add payouts
@@ -118,7 +118,7 @@ For each product and framework combination, a skill file is created:
 ### Example: Cursor + All Products
 ```
 .cursor/skills/cashfree/pg.md
-.cursor/skills/cashfree/vrs.md
+.cursor/skills/cashfree/secure-id.md
 .cursor/skills/cashfree/subscriptions.md
 .cursor/skills/cashfree/crossBorder.md
 .cursor/skills/cashfree/payouts.md
@@ -140,7 +140,7 @@ Guides your AI assistant on:
 - Payment links and QR codes
 - Webhook integration
 
-### VRS (vrs.md)
+### secure-id (secure-id.md)
 Guides your AI assistant on:
 - Bank account verification APIs
 - Penny drop verification
@@ -205,10 +205,10 @@ You: "How do I create a payment order?"
 AI: *reads pg.md skill* → Provides order creation API code
 ```
 
-**With VRS skill:**
+**With secure-id skill:**
 ```
 You: "Verify a bank account"
-AI: *reads vrs.md skill* → Provides bank verification API code
+AI: *reads secure-id.md skill* → Provides bank verification API code
 ```
 
 **With Subscriptions skill:**

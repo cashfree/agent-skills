@@ -4,7 +4,7 @@ import chalk from 'chalk';
 import path from 'path';
 import { FRAMEWORKS, PRODUCTS, type Framework, type Product } from './config.js';
 import { getPGSkillTemplate } from './templates/pg.js';
-import { getVRSSkillTemplate } from './templates/vrs.js';
+import { getsecureIdSkillTemplate } from './templates/secure-id.js';
 import { getSubscriptionsSkillTemplate } from './templates/subscriptions.js';
 import { getCrossBorderSkillTemplate } from './templates/crossBorder.js';
 import { getPayoutsSkillTemplate } from './templates/payouts.js';
@@ -20,14 +20,14 @@ program
 
 program
     .command('add')
-    .argument('<type>', 'Type of product to add (pg, vrs, subscriptions, crossBorder, payouts, riskShield)')
+    .argument('<type>', 'Type of product to add (pg, secure-id, subscriptions, crossBorder, payouts, riskShield)')
     .description('Add Cashfree product skill configuration to your project')
     .option('-p, --path <path>', 'Project path', process.cwd())
     .option('-f, --frameworks <frameworks>', 'Comma-separated list of frameworks')
     .action(async (type, options) => {
-        const validProducts: Product[] = ['pg', 'vrs', 'subscriptions', 'crossBorder', 'payouts', 'riskShield'];
+        const validProducts: Product[] = ['pg', 'secure-id', 'subscriptions', 'crossBorder', 'payouts', 'riskShield'];
         if (!validProducts.includes(type as Product)) {
-            console.error(chalk.red(`Error: Unknown product '${type}'. Valid options: pg, vrs, subscriptions, crossBorder, payouts, riskShield`));
+            console.error(chalk.red(`Error: Unknown product '${type}'. Valid options: pg, secure-id, subscriptions, crossBorder, payouts, riskShield`));
             process.exit(1);
         }
         const product = type as Product;
@@ -53,8 +53,8 @@ program
             switch (product) {
                 case 'pg':
                     return getPGSkillTemplate;
-                case 'vrs':
-                    return getVRSSkillTemplate;
+                case 'secure-id':
+                    return getsecureIdSkillTemplate;
                 case 'subscriptions':
                     return getSubscriptionsSkillTemplate;
                 case 'crossBorder':
