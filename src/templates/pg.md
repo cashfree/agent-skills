@@ -1,6 +1,6 @@
 ---
 name: Cashfree Payment Gateway
-description: Use Cashfree MCP to search payment gateway documentation and API references
+description: Use this to see payment gateway documentation and API references
 ---
 
 # Cashfree Payment Gateway Integration Skills

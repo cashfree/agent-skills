@@ -23,7 +23,6 @@ export const PRODUCTS = [
     { name: 'Subscriptions', value: 'subscriptions' },
     { name: 'Cross Border', value: 'cross-border' },
     { name: 'Payouts', value: 'payouts' },
-    { name: 'Risk Shield', value: 'riskShield' }
 ] as const;
 
 export type Product = typeof PRODUCTS[number]['value'];

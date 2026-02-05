@@ -19,9 +19,6 @@ npx @cashfreepayments/agent-skills add cross-border
 
 # Add Payouts skills
 npx @cashfreepayments/agent-skills add payouts
-
-# Add Risk Shield skills
-npx @cashfreepayments/agent-skills add riskShield
 ```
 
 This will prompt you to select which AI coding assistants to configure:
@@ -71,13 +68,6 @@ Bulk payouts, vendor payments, and disbursement management.
 npx @cashfreepayments/agent-skills add payouts
 ```
 
-### Risk Shield
-Fraud detection, risk management, and transaction monitoring.
-
-```bash
-npx @cashfreepayments/agent-skills add riskShield
-```
-
 ## Usage
 
 ### Interactive Mode
@@ -103,7 +93,6 @@ npx @cashfreepayments/agent-skills add secure-id
 npx @cashfreepayments/agent-skills add subscriptions
 npx @cashfreepayments/agent-skills add cross-border
 npx @cashfreepayments/agent-skills add payouts
-npx @cashfreepayments/agent-skills add riskShield
 ```
 
 ## What Gets Created
@@ -122,7 +111,6 @@ For each product and framework combination, a skill file is created:
 .cursor/skills/cashfree/subscriptions.md
 .cursor/skills/cashfree/cross-border.md
 .cursor/skills/cashfree/payouts.md
-.cursor/skills/cashfree/riskShield.md
 ```
 
 ## Skill Files
@@ -167,13 +155,6 @@ Guides your AI assistant on:
 - Vendor payment management
 - Disbursement APIs
 - Payout status tracking
-
-### Risk Shield (riskShield.md)
-Guides your AI assistant on:
-- Fraud detection and prevention
-- Risk scoring and analysis
-- Transaction monitoring
-- Security best practices
 
 ## Framework-Specific Locations
 
@@ -227,11 +208,5 @@ AI: *reads cross-border.md skill* → Provides cross-border payment API code
 ```
 You: "How do I send bulk payouts?"
 AI: *reads payouts.md skill* → Provides bulk payout API code
-```
-
-**With Risk Shield skill:**
-```
-You: "How do I implement fraud detection?"
-AI: *reads riskShield.md skill* → Provides risk scoring and monitoring code
 ```
 

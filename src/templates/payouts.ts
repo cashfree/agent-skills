@@ -1,10 +1,12 @@
+import * as fs from "fs";
+import * as path from "path";
+
+declare const __dirname: string;
+
 /**
  * Payouts skill template
  */
 export function getPayoutsSkillTemplate(): string {
-    return `---
-name: Cashfree Payouts
-description: Use Cashfree MCP to search payouts documentation and API references
----
-`;
+    const templatePath = path.join(__dirname, "payouts.md");
+    return fs.readFileSync(templatePath, "utf8");
 }
