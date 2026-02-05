@@ -21,6 +21,8 @@ npx @cashfreepayments/agent-skills add cross-border
 npx @cashfreepayments/agent-skills add payouts
 ```
 
+![Cashfree Payments](src/templates/image.png)
+
 This will prompt you to select which AI coding assistants to configure:
 - **Cursor** - Creates `.cursor/skills/cashfree/<product>.md`
 - **Claude Code** - Creates `.claude/skills/cashfree/<product>.md`
