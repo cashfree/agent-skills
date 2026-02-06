@@ -1,6 +1,6 @@
 {
     "name": "@cashfreepayments/agent-skills",
-    "version": "0.0.2",
+    "version": "0.0.4",
     "description": "CLI tool to add Cashfree MCP configurations to AI coding assistants",
     "type": "module",
     "main": "dist/index.js",
