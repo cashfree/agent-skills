@@ -21,7 +21,7 @@ npx @cashfreepayments/agent-skills add cross-border
 npx @cashfreepayments/agent-skills add payouts
 ```
 
-![Cashfree Payments](https://raw.githubusercontent.com/cashfree/agent-skills/refs/heads/main/src/templates/usage.gif)
+![Cashfree Payments](https://raw.githubusercontent.com/cashfree/agent-skills/refs/heads/main/src/templates/usage.gif) 
 
 This will prompt you to select which AI coding assistants to configure:
 - **Cursor** - Creates `.cursor/skills/cashfree/<product>.md`
