@@ -5,8 +5,7 @@
     "type": "module",
     "main": "dist/index.js",
     "bin": {
-        "agent-skills": "./bin/cashfree.js",
-        "cashfree": "./bin/cashfree.js"
+        "agent-skills": "./dist/index.js"
     },
     "scripts": {
         "build": "tsc && npm run copy-templates",
@@ -44,7 +43,6 @@
         "node": ">=18.0.0"
     },
     "files": [
-        "dist",
-        "bin"
+        "dist"
     ]
 }
