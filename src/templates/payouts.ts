@@ -1,7 +1,8 @@
 import * as fs from "fs";
 import * as path from "path";
+import { fileURLToPath } from "node:url";
 
-declare const __dirname: string;
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /**
  * Payouts skill template
