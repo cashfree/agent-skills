@@ -22,7 +22,8 @@
         "cursor",
         "claude-code",
         "copilot",
-        "ai-coding"
+        "ai-coding",
+        "agent-skills"
     ],
     "author": "Cashfree Payments",
     "license": "MIT",
