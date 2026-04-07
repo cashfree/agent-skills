@@ -9,7 +9,7 @@
     },
     "scripts": {
         "build": "tsc && npm run copy-templates",
-        "copy-templates": "node -e \"require('fs-extra').copySync('src/templates', 'dist/templates', { filter: (src) => src.endsWith('.md') || src === 'src/templates' })\"",
+        "copy-templates": "node -e \"require('fs-extra').copySync('src/templates', 'dist/templates', { filter: (src) => src.endsWith('.md') || require('fs').statSync(src).isDirectory() })\"",
         "dev": "tsc -w",
         "test": "vitest",
         "prepublishOnly": "npm run build"
