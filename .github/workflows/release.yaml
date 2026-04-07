@@ -1,52 +1,42 @@
-name: Release and Publish
+name: Publish to npm
 
 on:
-    push:
-        branches:
-            - main
-    workflow_dispatch:
-        inputs:
-            bump:
-                description: "Version bump type"
-                required: true
-                default: "patch"
-                type: choice
-                options:
-                    - patch
-                    - minor
-                    - major
+    release:
+        types: [published]
+
+permissions:
+    contents: write
 
 jobs:
-    release:
+    publish:
         runs-on: ubuntu-latest
-        permissions:
-            contents: write
-            id-token: write
 
         steps:
             - name: Checkout repository
               uses: actions/checkout@v4
               with:
-                  fetch-depth: 0
-                  token: ${{ secrets.GITHUB_TOKEN }}
+                  ref: ${{ github.event.release.target_commitish }}
 
             - name: Setup Node.js
               uses: actions/setup-node@v4
               with:
-                  node-version: "20"
-                  registry-url: "https://registry.npmjs.org"
+                  node-version: 20
+                  registry-url: https://registry.npmjs.org/
 
             - name: Install dependencies
-              run: npm install
+              run: npm ci
 
-            - name: Bump version
+            - name: Extract version from release tag
               id: version
               run: |
-                  BUMP_TYPE="${{ github.event.inputs.bump || 'patch' }}"
-                  NEW_VERSION=$(npm version $BUMP_TYPE --no-git-tag-version)
-                  echo "VERSION=${NEW_VERSION}" >> $GITHUB_OUTPUT
+                  TAG="${{ github.event.release.tag_name }}"
+                  VERSION="${TAG#v}"
+                  echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
-            - name: Build
+            - name: Update package version
+              run: npm version ${{ steps.version.outputs.VERSION }} --no-git-tag-version --allow-same-version
+
+            - name: Build package
               run: npm run build
 
             - name: Publish to npm
@@ -61,16 +51,3 @@ jobs:
                   git add package.json package-lock.json
                   git diff --staged --quiet || git commit -m "chore: bump version to ${{ steps.version.outputs.VERSION }}"
                   git push
-
-            - name: Create GitHub Release
-              uses: actions/github-script@v7
-              with:
-                  script: |
-                      const version = '${{ steps.version.outputs.VERSION }}';
-                      await github.rest.repos.createRelease({
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        tag_name: version,
-                        name: `Release ${version}`,
-                        generate_release_notes: true,
-                      });
