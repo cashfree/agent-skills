@@ -1,6 +1,14 @@
 ---
-name: Cashfree Payment Gateway - Backend SDK
-description: Use this for backend SDK integration with Cashfree Payment Gateway (Node.js, Python, Java, Go)
+name: Cashfree Payment Gateway - Backend SDK Integration
+description: >
+  Use when integrating Cashfree Payments with a backend app using the official SDK.
+  Triggers: integrate Cashfree Payments, integrate Cashfree with my app, add Cashfree Payments,
+  Cashfree Node.js SDK, cashfree-pg npm, Cashfree Python SDK, Cashfree Java SDK, Cashfree Go SDK,
+  add payments to Express, Next.js payment gateway, NestJS checkout, integrate Cashfree in Node,
+  accept payments in Python, Django payments, Flask checkout, FastAPI payment gateway,
+  Spring Boot payments, Go payment integration, install Cashfree SDK, npm install cashfree,
+  pip install cashfree, PGCreateOrder, Cashfree SDK setup, initialise Cashfree.
+  Prefer over the S2S API skill when using Node.js, Python, Java, or Go.
 ---
 
 # Cashfree Payment Gateway — Backend SDK Integration Skills

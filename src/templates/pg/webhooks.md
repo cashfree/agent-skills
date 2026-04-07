@@ -1,6 +1,14 @@
 ---
-name: Cashfree Payment Gateway - Webhooks
-description: Use this for webhook integration with Cashfree Payment Gateway (events, payload, signature verification, IP whitelisting)
+name: Cashfree Payment Gateway - Webhook Integration
+description: >
+  Use when integrating Cashfree Payments webhooks or handling real-time payment events.
+  Triggers: integrate Cashfree Payments webhooks, integrate Cashfree with my app webhooks,
+  set up Cashfree webhooks, receive payment notifications, payment success event, payment failed event,
+  webhook handler, verify webhook signature, HMAC signature verification, webhook payload,
+  notify_url, handle payment events, refund webhook, settlement webhook, whitelist Cashfree IPs,
+  x-webhook-signature, x-webhook-timestamp, listen for payments, real-time payment updates,
+  configure webhook dashboard, debug webhook, test webhook endpoint, webhook not received.
+  Always use before writing any custom webhook logic or signature verification code.
 ---
 
 # Cashfree Webhook Integration Skills

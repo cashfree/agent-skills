@@ -1,6 +1,13 @@
 ---
-name: Cashfree Payment Gateway - S2S APIs
-description: Use this for Server-to-Server (S2S) API integration with Cashfree Payment Gateway directly, without an SDK
+name: Cashfree Payment Gateway - S2S REST API Integration
+description: >
+  Use when integrating Cashfree Payments with an app using direct REST API calls (no SDK).
+  Triggers: integrate Cashfree Payments, integrate Cashfree with my app, add Cashfree Payments,
+  accept payments, add checkout, collect money, create payment order, get payment status,
+  Cashfree REST API, S2S API, cURL payments, Postman Cashfree, HTTP payment API, raw API integration,
+  server-side payment, create order API, payment session ID, fetch order status, refund API.
+  Use for any backend language not covered by the official SDKs (Ruby, PHP, Rust, etc.)
+  or when the developer wants direct HTTP calls over a library.
 ---
 
 # Cashfree Payment Gateway – Server-to-Server (S2S) Integration Skills

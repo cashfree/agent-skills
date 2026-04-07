@@ -1,6 +1,14 @@
 ---
-name: Cashfree Payment Gateway - Mobile SDKs
-description: Use this for mobile app SDK integration with Cashfree Payment Gateway (Android, iOS, React Native, Flutter, Cordova)
+name: Cashfree Payment Gateway - Mobile SDK Integration
+description: >
+  Use when integrating Cashfree Payments into a mobile app.
+  Triggers: integrate Cashfree Payments in mobile, integrate Cashfree with Android app,
+  integrate Cashfree with iOS app, integrate Cashfree in React Native, integrate Cashfree Flutter,
+  add Cashfree Payments to mobile, Android payment integration, iOS payment SDK,
+  React Native checkout, Flutter payments, Cordova payment gateway, Kotlin payment gateway,
+  Swift payment SDK, Expo payments, in-app checkout, Cashfree Android SDK, Cashfree iOS SDK,
+  react-native-cashfree-pg-sdk, flutter_cashfree_pg_sdk, CashfreePG CocoaPods, Gradle Cashfree.
+  Use instead of the backend SDK skill when the integration target is a mobile app.
 ---
 
 # Cashfree Payment Gateway – Mobile App SDK Integration Skills
