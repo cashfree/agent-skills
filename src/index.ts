@@ -11,7 +11,12 @@ import {
     type Framework,
     type Product,
 } from "./config.js";
-import { getPGSkillTemplate } from "./templates/pg.js";
+import {
+    getPGApiSkillTemplate,
+    getPGSdkSkillTemplate,
+    getPGMobileSkillTemplate,
+    getPGWebhooksSkillTemplate,
+} from "./templates/pg.js";
 import { getSecureIdSkillTemplate } from "./templates/secure-id.js";
 import { getSubscriptionsSkillTemplate } from "./templates/subscriptions.js";
 import { getCrossBorderSkillTemplate } from "./templates/crossBorder.js";
@@ -128,19 +133,25 @@ program
             ),
         );
 
-        // Get the template function based on product type
-        const getTemplateForProduct = (product: Product) => {
+        // Get the list of sub-skills to create for a product
+        type SubSkill = { name: string; getTemplate: () => string };
+        const getSubSkillsForProduct = (product: Product): SubSkill[] => {
             switch (product) {
                 case "pg":
-                    return getPGSkillTemplate;
+                    return [
+                        { name: "pg/api", getTemplate: getPGApiSkillTemplate },
+                        { name: "pg/sdk", getTemplate: getPGSdkSkillTemplate },
+                        { name: "pg/mobile", getTemplate: getPGMobileSkillTemplate },
+                        { name: "pg/webhooks", getTemplate: getPGWebhooksSkillTemplate },
+                    ];
                 case "secure-id":
-                    return getSecureIdSkillTemplate;
+                    return [{ name: "secure-id", getTemplate: getSecureIdSkillTemplate }];
                 case "subscriptions":
-                    return getSubscriptionsSkillTemplate;
+                    return [{ name: "subscriptions", getTemplate: getSubscriptionsSkillTemplate }];
                 case "cross-border":
-                    return getCrossBorderSkillTemplate;
+                    return [{ name: "cross-border", getTemplate: getCrossBorderSkillTemplate }];
                 case "payouts":
-                    return getPayoutsSkillTemplate;
+                    return [{ name: "payouts", getTemplate: getPayoutsSkillTemplate }];
                 default:
                     throw new Error(
                         `No template found for product: ${product}`,
@@ -196,12 +207,9 @@ program
 
             try {
                 const baseDir = getFrameworkBaseDir(framework);
-                await createSkillFile(
-                    projectPath,
-                    baseDir,
-                    product,
-                    getTemplateForProduct(product),
-                );
+                for (const { name, getTemplate } of getSubSkillsForProduct(product)) {
+                    await createSkillFile(projectPath, baseDir, name, getTemplate);
+                }
             } catch (error) {
                 console.log(
                     chalk.red(

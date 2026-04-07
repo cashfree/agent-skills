@@ -45,7 +45,7 @@ export async function createSkillFile(
     const skillsDir = path.join(projectPath, baseDir, 'skills', 'cashfree');
     const skillPath = path.join(skillsDir, `${productName}.md`);
 
-    await ensureDir(skillsDir);
+    await ensureDir(path.dirname(skillPath));
 
     const created = await writeTextFile(skillPath, getTemplate());
     if (created) {

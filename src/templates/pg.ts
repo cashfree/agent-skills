@@ -4,10 +4,18 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-/**
- * Payment Gateway skill template
- */
-export function getPGSkillTemplate(): string {
-    const templatePath = path.join(__dirname, "pg.md");
-    return fs.readFileSync(templatePath, "utf8");
+export function getPGApiSkillTemplate(): string {
+    return fs.readFileSync(path.join(__dirname, "pg/api.md"), "utf8");
+}
+
+export function getPGSdkSkillTemplate(): string {
+    return fs.readFileSync(path.join(__dirname, "pg/sdk.md"), "utf8");
+}
+
+export function getPGMobileSkillTemplate(): string {
+    return fs.readFileSync(path.join(__dirname, "pg/mobile.md"), "utf8");
+}
+
+export function getPGWebhooksSkillTemplate(): string {
+    return fs.readFileSync(path.join(__dirname, "pg/webhooks.md"), "utf8");
 }
