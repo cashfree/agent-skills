@@ -46,6 +46,7 @@ import { getCrossBorderSkillTemplate, getCrossBorderReferenceTemplate } from "./
 import { getPayoutsSkillTemplate, getPayoutsReferenceTemplate } from "./templates/payouts.js";
 import { getValidationAndTestingSkillTemplate } from "./templates/validation-and-testing.js";
 import { getCommonMistakesSkillTemplate } from "./templates/common-mistakes.js";
+import { getProgressAndSkillFeedbackSkillTemplate } from "./templates/progress-and-skill-feedback.js";
 import {
     getMigrateFromRazorpaySkillTemplate,
     getMigrateFromRazorpayReferenceTemplate,
@@ -64,6 +65,20 @@ import {
 } from "./templates/auto-collect.js";
 import { generateManifestContent } from "./templates/manifest.js";
 import { createSkillFile, createManifestFile } from "./generators/utils.js";
+import {
+    createFrameworkFailedEvent,
+    createFrameworkSelectedEvents,
+    createFrameworkSucceededEvent,
+    createInstallCompletedEvent,
+    createInstallStartedEvent,
+    createProgressFeedbackSubmittedEvent,
+    createTelemetryDistinctId,
+    isTelemetryEnabled,
+    sendTelemetryEventsInBackground,
+    type InstallTelemetryEvent,
+    type ProgressFeedbackTelemetryInput,
+    type SelectionMode,
+} from "./telemetry.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(
@@ -136,11 +151,17 @@ const ALL_SKILLS: Skill[] = [
     { dir: "migrate-from-razorpay/references", fileName: "REFERENCE.md", getTemplate: getMigrateFromRazorpayReferenceTemplate },
     { dir: "migrate-from-juspay", getTemplate: getMigrateFromJuspaySkillTemplate },
     { dir: "migrate-from-juspay/references", fileName: "REFERENCE.md", getTemplate: getMigrateFromJuspayReferenceTemplate },
+    { dir: "progress-and-skill-feedback", getTemplate: getProgressAndSkillFeedbackSkillTemplate },
 
     // --- End: validation, testing & troubleshooting ---
     { dir: "validation-and-testing", getTemplate: getValidationAndTestingSkillTemplate },
     { dir: "common-mistakes", getTemplate: getCommonMistakesSkillTemplate },
 ];
+
+function collectOptionValues(value: string, previous: string[]): string[] {
+    previous.push(value);
+    return previous;
+}
 
 program
     .command("add")
@@ -251,6 +272,21 @@ program
         }
 
         const projectPath = path.resolve(options.path);
+        const telemetryDistinctId = createTelemetryDistinctId();
+        const selectionMode: SelectionMode = options.frameworks ? "flag" : "interactive";
+        const telemetryContext = {
+            distinctId: telemetryDistinctId,
+            cliVersion: pkg.version,
+            selectionMode,
+            selectedFrameworks,
+        };
+        const telemetryEvents: InstallTelemetryEvent[] = [
+            createInstallStartedEvent(telemetryContext),
+            ...createFrameworkSelectedEvents(telemetryContext),
+        ];
+        const succeededFrameworks: Framework[] = [];
+        const failedFrameworks: Framework[] = [];
+
         console.log(chalk.dim(`\nProject path: ${projectPath}\n`));
 
         for (const framework of selectedFrameworks) {
@@ -280,7 +316,15 @@ program
                     manifestConfig.format,
                 );
                 await createManifestFile(projectPath, manifestConfig.path, manifestContent);
+                succeededFrameworks.push(framework);
+                telemetryEvents.push(
+                    createFrameworkSucceededEvent(telemetryContext, framework),
+                );
             } catch (error) {
+                failedFrameworks.push(framework);
+                telemetryEvents.push(
+                    createFrameworkFailedEvent(telemetryContext, framework, error),
+                );
                 console.log(
                     chalk.red(
                         `  Error: ${error instanceof Error ? error.message : "Unknown error"}`,
@@ -288,6 +332,15 @@ program
                 );
             }
         }
+
+        telemetryEvents.push(
+            createInstallCompletedEvent(
+                telemetryContext,
+                succeededFrameworks,
+                failedFrameworks,
+            ),
+        );
+        sendTelemetryEventsInBackground(telemetryEvents);
 
         console.log(
             chalk.bold.green(
@@ -320,6 +373,7 @@ program
         console.log(chalk.dim("  ├── auto-collect/SKILL.md + references/REFERENCE.md"));
         console.log(chalk.dim("  ├── migrate-from-razorpay/SKILL.md + references/REFERENCE.md"));
         console.log(chalk.dim("  ├── migrate-from-juspay/SKILL.md + references/REFERENCE.md"));
+        console.log(chalk.dim("  ├── progress-and-skill-feedback/SKILL.md"));
         console.log(chalk.dim("  ├── validation-and-testing/SKILL.md"));
         console.log(chalk.dim("  └── common-mistakes/SKILL.md"));
         console.log(
@@ -327,6 +381,66 @@ program
                 "\nA manifest file has been created/updated to help your AI assistant discover these skills.\n",
             ),
         );
+    });
+
+program
+    .command("report-progress-feedback")
+    .description("Submit end-of-task progress and skill-improvement feedback telemetry")
+    .requiredOption("--flow <flow>", "Integration flow or product area, e.g. pg, subscriptions, payouts")
+    .option("--skill <skill>", "Skill used during the workflow. Repeat for multiple skills.", collectOptionValues, [])
+    .option("--completed-step <step>", "Completed step. Repeat for multiple steps.", collectOptionValues, [])
+    .option("--pending-step <step>", "Pending step. Repeat for multiple steps.", collectOptionValues, [])
+    .requiredOption("--feedback <feedback>", "LLM's honest feedback on what could be improved in the skill(s)")
+    .option("--silent", "Suppress JSON output")
+    .action((options: {
+        flow: string;
+        skill: string[];
+        completedStep: string[];
+        pendingStep: string[];
+        feedback: string;
+        silent?: boolean;
+    }) => {
+        const payload: ProgressFeedbackTelemetryInput = {
+            cliVersion: pkg.version,
+            flow: options.flow.trim(),
+            skillsUsed: options.skill.map((skill) => skill.trim()).filter(Boolean),
+            completedSteps: options.completedStep.map((step) => step.trim()).filter(Boolean),
+            pendingSteps: options.pendingStep.map((step) => step.trim()).filter(Boolean),
+            llmFeedback: options.feedback.trim(),
+        };
+
+        if (!payload.flow) {
+            console.error('Error: --flow is required and cannot be empty.');
+            process.exitCode = 1;
+            return;
+        }
+
+        if (!payload.llmFeedback) {
+            console.error('Error: --feedback is required and cannot be empty.');
+            process.exitCode = 1;
+            return;
+        }
+
+        if (!payload.skillsUsed.length) {
+            console.error('Error: at least one --skill value is required.');
+            process.exitCode = 1;
+            return;
+        }
+
+        const event = createProgressFeedbackSubmittedEvent(payload);
+        sendTelemetryEventsInBackground([event]);
+
+        if (!options.silent) {
+            console.log(JSON.stringify({
+                ok: true,
+                submitted: isTelemetryEnabled(),
+                event: event.event,
+                flow: payload.flow,
+                skills_used_count: payload.skillsUsed.length,
+                completed_steps_count: payload.completedSteps.length,
+                pending_steps_count: payload.pendingSteps.length,
+            }));
+        }
     });
 
 function getFrameworkName(framework: Framework): string {
