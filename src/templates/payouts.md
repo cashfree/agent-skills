@@ -1,65 +1,105 @@
 ---
 name: Cashfree Payouts
-description: Use this to see Payouts documentation and API references
+description: >
+  Use when integrating Cashfree Payouts for fund disbursals to bank accounts, UPI, cards, and wallets.
+  Triggers: Cashfree Payouts, payout integration, disburse funds, send money, bank transfer API,
+  UPI payout, batch transfer, beneficiary API, payout webhook, transfer status, direct transfer,
+  Cashfree payout SDK, payout Node.js, payout Python, payout Java, payout PHP, IMPS transfer,
+  NEFT transfer, RTGS payout, wallet payout, Paytm payout, Amazon Pay payout, card payout,
+  Cashgram, payout protect, escrow payout, payout balance, payout authorize, payout 2FA,
+  IP whitelist payout, payout signature, batch payout, bulk transfer, vendor payment,
+  salary disbursement, refund payout, instant transfer, payout webhook verification.
 ---
 
-# Cashfree Payouts Integration
+# Cashfree Payouts — Integration
 
-## Overview
-Cashfree Payouts enables instant fund transfers to bank accounts, UPI IDs, cards, and wallets. This is a **backend-only integration** - no frontend SDK is required.
+> **References available:** This SKILL.md covers the core payout flow. For 2FA RSA signature generation, V1 legacy APIs, batch transfer details, all webhook payloads, and key status codes — read `references/REFERENCE.md` in this directory.
 
 ---
 
-## Environment Configuration
+## 1. Overview
+
+Cashfree Payouts enables instant fund transfers to bank accounts, UPI IDs, cards, and wallets. **Backend-only integration** — no frontend SDK required.
+
+**Core Products:**
+- **Payouts Dashboard**: Web-based payout management with approval workflows
+- **One Escrow**: Conditional disbursals with escrow management for marketplace settlements
+- **Cashgram**: Send instant payout links without collecting bank details from recipients
+- **Payout Protect**: Real-time risk control and fraud detection
+
+**Integration Flow:** Setup & Auth → Add Beneficiary → Initiate Transfer → Track Status → Handle Webhooks
+
+---
+
+## 2. Environment Configuration
+
+### V2 APIs (Recommended)
+
+| Environment | Base URL |
+|---|---|
+| Production | `https://api.cashfree.com/payout` |
+| Sandbox | `https://sandbox.cashfree.com/payout` |
+
+### Required Headers (V2)
 
 ```
-# Environment URLs
-PRODUCTION_URL_V2=https://api.cashfree.com/payout
-SANDBOX_URL_V2=https://sandbox.cashfree.com/payout
-PRODUCTION_URL_V1=https://payout-api.cashfree.com
-SANDBOX_URL_V1=https://payout-gamma.cashfree.com
-
-# Required Headers
 x-client-id: <YOUR_CLIENT_ID>
 x-client-secret: <YOUR_CLIENT_SECRET>
 x-api-version: 2024-01-01
+Content-Type: application/json
 ```
+
+> **V1 legacy APIs** use different base URLs and Bearer token auth — see `references/REFERENCE.md`.
 
 ---
 
-## Authentication
+## 3. Authentication
 
-### V1 API (Bearer Token)
-Call `/payout/v1/authorize` to get a Bearer token (valid for 6 minutes):
+### V2 API (Direct Authentication — Recommended)
+
+Use `x-client-id` and `x-client-secret` headers directly with every request. No token generation needed.
 
 ```bash
-curl -X POST 'https://payout-api.cashfree.com/payout/v1/authorize' \
-  -H 'X-Client-Id: <CLIENT_ID>' \
-  -H 'X-Client-Secret: <CLIENT_SECRET>'
+curl -X POST 'https://sandbox.cashfree.com/payout/transfers' \
+  -H 'x-client-id: <CLIENT_ID>' \
+  -H 'x-client-secret: <CLIENT_SECRET>' \
+  -H 'x-api-version: 2024-01-01' \
+  -H 'Content-Type: application/json' \
+  -d '{ ... }'
 ```
 
-**Response:**
-```json
-{
-  "status": "SUCCESS",
-  "message": "Token generated",
-  "subCode": "200",
-  "data": { "token": "eyJ0eXA...fWStg", "expiry": 1564130052 }
-}
-```
+### Generate API Keys
 
-### V2 API (Direct Authentication)
-Use `x-client-id` and `x-client-secret` headers directly - no token needed.
+1. Log in to the **Merchant Dashboard**
+2. Go to **Payouts Dashboard** → **Developers**
+3. Click **API Keys** → **Generate API Keys**
+4. Download and securely store the keys
 
-### 2FA Requirements
-- **IP Whitelisting**: Whitelist up to 25 IPv4 addresses in Dashboard > Developers > Two-Factor Authentication
-- **Public Key Signature**: If no static IP, generate signature using RSA encryption with `X-Cf-Signature` header
+- Maximum of **10 API keys** can be generated
+- Production keys require **OTP authentication**
+
+### Two-Factor Authentication (2FA)
+
+**Option 1 — IP Whitelisting:** Whitelist up to 25 IPv4 addresses in Dashboard → Developers → Two-Factor Authentication. Only production requires this; sandbox does not.
+
+**Option 2 — Public Key Signature (Dynamic IP):** Use RSA encryption with `X-Cf-Signature` header. See `references/REFERENCE.md` for full code (PHP, Java, Node.js, Python).
 
 ---
 
-## Backend API Integration
+## 4. Payout Methods
 
-### 1. Create Beneficiary (V2)
+| Method | Speed | Limit | Required Details |
+|---|---|---|---|
+| **IMPS** | Instant | ₹5 lakhs/payout | Beneficiary ID, name, email, phone, bank account, IFSC |
+| **NEFT** | Up to 2 hrs (Mon–Sat) | Default for >₹2 lakhs | Beneficiary ID, name, email, phone, bank account, IFSC |
+| **UPI** | 24×7 | ₹1 lakh | Beneficiary ID, name, email, phone, VPA |
+| **Card** | Instant–48 hrs | All credit cards | Beneficiary ID, name, email, phone, tokenised card number |
+| **Paytm wallet** | — | ₹1 lakh (KYC required) | Phone number |
+| **Amazon Pay wallet** | — | ₹10,000 | Phone number |
+
+---
+
+## 5. Create Beneficiary
 
 ```bash
 curl -X POST 'https://sandbox.cashfree.com/payout/beneficiary' \
@@ -78,15 +118,21 @@ curl -X POST 'https://sandbox.cashfree.com/payout/beneficiary' \
     "beneficiary_contact_details": {
       "beneficiary_email": "johndoe@cashfree.com",
       "beneficiary_phone": "9876543210",
-      "beneficiary_address": "177A Bleecker Street",
       "beneficiary_city": "Bangalore",
-      "beneficiary_state": "Karnataka",
-      "beneficiary_postal_code": "560001"
+      "beneficiary_state": "Karnataka"
     }
   }'
 ```
 
-### 2. Standard Transfer (V2)
+**Get Beneficiary:** `GET /payout/beneficiary?beneficiary_id=JOHN18011343`
+
+**Remove Beneficiary:** `DELETE /payout/beneficiary?beneficiary_id=JOHN18011343`
+
+---
+
+## 6. Initiate Transfer
+
+### Standard Transfer (V2)
 
 ```bash
 curl -X POST 'https://sandbox.cashfree.com/payout/transfers' \
@@ -103,230 +149,99 @@ curl -X POST 'https://sandbox.cashfree.com/payout/transfers' \
   }'
 ```
 
-**Transfer Modes:** `banktransfer`, `upi`, `imps`, `neft`, `rtgs`, `paytm`, `amazonpay`
+**transfer_mode values:** `banktransfer`, `upi`, `imps`, `neft`, `rtgs`, `paytm`, `amazonpay`
 
-### 3. Direct Transfer (Without Pre-added Beneficiary)
+Transfers are **async by default** — you receive `RECEIVED` immediately; final status via webhook.
 
-```bash
-curl -X POST 'https://payout-api.cashfree.com/payout/v1/directTransfer' \
-  -H 'Authorization: Bearer <TOKEN>' \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "amount": 100,
-    "transferId": "DIRECT_001",
-    "transferMode": "banktransfer",
-    "beneDetails": {
-      "bankAccount": "00111122233",
-      "ifsc": "HDFC0000001",
-      "name": "John Doe",
-      "phone": "9876543210",
-      "email": "johndoe@cashfree.com",
-      "address1": "Bangalore"
-    }
-  }'
-```
-
-### 4. Batch Transfer (V2)
+### Get Transfer Status
 
 ```bash
-curl -X POST 'https://sandbox.cashfree.com/payout/transfers/batch' \
-  -H 'x-client-id: <CLIENT_ID>' \
-  -H 'x-client-secret: <CLIENT_SECRET>' \
-  -H 'x-api-version: 2024-01-01' \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "batch_transfer_id": "BATCH_001",
-    "batch_format": "BANK_ACCOUNT",
-    "delete_bene": 1,
-    "batch": [
-      {
-        "transfer_id": "TXN_001",
-        "amount": 100,
-        "phone": "9876543210",
-        "bank_account": "00111122233",
-        "ifsc": "HDFC0000001",
-        "email": "user1@email.com",
-        "name": "User One"
-      }
-    ]
-  }'
-```
-
-### 5. Get Transfer Status (V2)
-
-```bash
-curl -X GET 'https://sandbox.cashfree.com/payout/transfers/<transfer_id>' \
+curl -X GET 'https://sandbox.cashfree.com/payout/transfers/TRANSFER_001' \
   -H 'x-client-id: <CLIENT_ID>' \
   -H 'x-client-secret: <CLIENT_SECRET>' \
   -H 'x-api-version: 2024-01-01'
 ```
 
-### 6. Get Balance
+---
 
-```bash
-curl -X GET 'https://payout-api.cashfree.com/payout/v1/getBalance' \
-  -H 'Authorization: Bearer <TOKEN>'
-```
+## 7. Transfer Status Values
+
+| Status | Description | Final? |
+|---|---|---|
+| `RECEIVED` | Transfer received for processing | No |
+| `PENDING` | Awaiting bank confirmation | No |
+| `SUCCESS` | Transfer completed, account debited | No* |
+| `FAILED` | Transfer failed | Yes |
+| `REVERSED` | Bank reversed the transfer | Yes |
+| `REJECTED` | Rejected by Cashfree (risk, blacklist, limits) | Yes |
+| `APPROVAL_PENDING` | Requires manual approval in Dashboard | No |
+| `QUEUED` | Queued for processing | No |
+| `MANUALLY_REJECTED` | Rejected by merchant/team member | Yes |
+
+*SUCCESS can transition to REVERSED if beneficiary bank reverses the transfer.
 
 ---
 
-## Webhook Integration
+## 8. Webhooks
 
-### Configure Webhooks
-Dashboard > Payouts > Developers > Webhooks
+### Configure
 
-### Webhook Events
+1. Log in to **Merchant Dashboard** → **Payouts Dashboard** → **Developers** → **Webhooks**
+2. Click **Add Webhook URL**
+3. Enter your HTTPS webhook endpoint
+4. Select webhook version: **V2** (recommended)
+5. Click **Test & Add Webhook**
+
+### Events
 
 | Event | Description |
-|-------|-------------|
-| `TRANSFER_SUCCESS` | Transfer completed, account debited |
+|---|---|
+| `TRANSFER_SUCCESS` | Transfer successful, funds sent to beneficiary bank |
+| `TRANSFER_ACKNOWLEDGED` | Beneficiary bank confirmed credit to end user |
 | `TRANSFER_FAILED` | Transfer attempt failed |
-| `TRANSFER_REVERSED` | Bank reversed the transfer |
-| `TRANSFER_ACKNOWLEDGED` | Bank confirmed credit to beneficiary |
+| `TRANSFER_REVERSED` | Beneficiary bank reversed the transfer |
 | `TRANSFER_REJECTED` | Cashfree rejected the transfer |
+| `TRANSFER_APPROVED` | Transfer approved by Approver |
+| `BULK_TRANSFER_REJECTED` | One or more transfers in batch rejected |
+| `BENEFICIARY_INCIDENT` | Service disruption for beneficiary bank/payment mode |
+| `CREDIT_CONFIRMATION` | Funds credited to your account balance |
 | `LOW_BALANCE_ALERT` | Account balance below threshold |
-| `CREDIT_CONFIRMATION` | Balance credited to account |
-| `BENEFICIARY_INCIDENT` | Service disruption for beneficiary bank |
 
-### Sample Webhook Payload
+### Webhook Signature Verification (V2 — HMAC-SHA256)
 
-```json
-{
-  "event": "TRANSFER_SUCCESS",
-  "transferId": "TRANSFER_001",
-  "referenceId": "123456",
-  "utr": "P16111765023806",
-  "acknowledged": 1,
-  "eventTime": "2024-01-15T10:30:00Z",
-  "signature": "base64_encoded_signature"
-}
-```
-
-### Webhook Signature Verification
-
-Verify using HMAC-SHA256 with your client secret:
+**CRITICAL:** Always verify signatures. Use the **oldest active client secret**.
 
 ```javascript
-// Node.js
+// Node.js (Express)
 const crypto = require("crypto");
 
-function verifyWebhook(req) {
-  const timestamp = req.headers["x-webhook-timestamp"];
-  const rawBody = req.rawBody; // Must use raw body, not parsed JSON
-  const secretKey = "<client-secret>";
-  
-  const signStr = timestamp + rawBody;
-  const computedSignature = crypto
-    .createHmac("sha256", secretKey)
-    .update(signStr)
-    .digest("base64");
-  
-  return computedSignature === req.headers["x-webhook-signature"];
-}
+app.post("/payout-webhook", express.raw({ type: "application/json" }), (req, res) => {
+    const timestamp = req.headers["x-webhook-timestamp"];
+    const signature = req.headers["x-webhook-signature"];
+    const rawBody = req.body.toString();
+
+    const computedSignature = crypto
+        .createHmac("sha256", process.env.CASHFREE_CLIENT_SECRET)
+        .update(timestamp + rawBody)
+        .digest("base64");
+
+    if (computedSignature === signature) {
+        const payload = JSON.parse(rawBody);
+        // Route by payload.type
+        res.status(200).send("OK");
+    } else {
+        res.status(400).send("Invalid signature");
+    }
+});
 ```
 
-```python
-# Python
-import base64
-import hashlib
-import hmac
-
-def verify_webhook(request):
-    raw_body = request.data.decode('utf-8')
-    timestamp = request.headers['x-webhook-timestamp']
-    signature = request.headers['x-webhook-signature']
-    
-    sign_data = timestamp + raw_body
-    message = bytes(sign_data, 'utf-8')
-    secret = bytes("<client-secret>", 'utf-8')
-    
-    computed = base64.b64encode(
-        hmac.new(secret, message, digestmod=hashlib.sha256).digest()
-    ).decode("utf-8")
-    
-    return computed == signature
-```
-
-```java
-// Java
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-import java.util.Base64;
-
-public String verifySignature(HttpServletRequest request) throws Exception {
-    String payload = request.getReader().lines().collect(Collectors.joining());
-    String timestamp = request.getHeader("x-webhook-timestamp");
-    String data = timestamp + payload;
-    
-    Mac sha256_HMAC = Mac.getInstance("HmacSHA256");
-    SecretKeySpec secretKey = new SecretKeySpec(
-        "<client-secret>".getBytes(), "HmacSHA256"
-    );
-    sha256_HMAC.init(secretKey);
-    
-    return Base64.getEncoder().encodeToString(
-        sha256_HMAC.doFinal(data.getBytes())
-    );
-}
-```
-
-### IPs to Whitelist (for receiving webhooks)
-
-**Sandbox:** `52.66.25.127`, `15.206.45.168`  
-**Production:** `52.66.101.190`, `3.109.102.144`, `18.60.134.245`, `18.60.183.142`  
-**Port:** `443` (HTTPS)
+> For Python signature verification, all V2 webhook payloads (TRANSFER_ACKNOWLEDGED, SUCCESS, FAILED, REVERSED, REJECTED, BULK_TRANSFER_REJECTED), V1 webhook payloads, batch transfer details, and key status codes — see `references/REFERENCE.md`.
 
 ---
 
-## Transfer Status Codes
+## 9. Security — Never Violate
 
-| Status | Description |
-|--------|-------------|
-| `SUCCESS` | Transfer completed |
-| `PENDING` | Awaiting bank confirmation |
-| `FAILED` | Transfer failed |
-| `REVERSED` | Bank reversed the transfer |
-| `REJECTED` | Rejected by Cashfree |
-
----
-
-## Error Handling
-
-| Code | Message | Action |
-|------|---------|--------|
-| 403 | IP not whitelisted | Whitelist IP in dashboard |
-| 403 | Token is not valid | Regenerate auth token |
-| 404 | Beneficiary does not exist | Add beneficiary first |
-| 409 | Transfer Id already exists | Use unique transfer ID |
-| 412 | Not enough available balance | Add funds to account |
-| 422 | Invalid IFSC code | Verify bank details |
-
----
-
-## Sample Integration Kits
-
-- **Node.js**: https://github.com/cashfree/cashfree-payout-node
-- **Python**: https://github.com/cashfree/cashfree-payout-python
-- **Java**: https://github.com/cashfree/cashfree-payout-java
-- **PHP**: https://github.com/cashfree/cashfree-payout-php
-
----
-
-## Best Practices
-
-1. Always verify webhook signatures before processing
-2. Implement idempotency - webhooks may be delivered multiple times
-3. Use unique `transfer_id` for each transaction
-4. Store `reference_id` and `utr` for reconciliation
-5. Handle `PENDING` status with polling or webhooks
-6. Keep API credentials secure - never expose in frontend code
-
----
-
-This skills file was created based on the Cashfree Payouts documentation. For more details, see:
-
-```suggestions
-(Payouts API Overview)[/api-reference/payouts/overview]
-(Webhooks V2)[/api-reference/payouts/v2/webhooks/webhooks-v2]
-(Standard Transfer Integration)[/payouts/payouts/integrations/standard-transfer]
-```
+- **Never expose `x-client-secret` in frontend code.**
+- **Never retry on 5XX responses** without checking transfer status first — duplicate transfers are hard to reverse.
+- **Store credentials in environment variables**, never hardcoded.
+- **Verify webhook signatures** before processing any event.

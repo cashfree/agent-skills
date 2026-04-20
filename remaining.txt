@@ -1,0 +1,534 @@
+===============================================================================
+  CASHFREE AGENT-SKILLS — COVERAGE GAP REPORT
+  Audit date: 2026-04-18
+  Last updated: 2026-04-19 (Sprints 1–3 shipped)
+  Authored for: future skill authoring roadmap
+
+  PROGRESS LEGEND:
+    [ ]  = not started
+    [~]  = in progress
+    [x]  = DONE — skill shipped into src/templates/ and wired through index.ts
+===============================================================================
+
+This file lists topics real-world Cashfree integrators hit in production that
+the current skill set does NOT cover (or covers only incidentally). It is
+ordered by business impact — the earlier items unblock the widest merchant
+scenarios and will surface most often in prod support tickets.
+
+For every gap we note:
+  • What it is / why devs need it
+  • Cashfree API / product surface that backs it
+  • Whether to EXTEND an existing skill or CREATE a new one
+  • Suggested skill filename if new
+  • Rough priority (P0 = ship next, P1 = next quarter, P2 = nice-to-have)
+
+Legend for current state (from audit of src/templates/):
+  YES      = fully covered in an existing SKILL.md / REFERENCE.md
+  PARTIAL  = mentioned in passing; not a first-class section
+  NO       = not present anywhere
+
+-------------------------------------------------------------------------------
+  TIER 1 — LAUNCH-CRITICAL (P0)
+  Every merchant with live PG traffic needs these within ~30 days of go-live.
+-------------------------------------------------------------------------------
+
+1. SETTLEMENTS & RECONCILIATION                                         [x] DONE
+   (shipped 2026-04-19 — src/templates/settlements-and-reconciliation.md
+    + settlements-and-reconciliation-reference.md; wired in index.ts + manifest.ts
+    + README.md; installs as settlements-and-reconciliation/SKILL.md + REFERENCE.md)
+   Current: PARTIAL. pg/webhooks mentions SETTLEMENT_WEBHOOK and pg/api-reference
+            lists rate limits for "Get Settlements". No end-to-end doc for the
+            settlement lifecycle, recon APIs, or UTR → bank-statement matching.
+   Why devs need it: Finance ops files this under "we went live, now where is
+            my money and how do I reconcile it against the bank". Unblocks
+            accounting integration (Tally, QuickBooks, Zoho Books, SAP) and
+            auto-ledger updates. Every live merchant asks about T+1 vs instant,
+            TDS deduction, and "why is the settled amount less than the order
+            amount" within the first settlement cycle.
+   Cashfree surface:
+     • GET  /pg/settlements                      (list settlements)
+     • GET  /pg/orders/{order_id}/settlements    (per-order)
+     • POST /pg/settlement/recon                 (cursor-paginated recon)
+     • POST /pg/recon                            (transaction-level recon)
+     • Webhooks: SETTLEMENT_SUCCESS, SETTLEMENT_WEBHOOK
+     • Dashboard MIS reports: Transactions, Settlement, Settlement Recon,
+       Ledger, Vendor Recon, Refunds — CSV / XLSX / scheduled SFTP
+     • Instant Settlements product (fee model, on-demand endpoint)
+   Action: CREATE new skill — `settlements-and-reconciliation/`
+           (SKILL.md + references/REFERENCE.md with full response shapes,
+           TDS/fee breakdown, UTR matching example, instant-settlements flow)
+   Priority: P0
+
+
+2. REFUNDS — DEDICATED SKILL                                            [x] DONE
+   (shipped 2026-04-19 — src/templates/pg/refunds.md + pg/refunds-reference.md;
+    wired in pg.ts + index.ts + manifest.ts + README.md; installs as
+    pg/refunds/SKILL.md + pg/refunds/references/REFERENCE.md)
+   Current: PARTIAL. Refund basics are in pg/api-reference.md Workflow D, but
+            there is no dedicated skill covering refund policy (instant vs
+            normal speed, partial, multi-refund, reverse pre-auth vs void,
+            refund failure reasons, refund webhook deduping, merchant-provided
+            refund_id collisions). Common-mistakes has none.
+   Why devs need it: Refunds are the #2 support-ticket generator after
+            webhooks. Questions: "can I refund to a different instrument?",
+            "why is refund PENDING for 3 days?", "instant refund fee?",
+            "refund reversed — what now?", "refund vs void for pre-auth?".
+   Cashfree surface:
+     • POST   /pg/orders/{order_id}/refunds                  (create)
+     • GET    /pg/orders/{order_id}/refunds                  (list for order)
+     • GET    /pg/orders/{order_id}/refunds/{refund_id}      (fetch)
+     • Webhooks: REFUND_STATUS_WEBHOOK (SUCCESS / FAILED / PENDING / CANCELLED)
+     • Speeds: STANDARD vs INSTANT refunds (different fee + eligibility)
+     • Refund reason codes and retry semantics
+   Action: CREATE new skill — `pg/refunds/` (SKILL.md + REFERENCE.md).
+           Promote the existing content from pg/api-reference §D into a
+           full skill; add instant-refund eligibility logic and
+           idempotency (refund_id uniqueness) rules.
+   Priority: P0
+
+
+3. DISPUTES & CHARGEBACKS                                               [x] DONE
+   (shipped 2026-04-19 — src/templates/pg/disputes.md + pg/disputes-reference.md;
+    wired in pg.ts + index.ts + manifest.ts + README.md; installs as
+    pg/disputes/SKILL.md + pg/disputes/references/REFERENCE.md)
+   Current: NO. Not mentioned anywhere.
+   Why devs need it: Chargebacks have a hard 30-day response SLA — missing it
+            = automatic loss. Every merchant >1,000 orders/month will see
+            disputes. Devs building CRM/ops tooling need to surface dispute
+            state and accept evidence uploads programmatically.
+   Cashfree surface:
+     • GET  /pg/disputes/{dispute_id}
+     • GET  /pg/orders/{order_id}/disputes
+     • GET  /pg/payments/{cf_payment_id}/disputes
+     • POST /pg/disputes/{dispute_id}/accept
+     • POST /pg/disputes/{dispute_id}/contest   (evidence upload)
+     • Webhooks: DISPUTE_CREATED, DISPUTE_UPDATED, DISPUTE_CLOSED
+     • Lifecycle: Retrieval Request → Chargeback → Pre-Arbitration → Arbitration
+   Action: CREATE new skill — `pg/disputes/` (SKILL.md + REFERENCE.md).
+           Include lifecycle diagram, SLA clock, evidence-doc requirements,
+           accept-vs-contest decision tree.
+   Priority: P0
+
+
+4. PAYMENT LINKS                                                        [x] DONE
+   (shipped 2026-04-19 — src/templates/pg/payment-links.md + payment-links-reference.md;
+    wired in pg.ts + index.ts + manifest.ts + README.md; installs as
+    pg/payment-links/SKILL.md + pg/payment-links/references/REFERENCE.md)
+   Current: PARTIAL. Razorpay-migration reference mentions POST /pg/links but
+            no standalone guide. Existing skill set assumes merchant has a
+            frontend; huge chunk of Cashfree users are SMB / B2B who only
+            need shareable links.
+   Why devs need it: Payment Links are the #1 entry-point for non-technical
+            merchants (tuition, freelancers, B2B invoices). Even dev-heavy
+            merchants use them for out-of-app dunning / collections flows.
+            API covers creation, expiry, auto-reminders, partial payments.
+   Cashfree surface:
+     • POST  /pg/links                      (create link)
+     • GET   /pg/links/{link_id}            (fetch)
+     • PATCH /pg/links/{link_id}/cancel
+     • GET   /pg/links/{link_id}/orders     (payments under link)
+     • Webhook: PAYMENT_LINK_EVENT (ACTIVE|PAID|PARTIALLY_PAID|EXPIRED|CANCELLED)
+     • link_partial_payments, link_minimum_partial_amount, link_expiry_time,
+       link_auto_reminders, link_notify (sms/email), link_notes
+   Action: CREATE new skill — `pg/payment-links/` (SKILL.md + REFERENCE.md).
+   Priority: P0
+
+
+-------------------------------------------------------------------------------
+  TIER 2 — HIGH-TRAFFIC FEATURE SURFACE (P1)
+  Required by marketplaces, subscription-y apps, and finance-heavy merchants.
+-------------------------------------------------------------------------------
+
+5. EASY SPLIT / MARKETPLACE VENDOR FLOWS                                [x] DONE
+   (shipped 2026-04-19 — src/templates/pg/easy-split.md + easy-split-reference.md;
+    wired in pg.ts + index.ts + manifest.ts + README.md; installs as
+    pg/easy-split/SKILL.md + pg/easy-split/references/REFERENCE.md)
+   Current: NO. Not present.
+   Why devs need it: Any marketplace (edtech commissions, food delivery,
+            rental, freelancer payments, fintech lending) must split each
+            order across vendors, hold commission, and settle to multiple
+            bank accounts. This is a multi-day integration and a frequent
+            failure mode (wrong splits = vendor disputes).
+   Cashfree surface:
+     • POST   /pg/easy-split/vendors                         (create vendor)
+     • PATCH  /pg/easy-split/vendors/{vendor_id}             (update KYC/bank)
+     • GET    /pg/easy-split/vendors/{vendor_id}/balances
+     • POST   /pg/easy-split/vendors/{vendor_id}/adjustment
+     • Split at order creation:   order_splits: [{vendor_id, amount|percentage}]
+     • Split after payment:        POST /pg/orders/{order_id}/split
+     • Vendor settlement cycles (instant vs T+N)
+     • POST /pg/split/vendor-recon  (per-vendor ledger report)
+     • Refund-before-split automatic reversal rules
+   Action: CREATE new skill — `pg/easy-split/` (SKILL.md + REFERENCE.md).
+           Include both static (at-order) and dynamic (post-payment) split
+           flows; commission-hold examples; vendor KYC requirements.
+   Priority: P1
+
+
+6. TOKEN VAULT / CARD-ON-FILE (RBI TOKENIZATION)                        [x] DONE
+   (shipped 2026-04-19 — src/templates/pg/token-vault.md + token-vault-reference.md;
+    wired in pg.ts + index.ts + manifest.ts + README.md; installs as
+    pg/token-vault/SKILL.md + pg/token-vault/references/REFERENCE.md)
+   Current: PARTIAL. pg/api-reference references `instrument_id`; webhooks
+            reference mentions Token Vault webhook. No dedicated guide.
+   Why devs need it: RBI mandates network tokenization for all saved-card
+            flows (post-2022). Any merchant saving cards must use token vault
+            — storing raw PAN is illegal. Subscription, OneClick, and
+            "remember me" checkouts all depend on this.
+   Cashfree surface:
+     • GET    /pg/customers/{customer_id}/instruments
+     • GET    /pg/customers/{customer_id}/instruments/{instrument_id}
+     • DELETE /pg/customers/{customer_id}/instruments/{instrument_id}
+     • GET    /pg/customers/{customer_id}/instruments/{instrument_id}/cryptogram
+     • Pay with saved token: payment_method.card.instrument_id on Order Pay
+     • Consent capture at checkout (save_instrument flag)
+     • Network coverage: Visa / Mastercard / RuPay
+   Action: CREATE new skill — `pg/token-vault/` (SKILL.md + REFERENCE.md).
+           Call out the RBI compliance angle explicitly — merchants often
+           don't realize storing raw PAN is now illegal.
+   Priority: P1
+
+
+7. OFFERS / INSTANT DISCOUNTS / NO-COST EMI                             [x] DONE
+   (shipped 2026-04-19 — src/templates/pg/offers.md + offers-reference.md;
+    wired in pg.ts + index.ts + manifest.ts + README.md; installs as
+    pg/offers/SKILL.md + pg/offers/references/REFERENCE.md)
+   Current: PARTIAL. Webhook payloads mention payment_offers; no offer
+            creation or validation guide.
+   Why devs need it: Conversion-lift lever for ecomm. Bank offer programs
+            (SBI 10%, HDFC 5%, no-cost EMI) are table-stakes during sale
+            events. Needs BIN/issuer/network-scoped offer config.
+   Cashfree surface:
+     • POST /pg/offers                  (create BIN/issuer/network offer)
+     • GET  /pg/offers / /pg/offers/{offer_id}
+     • offer_details.type: DISCOUNT | CASHBACK | DISCOUNT_AND_CASHBACK
+     • offer_validations: min_amount, payment_method filters
+       (card.card_bank_name, card.card_network, card.card_type, upi app)
+     • Apply at payment time via offer_id or "best available offer"
+     • No-cost EMI = Offer on top of EMI plan
+   Action: CREATE new skill — `pg/offers/` (SKILL.md + REFERENCE.md).
+           Combine with "no-cost EMI" recipe since they're always co-used.
+   Priority: P1
+
+
+8. AUTO-COLLECT / VIRTUAL BANK ACCOUNTS / QR                            [x] DONE
+   (shipped 2026-04-19 — src/templates/auto-collect.md + auto-collect-reference.md;
+    wired in auto-collect.ts + index.ts + manifest.ts + README.md; installs as
+    auto-collect/SKILL.md + auto-collect/references/REFERENCE.md)
+   Current: PARTIAL. payment-modes.md mentions bank transfer/challan / VBA;
+            no standalone guide.
+   Why devs need it: B2B collections, rent, dealer/franchisee inflows,
+            FASTag top-ups, lending EMI collection — all flow through static
+            virtual account numbers or static VPAs. This is often a separate
+            product sale; merchants need explicit guidance.
+   Cashfree surface:
+     • POST /pg/vba                                 (create VBA)
+     • GET  /pg/vba/{vba_id}
+     • GET  /pg/vba/{vba_id}/payments
+     • Static UPI QR / dynamic QR / BharatQR
+     • Webhooks: VBA_CREDIT (payment credited to a VBA)
+     • Use cases: rent, dealer, loan EMI, branch-wise reconciliation
+   Action: CREATE new skill — `auto-collect/` (SKILL.md + REFERENCE.md).
+           Contrast with PG orders (push-to-customer) vs VBA (pull-from-customer).
+   Priority: P1
+
+
+9. WEB CHECKOUT JS v3 — DEDICATED SKILL                                 [x] DONE
+   (shipped 2026-04-19 — src/templates/pg/web-sdk.md + web-sdk-reference.md;
+    wired in pg.ts + index.ts + manifest.ts + README.md; installs as
+    pg/web-sdk/SKILL.md + pg/web-sdk/references/REFERENCE.md)
+   Current: PARTIAL. pg-overview.md names variants; Razorpay-migration skill
+            shows a minimal snippet. No skill owns "here is every option,
+            mode, and lifecycle event of the Cashfree JS SDK".
+   Why devs need it: Frontend devs integrating React/Vue/Angular/Next/SPAs
+            need per-component mount APIs, Drop-in options, Elements
+            (cardNumber, cardCvv, cardHolder, cardExpiry, savePaymentInstrument),
+            redirect handling, 3DS return flow, and SPA navigation gotchas.
+   Cashfree surface:
+     • Script: https://sdk.cashfree.com/js/v3/cashfree.js
+     • Modes: Drop-in | Elements (headless) | Redirect (_self) | Modal (_modal)
+     • Lifecycle: cashfree.checkout(...).then(result => {...})
+     • Saved-instruments UI / OneClick flow
+     • Native Apple Pay / Google Pay integration on supported devices
+     • Source repo: github.com/cashfree/cashfree-dropjs
+   Action: CREATE new skill — `pg/web-sdk/` (SKILL.md + REFERENCE.md).
+           Explicit symmetry with pg/mobile-sdks and pg/apis / pg/backend-sdks.
+   Priority: P1
+
+
+-------------------------------------------------------------------------------
+  TIER 3 — SEGMENT-SPECIFIC (P1 / P2)
+  Only a subset of merchants need these, but for that subset they're P0.
+-------------------------------------------------------------------------------
+
+10. PARTNER / PLATFORM APIs (SUB-MERCHANT ONBOARDING)
+    Current: NO. getting-started only mentions "Partner Authentication" header.
+    Why devs need it: SaaS platforms (POS, ERP, invoicing tools, white-label
+             marketplaces) that embed Cashfree must programmatically onboard
+             their customers as sub-merchants. Different auth surface
+             (x-partner-apikey) and different base path entirely.
+    Cashfree surface:
+      • Base URL:  https://api.cashfree.com/partners
+      • Headers:   x-partner-apikey, x-api-version: 2023-01-01
+      • POST   /partners/merchants            (create sub-merchant)
+      • KYC upload APIs
+      • Product activation (PG / Payouts / Easy Split)
+      • GET merchant status / fee configuration
+    Action: CREATE new skill — `platform-apis/` (SKILL.md + REFERENCE.md).
+    Priority: P1 (P0 for B2B2C platforms)
+
+
+11. GLOBAL COLLECTIONS (accept payments FROM abroad)
+    Current: NO. cross-border.md covers PA-CB (accepting from India to abroad
+             under PA-CB rails) but not Global Collections (India exporters
+             accepting USD/EUR/etc. settling to INR with FIRA/FIRC).
+    Why devs need it: Indian exporters, freelancers, SaaS companies invoicing
+             abroad. Mandatory FIRA/FIRC generation for forex compliance.
+    Cashfree surface:
+      • Product: Global Collections (17+ currencies, 180+ countries)
+      • Endpoints: /pg/international-payments/global-collections/*
+      • Auto-INR settlement + FIRA/FIRC docs auto-generated
+    Action: EXTEND `cross-border/` with a second reference section, OR
+            create `global-collections/`. Recommend new skill — the product
+            is direction-inverted from cross-border (inward vs outward).
+    Priority: P1 for exporters, P2 otherwise
+
+
+12. BBPS BILL PAYMENTS
+    Current: NO.
+    Why devs need it: Bill-aggregator apps, super-apps, fintech wallets,
+             recharge apps integrate BBPS for electricity/DTH/gas/FASTag/
+             loan-EMI/credit-card bill payments. Narrow segment but deep.
+    Cashfree surface:
+      • /pg/bbps/* endpoints (bill fetch, bill pay, status)
+      • NPCI BBPS rail; agent-institution vs biller-operating-unit model
+    Action: CREATE new skill — `bbps/` (SKILL.md + REFERENCE.md).
+    Priority: P2 (P0 for the segment)
+
+
+13. softPOS (Android NFC Tap-to-Pay)
+    Current: NO.
+    Why devs need it: Field-agent collections, retail POS without hardware,
+             insurance-agent collections, last-mile delivery. Uses Android
+             NFC as a terminal.
+    Cashfree surface:
+      • /pg/softpos/terminals/* (terminal registration, transaction APIs)
+      • Cash ledger for field agents
+      • Static/dynamic QR co-mounted with Tap-to-Pay
+    Action: CREATE new skill — `softpos/` (SKILL.md + REFERENCE.md).
+    Priority: P2
+
+
+14. ONEESCROW (RBI-COMPLIANT ESCROW)
+    Current: NO.
+    Why devs need it: Real-estate, M&A, B2B holdback use cases require a
+             regulated escrow. Specialized — likely low volume but very high
+             ticket size per transaction.
+    Cashfree surface:
+      • /pg/other-apis/oneescrow/*
+    Action: CREATE new skill — `oneescrow/` (SKILL.md only; low volume).
+    Priority: P2
+
+
+15. INSTANT SETTLEMENTS (as its own surface, not just a section)
+    Current: PARTIAL (will be covered by skill #1 above).
+    Why devs need it: Different fee model (percent-of-amount), different
+             availability (24×7 including holidays), different SLA (~15 min),
+             different request pattern (on-demand or auto). Often a separate
+             sales motion.
+    Action: Fold into skill #1 (Settlements & Reconciliation) as a dedicated
+            section rather than spinning a new skill. Good trade-off for now.
+    Priority: P0 (as part of #1)
+
+
+-------------------------------------------------------------------------------
+  TIER 4 — MIGRATION SKILLS (additional PGs)
+  The Razorpay-migration skill demonstrates pattern. Replicate for other
+  frequent migration sources.
+-------------------------------------------------------------------------------
+
+16. PAYU → CASHFREE                  (P1 — #2 most common migration after Rzp)
+17. PAYTM PAYMENT GATEWAY → CASHFREE (P1 — triggered by Paytm wind-down news)
+18. CCAVENUE → CASHFREE              (P1 — legacy hosted checkout, large ticket)
+19. BILLDESK → CASHFREE              (P2 — enterprise, net-banking heavy)
+20. JUSPAY → CASHFREE                                                [x] DONE
+   (shipped 2026-04-19 — src/templates/migrate-from-juspay.md
+    + migrate-from-juspay-reference.md; wired in migrate-from-juspay.ts
+    + index.ts + manifest.ts + README.md; installs as
+    migrate-from-juspay/SKILL.md + migrate-from-juspay/references/REFERENCE.md)
+   Current: DONE. Dedicated migration skill now covers the orchestrator →
+            direct-acquirer shift, `sdk_payload` / `client_auth_token` →
+            `payment_session_id`, Juspay Basic Auth / `x-merchantid` /
+            `x-routing-id` → Cashfree headers, webhook auth model rewrite,
+            status translation (`CHARGED` → `PAID` / `SUCCESS`), refund
+            mapping, mandate/subscription pointers, and mobile/web checkout
+            migration notes.
+   Why devs need it: Juspay migrations are structurally different from other
+            PG swaps because developers are also losing payment orchestration,
+            routing, and processor abstraction in the same cutover.
+   Action: CREATE new skill — `migrate-from-juspay/` (SKILL.md + REFERENCE.md).
+   Priority: P2
+
+21. STRIPE (INDIA) → CASHFREE        (P2 — niche but growing)
+
+   Each follows the pattern set by migrate-from-razorpay:
+     • SKILL.md: concept map (5 gotchas), workflow, code diffs, diagnostic
+     • REFERENCE.md: endpoint map, field diffs, SDK rewrites, webhook diff
+   Action: CREATE new skills — `migrate-from-payu/`, `migrate-from-paytm/`,
+           `migrate-from-ccavenue/`, `migrate-from-billdesk/`,
+           `migrate-from-stripe/`.
+
+
+-------------------------------------------------------------------------------
+  TIER 5 — CROSS-CUTTING CONCERNS (EXTEND EXISTING SKILLS)
+  Not big enough for their own skill, but need to exist somewhere.
+-------------------------------------------------------------------------------
+
+22. API IDEMPOTENCY KEYS                                                [x] DONE
+    (shipped 2026-04-19 — extended pg/api-reference.md §4 and
+     pg/sdk-reference.md §10 with full x-idempotency-key semantics,
+     SDK call signatures, retry patterns, and common mistakes)
+    Current: PARTIAL. Webhook idempotency is covered (pg/webhooks-reference
+             §3). Client-side API idempotency (x-idempotency-key on
+             POST /pg/orders and POST .../refunds) is not.
+    Why devs need it: Retries under network timeout — the #1 source of
+             duplicate orders / double-refunds in production.
+    Action: EXTEND pg/apis/references/REFERENCE.md and
+            pg/backend-sdks/references/REFERENCE.md with a dedicated
+            "Idempotency" section. Cross-link from common-mistakes.
+    Priority: P0 (cheap to add, high value)
+
+
+23. EXHAUSTIVE ERROR CODE TABLE
+    Current: PARTIAL. pg/api-reference §4 has common codes. No complete
+             machine-readable table.
+    Why devs need it: Mapping provider error → user-facing message.
+    Action: EXTEND pg/apis/references/REFERENCE.md with a full appendix
+            table (code | type | http_status | description | dev action).
+    Priority: P1
+
+
+24. FRAUD / RISK SIGNALS (PG-SIDE)
+    Current: PARTIAL. payouts mentions "Payout Protect"; nothing for PG risk.
+    Why devs need it: Understanding FLAGGED status, velocity checks, CVV/AVS
+             mismatch, 3DS forced vs frictionless.
+    Action: EXTEND pg/apis/references/REFERENCE.md OR new mini-skill.
+    Priority: P2
+
+
+25. GST INVOICING (merchant-side customer invoices)
+    Current: NO.
+    Why devs need it: Many devs assume Cashfree generates GST invoices for
+             their end customers. It does not — needs to be explicit to
+             avoid confusion during audit/compliance review.
+    Action: Add a short "GST & Invoicing" section to getting-started.md
+            clarifying what Cashfree does vs doesn't issue.
+    Priority: P2
+
+
+26. VERIFICATION SUITE (UPI handle verify, bank verify beyond Secure ID)
+    Current: PARTIAL (secure-id covers KYC). Verification Suite surfaces
+             used INSIDE payout and subscription flows (pre-flight bank
+             verify, pre-mandate UPI handle check) aren't cross-linked.
+    Action: EXTEND secure-id with payout-adjacent examples and add a
+            cross-link from payouts/SKILL.md.
+    Priority: P2
+
+
+27. MULTI-CURRENCY / FX (beyond Global Collections)
+    Current: NO.
+    Why devs need it: Pricing in USD, settling in INR for enterprise SaaS.
+    Action: Covered by Global Collections skill (#11); no separate skill
+            needed.
+    Priority: P1 (as part of #11)
+
+
+28. REPORTING — PROGRAMMATIC EXPORTS & SCHEDULED REPORTS
+    Current: PARTIAL. Covered incidentally by Settlements + Recon APIs.
+    Why devs need it: Scheduled SFTP / email reports for finance teams.
+    Action: Fold into skill #1 (Settlements & Reconciliation) as a
+            section; no separate skill.
+    Priority: P0 (as part of #1)
+
+
+===============================================================================
+  SUGGESTED SHIP ORDER (if we build 3 per sprint)
+===============================================================================
+
+Sprint 1 (P0 unblockers for every merchant):                        [x] SHIPPED
+  [x]  settlements-and-reconciliation/     (new — shipped 2026-04-19)
+  [x]  pg/refunds/                         (new — shipped 2026-04-19)
+  [x]  pg/disputes/                        (new — shipped 2026-04-19)
+  [x]  idempotency section in pg/apis/references + pg/backend-sdks/references
+                                            (extended 2026-04-19)
+
+Sprint 2 (P0 → P1 core feature surface):                            [x] SHIPPED
+  [x]  pg/payment-links/                   (new — shipped 2026-04-19)
+  [x]  pg/token-vault/                     (new — shipped 2026-04-19)
+  [x]  pg/web-sdk/                         (new — shipped 2026-04-19)
+
+Sprint 3 (marketplace + conversion levers):                         [x] SHIPPED
+  [x]  pg/easy-split/                      (new — shipped 2026-04-19)
+  [x]  pg/offers/                          (new — shipped 2026-04-19)
+  [x]  auto-collect/                       (new — shipped 2026-04-19)
+
+Sprint 4 (segment-specific):                                        [ ] NEXT UP
+  [ ]  platform-apis/                      (new — B2B2C)
+  [ ]  global-collections/                 (new — exporters)
+  [ ]  migrate-from-payu/                  (new — repeat razorpay pattern)
+
+Sprint 5 (tail):
+  [13] migrate-from-paytm/                 (new)
+  [14] migrate-from-ccavenue/              (new)
+  [15] softpos/ OR bbps/                   (new — pick based on user demand)
+
+Everything after Sprint 5 is opportunistic based on user feedback
+(/migrate-from-billdesk, /migrate-from-stripe,
+oneescrow, card-issuing-if-Cashfree-launches-it, etc.).
+
+
+===============================================================================
+  NOTES ON SKILL AUTHORING CONSISTENCY
+===============================================================================
+
+When writing each of the above, keep the pattern already established:
+
+  • SKILL.md — core happy path, 5–7 sections:
+      1. Scope & Boundaries (When to use / When not to)
+      2. Structural Overview (objects + endpoints table)
+      3. Core Workflow (step-by-step with code, 2–3 languages)
+      4. Security Constraints — Never Violate
+      5. Testing (sandbox test data)
+      6. Useful Links
+
+  • references/REFERENCE.md — deep dive:
+      • Full endpoint map (method | path | purpose)
+      • Field-level request/response tables
+      • Per-language SDK code blocks (Node, Python, Java, Go at minimum)
+      • Webhook payload schemas
+      • Error codes
+
+  • Frontmatter name + description — packed with trigger keywords so the
+    skill actually gets loaded by the AI assistant on intent match.
+    Look at migrate-from-razorpay.md for the density target.
+
+  • Cross-link aggressively:
+      • SKILL.md → its own REFERENCE.md
+      • SKILL.md → adjacent skills (validation-and-testing, common-mistakes,
+        go-live, getting-started)
+      • Manifest.ts — every new skill gets a row in the Skill Map table
+
+  • Every new skill must be registered in:
+      • src/templates/<name>.ts          (loader)
+      • src/templates/<name>.md          (SKILL content)
+      • src/templates/<name>-reference.md OR <name>/references/REFERENCE.md
+      • src/index.ts                     (ALL_SKILLS + tree printout)
+      • src/templates/manifest.ts        (Skill Map row)
+      • README.md                        (tree + example interaction)
+
+  • And tested with: `npm run build && node dist/index.js add skills \
+                      --path /tmp/smoke --frameworks claude-code`
+
+===============================================================================
+  END OF REPORT
+===============================================================================
