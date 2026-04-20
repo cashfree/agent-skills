@@ -11,3 +11,8 @@ export function getSecureIdSkillTemplate(): string {
     const templatePath = path.join(__dirname, "secure-id.md");
     return fs.readFileSync(templatePath, "utf8");
 }
+
+export function getSecureIdReferenceTemplate(): string {
+    const templatePath = path.join(__dirname, "secure-id-reference.md");
+    return fs.readFileSync(templatePath, "utf8");
+}

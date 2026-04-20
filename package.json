@@ -5,7 +5,7 @@
     "type": "module",
     "main": "dist/index.js",
     "bin": {
-        "agent-skills": "./dist/index.js"
+        "cashfree": "./dist/index.js"
     },
     "scripts": {
         "build": "tsc && npm run copy-templates",

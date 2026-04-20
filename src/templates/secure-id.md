@@ -1,215 +1,242 @@
 ---
-name: Cashfree Secure ID
-description: Use this to see Secure ID documentation and API references
+name: Cashfree Secure ID — Identity Verification & KYC
+description: >
+  Use when integrating Cashfree Secure ID for identity verification, KYC, document authentication, and fraud prevention.
+  Triggers: Cashfree Secure ID, identity verification, KYC verification, PAN verification, Aadhaar verification,
+  bank account verification, BAV, GSTIN verification, DigiLocker, Video KYC, face match, face liveness,
+  name match, Smart OCR, e-sign, reverse penny drop, UPI penny drop, mobile penny drop, IFSC verification,
+  driving licence verification, passport verification, voter ID verification, CIN verification, vehicle RC,
+  Aadhaar masking, KYC link, 1-click onboarding, Mobile 360, account aggregator, geocoding, reverse geocoding,
+  IP verification, Udyam verification, PAN 360, PAN Lite, bulk PAN verification, bulk BAV, webhook signature
+  verification Secure ID, Cashfree verification API, verification SDK, advanced employment, PAN to GSTIN,
+  PAN to Udyam, static KYC link, face spoofing detection, document OCR, biometric verification.
 ---
 
-# Cashfree Secure ID Integration
+# Cashfree Secure ID — Identity Verification & KYC
 
-```markdown
-# Cashfree Secure ID Integration Skills
+> **References available:** This SKILL.md covers setup, authentication, and the most common verification APIs. For all 42 API endpoints, complete webhook payloads, BAV/name match status codes, Video KYC SDK, 1-Click Onboarding, DigiLocker React Native SDK, and advanced services — read `references/REFERENCE.md` in this directory.
 
-## Overview
-Cashfree Secure ID is a comprehensive identity verification and fraud prevention suite for the Indian market. It includes bank verification, PAN, GSTIN, Aadhaar, DigiLocker, Video KYC, and biometric verification.
+---
 
-## API Endpoints
-- **Production**: https://api.cashfree.com/verification
-- **Sandbox**: https://sandbox.cashfree.com/verification
+## 1. Overview
 
-## Authentication
-All API requests require headers:
-- `X-Client-Id`: Your client ID from Merchant Dashboard
-- `X-Client-Secret`: Your secret key from Merchant Dashboard
-- `X-Cf-Signature` (optional): Required if 2FA with public key is enabled
+Cashfree Secure ID is a comprehensive identity verification and fraud prevention suite. RESTful APIs for real-time identity verification, document authentication, biometric checks, and digital onboarding — all with sub-second response times.
 
-## Backend Integration
+**This is primarily a backend integration** — API calls should be routed through your server. Frontend SDKs are available for DigiLocker (React Native), Video KYC (Web, Android, iOS), and 1-Click Onboarding (Web, Android, iOS).
 
-### 1. Bank Account Verification (Sync)
-POST /bank-account/sync
-```json
-{
-  "bank_account": "026291800001191",
-  "ifsc": "YESB0000262",
-  "name": "John Doe",
-  "phone": "9999999999"
-}
+**Product Categories:**
+1. **Core Banking Services**: Bank Account Verification (Sync/Async/Bulk), IFSC, Reverse Penny Drop, UPI Penny Drop, Mobile Penny Drop
+2. **Identity Verification**: PAN (Verify/Lite/360/Bulk), Aadhaar (via DigiLocker), Driving Licence, Passport, Voter ID
+3. **Business Verification (KYB)**: GSTIN, CIN, Udyam, PAN to GSTIN, PAN to Udyam
+4. **OCR & Biometric**: Smart OCR, Face Liveness, Face Match, Name Match, Aadhaar Masking
+5. **Digital Onboarding**: KYC Links, 1-Click Onboarding, DigiLocker, E-Sign, Video KYC
+6. **Advanced Services**: Mobile 360, Advanced Employment, Account Aggregator, Geocoding, Reverse Geocoding, IP Verification
+
+---
+
+## 2. Environment Configuration
+
+| Environment | Base URL |
+|---|---|
+| Production | `https://api.cashfree.com/verification` |
+| Sandbox | `https://sandbox.cashfree.com/verification` |
+
+### Required Headers
+
+```
+X-Client-Id: <YOUR_CLIENT_ID>
+X-Client-Secret: <YOUR_CLIENT_SECRET>
+Content-Type: application/json
 ```
 
-### 2. PAN Verification
-POST /pan
-```json
-{
-  "pan": "ABCPV1234D",
-  "name": "John Doe"
-}
+### Optional Headers
+
+```
+X-Cf-Signature: <RSA_ENCRYPTED_SIGNATURE>  (required if 2FA with public key is enabled)
 ```
 
-### 3. GSTIN Verification
-POST /gstin
-```json
-{
-  "GSTIN": "29AAICP2912R1ZR",
-  "business_name": "Business Name"
-}
-```
+---
 
-### 4. Name Match
-POST /name-match
-```json
-{
-  "verification_id": "ABC00123",
-  "name_1": "JOHN DOE",
-  "name_2": "JOHN DOE"
-}
-```
+## 3. Authentication
 
-### 5. Face Match
-POST /face-match (multipart/form-data)
-- verification_id: string
-- first_image: file
-- second_image: file
-- threshold: "0.75"
+### Direct Authentication
 
-### 6. Generate KYC Link
-POST /form
-```json
-{
-  "name": "John Doe",
-  "phone": "9999999999",
-  "email": "test@cashfree.com",
-  "template_name": "Aadhaar_verification",
-  "link_expiry": "2025-06-01",
-  "notification_types": ["sms"],
-  "verification_id": "ABC00123"
-}
-```
+Use `X-Client-Id` and `X-Client-Secret` headers directly with every API request.
 
-## Webhook Configuration
-
-### Setup
-1. Log in to Merchant Dashboard > Developers > Webhooks (under Secure ID)
-2. Add publicly accessible HTTPS webhook URL
-3. Click "Test & Add Webhook"
-
-### Webhook Events
-- `KYC_LINK_ACTION_PERFORMED`: Verification performed via link
-- `KYC_LINK_SUCCESS`: All verifications completed
-- `KYC_LINK_EXPIRED`: Link expired
-- `RPD_BANK_ACCOUNT_VERIFICATION_SUCCESS/FAILURE/EXPIRED`: Reverse penny drop events
-- `E_SIGN_VERIFICATION_SUCCESS/FAILURE/EXPIRED`: E-sign events
-
-### Webhook Signature Verification (MANDATORY)
-Headers received:
-- `x-webhook-signature`: HMAC-SHA256 signature
-- `x-webhook-timestamp`: Unix timestamp
-
-Verification process:
-1. Concatenate: timestamp + rawBody
-2. Generate HMAC-SHA256 with client secret
-3. Base64 encode the hash
-4. Compare with x-webhook-signature
-
-### Node.js Signature Verification
-```javascript
-const crypto = require("crypto");
-
-function verifyWebhookSignature(req) {
-  const ts = req.headers["x-webhook-timestamp"];
-  const rawBody = req.rawBody; // Must use raw body, not parsed JSON
-  const secretKey = "<client-secret>";
-  const signStr = ts + rawBody;
-  const computed = crypto.createHmac("sha256", secretKey).update(signStr).digest("base64");
-  return computed === req.headers["x-webhook-signature"];
-}
-```
-
-### Python Signature Verification
-```python
-import base64, hashlib, hmac
-
-def verify_signature(request):
-    raw_body = request.data.decode('utf-8')
-    timestamp = request.headers['x-webhook-timestamp']
-    signature = request.headers['x-webhook-signature']
-    
-    sign_data = timestamp + raw_body
-    computed = base64.b64encode(
-        hmac.new(b"<client-secret>", sign_data.encode(), hashlib.sha256).digest()
-    ).decode()
-    return computed == signature
-```
-
-### IPs to Whitelist
-Sandbox: 52.66.25.127, 15.206.45.168
-Production: 52.66.101.190, 3.109.102.144, 18.60.134.245, 18.60.183.142
-Port: 443 (HTTPS)
-
-## Frontend Integration (DigiLocker React Native SDK)
-
-### Installation
 ```bash
-npm install @cashfreepayments/react-native-digilocker
-# iOS: cd ios && pod install
+curl -X POST 'https://sandbox.cashfree.com/verification/pan' \
+  -H 'X-Client-Id: <CLIENT_ID>' \
+  -H 'X-Client-Secret: <CLIENT_SECRET>' \
+  -H 'Content-Type: application/json' \
+  -d '{ "pan": "ABCPV1234D" }'
 ```
 
-### Setup
-```jsx
-import { DigiLockerProvider, useDigiLocker } from '@cashfreepayments/react-native-digilocker';
+### Generate API Keys
 
-function App() {
-  return (
-    <DigiLockerProvider>
-      {/* App content */}
-    </DigiLockerProvider>
-  );
+1. Log in to your **Secure ID Dashboard** → click **Developers**
+2. Click **API Keys** → **Generate API Keys**
+3. Download and securely store the keys
+
+- Maximum of **10 API keys** can be generated
+- Production keys require **OTP authentication**
+- **Never share keys** — they are confidential
+
+---
+
+## 4. Two-Factor Authentication (2FA)
+
+### Option 1: IP Whitelisting
+
+1. **Secure ID Dashboard** → **Developers** → **Two-Factor Authentication**
+2. Choose **IP Whitelist** from the dropdown
+3. Click **Add IP Address** and enter your IPv4 address
+
+- Only **IPv4** is supported (not IPv6)
+- Whitelist up to **25 IP addresses**
+- Only the **production** environment requires IP whitelisting
+
+### Option 2: Public Key Signature (Dynamic IP)
+
+Encrypt `clientId.timestamp` using RSA with the public key downloaded from Dashboard. Pass in `X-Cf-Signature` header. Signature is valid for **5 minutes**.
+
+**PHP:**
+```php
+public static function getSignature() {
+    $clientId = "<your clientId here>";
+    $publicKey = openssl_pkey_get_public(file_get_contents("/path/to/public_key.pem"));
+    $encodedData = $clientId . "." . strtotime("now");
+    openssl_public_encrypt($encodedData, $encrypted, $publicKey, OPENSSL_PKCS1_OAEP_PADDING);
+    return base64_encode($encrypted);
 }
-
-// Usage
-const { verify } = useDigiLocker();
-verify(url, redirectUrl, {
-  userFlow: 'signin',
-  onSuccess: (data) => console.log(data),
-  onError: (error) => console.error(error),
-  onCancel: () => console.log('cancelled')
-});
 ```
 
-## Test Data (Sandbox Only)
-- OTP for all requests: 111000
-- Valid PAN: ABCPV1234D, AZJPG7110R
-- Valid GSTIN: 29AAICP2912R1ZR
-- Valid Bank Account: 026291800001191 (IFSC: YESB0000262)
-- Valid Aadhaar: 655675523712
+> For Java RSA signature code — see `references/REFERENCE.md`.
 
-## Error Handling
-All APIs return standard error structure:
-```json
-{
-  "code": "error_code",
-  "message": "Error description",
-  "type": "validation_error"
+---
+
+## 5. Core API Examples
+
+### Bank Account Verification — Sync
+
+**Endpoint:** `POST /bank-account/sync`
+
+Real-time validation. Returns instant results.
+
+```bash
+curl -X POST 'https://sandbox.cashfree.com/verification/bank-account/sync' \
+  -H 'X-Client-Id: <CLIENT_ID>' \
+  -H 'X-Client-Secret: <CLIENT_SECRET>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "bank_account": "026291800001191",
+    "ifsc": "YESB0000262",
+    "name": "John Doe",
+    "phone": "9999999999"
+  }'
+```
+
+> Cashfree does not support verification of Deutsche Bank and Paytm Payments Bank accounts. IMPS verifies only the first 5 characters of the IFSC code.
+
+### PAN Verification
+
+**Endpoint:** `POST /pan`
+
+Check PAN existence. Returns registered name and PAN type.
+
+```bash
+curl -X POST 'https://sandbox.cashfree.com/verification/pan' \
+  -H 'X-Client-Id: <CLIENT_ID>' \
+  -H 'X-Client-Secret: <CLIENT_SECRET>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "pan": "ABCPV1234D",
+    "name": "John Doe",
+    "verification_id": "PAN_001"
+  }'
+```
+
+> The name returned may differ from the physical PAN card — it returns the registered name from the Income Tax Department's records.
+
+### GSTIN Verification
+
+**Endpoint:** `POST /gstin`
+
+Verify GSTIN and retrieve business registration details.
+
+```bash
+curl -X POST 'https://sandbox.cashfree.com/verification/gstin' \
+  -H 'X-Client-Id: <CLIENT_ID>' \
+  -H 'X-Client-Secret: <CLIENT_SECRET>' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "GSTIN": "29AAICP2912R1ZR",
+    "business_name": "Business Name",
+    "verification_id": "GSTIN_001"
+  }'
+```
+
+---
+
+## 6. DigiLocker Integration Flow
+
+1. **Verify Account** (`POST /digilocker/verify-account`) — Check if Aadhaar/mobile is linked with DigiLocker
+2. **Create URL** (`POST /digilocker/url`) — Generate time-sensitive consent URL (valid **10 minutes**)
+3. **Redirect** — User logs in with Aadhaar/mobile, enters OTP, approves consent
+4. **Get Status** (`GET /digilocker/status`) — Check verification status
+5. **Get Document** (`GET /digilocker/document`) — Fetch verified documents (Aadhaar, PAN, DL)
+
+> DigiLocker flow in Sandbox requires **real Aadhaar numbers** — mock details are not supported.
+
+---
+
+## 7. Webhook Integration
+
+### Configure
+
+1. **Merchant Dashboard** → **Developers** → **Webhooks** (under the Secure ID card)
+2. Click **Add Webhook URL**
+3. Enter your HTTPS webhook endpoint
+4. Click **Test & Add Webhook**
+
+### Events by Service
+
+| Service | Events |
+|---|---|
+| **Bank Account Verification** | `BANK_ACCOUNT_VERIFICATION_SUCCESS`, `BANK_ACCOUNT_VERIFICATION_REJECTED`, `BANK_ACCOUNT_VERIFICATION_FAILED` |
+| **Reverse Penny Drop** | `RPD_BANK_ACCOUNT_VERIFICATION_SUCCESS`, `RPD_BANK_ACCOUNT_VERIFICATION_FAILURE`, `RPD_BANK_ACCOUNT_VERIFICATION_EXPIRED` |
+| **DigiLocker** | `DIGILOCKER_VERIFICATION_SUCCESS`, `DIGILOCKER_VERIFICATION_LINK_EXPIRED`, `DIGILOCKER_VERIFICATION_CONSENT_DENIED`, `DIGILOCKER_VERIFICATION_FAILURE` |
+| **E-Sign** | `E_SIGN_VERIFICATION_SUCCESS`, `E_SIGN_VERIFICATION_FAILURE`, `E_SIGN_VERIFICATION_EXPIRED` |
+| **KYC Links** | `KYC_LINK_ACTION_PERFORMED`, `KYC_LINK_SUCCESS`, `KYC_LINK_EXPIRED` |
+| **Video KYC** | `VKYC_USER_LINK_GENERATED`, `VKYC_USER_CALL_COMPLETED`, `VKYC_AUDITOR_REVIEW_COMPLETED` (and more) |
+| **Account Aggregator** | `AA_CONSENT_VERIFICATION_SUCCESS`, `AA_CONSENT_VERIFICATION_REVOKED`, `AA_CONSENT_VERIFICATION_REJECTED`, `AA_CONSENT_VERIFICATION_EXPIRED` |
+
+### Webhook Signature Verification
+
+```javascript
+// Node.js — HMAC-SHA256 signature verification
+const crypto = require('crypto');
+
+function verifySecureIdWebhook(req) {
+  const rawBody = req.body.toString();
+  const timestamp = req.headers['x-webhook-timestamp'];
+  const signature = req.headers['x-webhook-signature'];
+
+  const computed = crypto
+    .createHmac('sha256', process.env.CASHFREE_CLIENT_SECRET)
+    .update(timestamp + rawBody)
+    .digest('base64');
+
+  return computed === signature;
 }
 ```
 
-Common HTTP status codes: 400 (validation), 401/403 (auth), 422 (unprocessable), 429 (rate limit), 500/502 (server)
+---
 
-## Rate Limits
-- Standard APIs: 100 TPM
-- Medium APIs (PAN Sync, DigiLocker): 200 TPM
-- Bulk operations: 5 TPM
+## 8. Security — Never Violate
 
-## Best Practices
-1. Always verify webhook signatures before processing
-2. Use raw request body for signature verification
-3. Implement idempotency for webhook handlers (duplicates possible)
-4. Route API calls through backend to avoid CORS errors
-5. Store client secrets securely, never expose in frontend
-6. Use oldest active client secret for webhook signature verification
-```
+- **Never call Secure ID APIs from frontend code.** Route through your backend only.
+- **Never expose `X-Client-Secret`** in client-side code or version control.
+- **Always verify webhook signatures** before processing.
+- **Store credentials in environment variables**, never hardcoded.
 
-This skills file covers the key Secure ID APIs, webhook setup, signature verification in multiple languages, frontend SDK integration, and test data. For more details, see:
-
-```suggestions
-(Getting Started with Secure ID)[/api-reference/vrs/getting-started]
-(Webhook Signature Verification)[/api-reference/vrs/webhook-signature-verification]
-(Test Data for Integration)[/api-reference/vrs/data-to-test-integration]
-```
+> **Read `references/REFERENCE.md` for:** Java 2FA RSA code, all 42 API endpoints, BAV status codes/values/name match results, all webhook payloads, DigiLocker React Native SDK, Video KYC SDK (Web/Android/iOS), 1-Click Onboarding, and advanced services.

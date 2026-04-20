@@ -11,3 +11,8 @@ export function getPayoutsSkillTemplate(): string {
     const templatePath = path.join(__dirname, "payouts.md");
     return fs.readFileSync(templatePath, "utf8");
 }
+
+export function getPayoutsReferenceTemplate(): string {
+    const templatePath = path.join(__dirname, "payouts-reference.md");
+    return fs.readFileSync(templatePath, "utf8");
+}
