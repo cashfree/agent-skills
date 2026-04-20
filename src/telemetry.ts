@@ -61,11 +61,12 @@ export function createTelemetryDistinctId(): string {
 }
 
 export function isTelemetryEnabled(): boolean {
+    const hasInjectedHost = DEFAULT_POSTHOG_HOST.length > 0 && !DEFAULT_POSTHOG_HOST.startsWith("__POSTHOG_");
+    const hasInjectedApiKey = DEFAULT_POSTHOG_API_KEY.length > 0 && !DEFAULT_POSTHOG_API_KEY.startsWith("__POSTHOG_");
+
     return Boolean(
-        DEFAULT_POSTHOG_API_KEY &&
-        DEFAULT_POSTHOG_HOST &&
-        DEFAULT_POSTHOG_API_KEY !== "__POSTHOG_API_KEY__" &&
-        DEFAULT_POSTHOG_HOST !== "__POSTHOG_HOST__"
+        hasInjectedApiKey &&
+        hasInjectedHost
     );
 }
 
