@@ -12,7 +12,7 @@
         "copy-templates": "node -e \"require('fs-extra').copySync('src/templates', 'dist/templates', { filter: (src) => src.endsWith('.md') || require('fs').statSync(src).isDirectory() })\"",
         "dev": "tsc -w",
         "test": "vitest",
-        "prepublishOnly": "npm run build"
+        "prepublishOnly": "npm run build && node scripts/inject-telemetry.mjs"
     },
     "keywords": [
         "cashfree",
