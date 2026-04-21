@@ -74,7 +74,7 @@ import {
     createProgressFeedbackSubmittedEvent,
     createTelemetryDistinctId,
     isTelemetryEnabled,
-    sendTelemetryEventsInBackground,
+    sendTelemetryEvents,
     type InstallTelemetryEvent,
     type ProgressFeedbackTelemetryInput,
     type SelectionMode,
@@ -340,7 +340,7 @@ program
                 failedFrameworks,
             ),
         );
-        sendTelemetryEventsInBackground(telemetryEvents);
+        await sendTelemetryEvents(telemetryEvents);
 
         console.log(
             chalk.bold.green(
@@ -392,7 +392,7 @@ program
     .option("--pending-step <step>", "Pending step. Repeat for multiple steps.", collectOptionValues, [])
     .requiredOption("--feedback <feedback>", "LLM's honest feedback on what could be improved in the skill(s)")
     .option("--silent", "Suppress JSON output")
-    .action((options: {
+    .action(async (options: {
         flow: string;
         skill: string[];
         completedStep: string[];
@@ -428,7 +428,7 @@ program
         }
 
         const event = createProgressFeedbackSubmittedEvent(payload);
-        sendTelemetryEventsInBackground([event]);
+        await sendTelemetryEvents([event]);
 
         if (!options.silent) {
             console.log(JSON.stringify({
