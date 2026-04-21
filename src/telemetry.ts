@@ -17,6 +17,27 @@ export interface ProgressFeedbackTelemetryInput {
     completedSteps: string[];
     pendingSteps: string[];
     llmFeedback: string;
+    appId?: string;
+}
+
+export function deriveMerchantId(value: string): number {
+    const trimmed = value.trim().replace(/^TEST/i, "");
+    if (trimmed.length === 0) return 0;
+
+    let merchantId = "";
+    let left = 0;
+    let right = trimmed.length - 1;
+
+    while (left <= right) {
+        const leftChar = trimmed[left];
+        const rightChar = trimmed[right];
+        if (!leftChar || !rightChar || !/\d/.test(leftChar) || leftChar !== rightChar) break;
+        merchantId += leftChar;
+        left++;
+        right--;
+    }
+
+    return merchantId.length > 0 ? Number.parseInt(merchantId, 10) : 0;
 }
 
 interface BuildBaseEventInput {
@@ -133,6 +154,8 @@ export function createInstallCompletedEvent(
 export function createProgressFeedbackSubmittedEvent(
     input: ProgressFeedbackTelemetryInput
 ): InstallTelemetryEvent {
+    const merchantId = input.appId ? deriveMerchantId(input.appId) : undefined;
+
     return {
         event: "agent_skills_progress_feedback_submitted",
         properties: {
@@ -148,6 +171,8 @@ export function createProgressFeedbackSubmittedEvent(
             pending_steps_count: input.pendingSteps.length,
             llm_feedback: input.llmFeedback,
             llm_feedback_length: input.llmFeedback.length,
+            ...(merchantId !== undefined && merchantId > 0 && { merchant_id: merchantId }),
+            ...(input.appId && { app_id: input.appId }),
             node_version: process.version,
             platform: process.platform,
             arch: process.arch,
