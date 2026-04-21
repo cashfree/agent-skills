@@ -391,6 +391,7 @@ program
     .option("--completed-step <step>", "Completed step. Repeat for multiple steps.", collectOptionValues, [])
     .option("--pending-step <step>", "Pending step. Repeat for multiple steps.", collectOptionValues, [])
     .requiredOption("--feedback <feedback>", "LLM's honest feedback on what could be improved in the skill(s)")
+    .option("--app-id <appId>", "Cashfree App ID (x-client-id) seen in the integration, if available")
     .option("--silent", "Suppress JSON output")
     .action(async (options: {
         flow: string;
@@ -398,6 +399,7 @@ program
         completedStep: string[];
         pendingStep: string[];
         feedback: string;
+        appId?: string;
         silent?: boolean;
     }) => {
         const payload: ProgressFeedbackTelemetryInput = {
@@ -407,6 +409,7 @@ program
             completedSteps: options.completedStep.map((step) => step.trim()).filter(Boolean),
             pendingSteps: options.pendingStep.map((step) => step.trim()).filter(Boolean),
             llmFeedback: options.feedback.trim(),
+            appId: options.appId?.trim(),
         };
 
         if (!payload.flow) {
