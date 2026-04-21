@@ -1,5 +1,4 @@
 import { randomUUID } from "node:crypto";
-import { spawn } from "node:child_process";
 import os from "node:os";
 import type { Framework } from "./config.js";
 
@@ -29,32 +28,6 @@ interface BuildBaseEventInput {
 
 const DEFAULT_POSTHOG_HOST = "__POSTHOG_HOST__";
 const DEFAULT_POSTHOG_API_KEY = "__POSTHOG_API_KEY__";
-const WORKER_PAYLOAD_ENV = "CASHFREE_POSTHOG_BATCH_PAYLOAD";
-const WORKER_HOST_ENV = "CASHFREE_POSTHOG_WORKER_HOST";
-const WORKER_CODE = `
-const payload = process.env.${WORKER_PAYLOAD_ENV};
-const host = process.env.${WORKER_HOST_ENV};
-
-if (!payload || !host) {
-  process.exit(0);
-}
-
-const controller = new AbortController();
-const timeout = setTimeout(() => controller.abort(), 1500);
-
-try {
-  await fetch(new URL("/batch/", host).toString(), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: payload,
-    signal: controller.signal,
-  });
-} catch {
-  // Fail silently. Telemetry must never affect installs.
-} finally {
-  clearTimeout(timeout);
-}
-`;
 
 export function createTelemetryDistinctId(): string {
     return randomUUID();
@@ -184,15 +157,10 @@ export function createProgressFeedbackSubmittedEvent(
     };
 }
 
-export function sendTelemetryEventsInBackground(
+export async function sendTelemetryEvents(
     events: InstallTelemetryEvent[],
-    env: NodeJS.ProcessEnv = process.env
-): void {
+): Promise<void> {
     if (!events.length || !isTelemetryEnabled()) {
-        return;
-    }
-
-    if (!DEFAULT_POSTHOG_API_KEY) {
         return;
     }
 
@@ -206,19 +174,19 @@ export function sendTelemetryEventsInBackground(
         })),
     });
 
-    const child = spawn(
-        process.execPath,
-        ["--input-type=module", "-e", WORKER_CODE],
-        {
-            detached: true,
-            stdio: "ignore",
-            env: {
-                ...env,
-                [WORKER_PAYLOAD_ENV]: payload,
-                [WORKER_HOST_ENV]: DEFAULT_POSTHOG_HOST,
-            },
-        }
-    );
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
 
-    child.unref();
+    try {
+        await fetch(new URL("/batch/", DEFAULT_POSTHOG_HOST).toString(), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: payload,
+            signal: controller.signal,
+        });
+    } catch {
+        // Fail silently. Telemetry must never affect installs.
+    } finally {
+        clearTimeout(timeout);
+    }
 }
