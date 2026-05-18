@@ -5,7 +5,7 @@ Add Cashfree Payments skills to your AI coding assistant projects — everything
 ## Quick Start
 
 ```bash
-npx @cashfreepayments/agent-skills add skills
+npx @cashfreepayments/agent-skills@latest add skills
 ```
 
 ![Cashfree Payments](https://github.com/user-attachments/assets/a0a36020-7eee-4fda-9d6b-4002ea4991c6)
@@ -16,18 +16,18 @@ This will prompt you to select which AI coding assistants to configure.
 
 ### Interactive Mode
 ```bash
-npx @cashfreepayments/agent-skills add skills
+npx @cashfreepayments/agent-skills@latest add skills
 ```
 You'll be prompted to select which AI assistants to configure.
 
 ### Specify Frameworks
 ```bash
-npx @cashfreepayments/agent-skills add skills --frameworks cursor,claude-code,gemini-cli
+npx @cashfreepayments/agent-skills@latest add skills --frameworks cursor,claude-code,gemini-cli
 ```
 
 ### Custom Project Path
 ```bash
-npx @cashfreepayments/agent-skills add skills --path /path/to/project
+npx @cashfreepayments/agent-skills@latest add skills --path /path/to/project
 ```
 
 ## What Gets Created
