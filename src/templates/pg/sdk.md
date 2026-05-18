@@ -41,7 +41,7 @@ description: >
 | **Node.js** | `cashfree-pg` (npm) | `npm install cashfree-pg` |
 | **Python** | `cashfree-pg` (PyPI) | `pip install cashfree-pg` |
 | **Java** | `com.cashfree.pg:cashfree-pg` (Maven Central) | Maven/Gradle (see Section 4) |
-| **Go** | `github.com/cashfree/cashfree-pg/v4` | `go get github.com/cashfree/cashfree-pg/v4` |
+| **Go** | `github.com/cashfree/cashfree-pg/v6` | `go get github.com/cashfree/cashfree-pg/v6` |
 | **PHP** | `cashfree/cashfree-pg` (Packagist) | `composer require cashfree/cashfree-pg` |
 | **.NET** | `cashfree_pg` (NuGet) | `dotnet add package cashfree_pg` |
 
@@ -54,7 +54,7 @@ description: >
 
 ### API Version
 
-Set `cashfree.XApiVersion = "2025-01-01"` once after initialization (Node.js v5). Other language SDKs pass version as the first parameter.
+Set `cashfree.XApiVersion = "2025-01-01"` once after initialization (Node.js v5). Python, Java, PHP, and .NET SDKs pass the version as the first parameter to each call. The Go SDK v6 bundles the API version internally — no explicit version parameter is required.
 
 ---
 
@@ -99,15 +99,18 @@ Cashfree.XClientSecret = "<secret_key>";
 Cashfree.XEnvironment = Cashfree.SANDBOX; // or Cashfree.PRODUCTION
 ```
 
-**Go:**
+**Go (v6+):**
 ```go
-import cashfree "github.com/cashfree/cashfree-pg/v4"
+import cashfreepg "github.com/cashfree/cashfree-pg/v6"
 
-clientId := "<app_id>"
-clientSecret := "<secret_key>"
-cashfree.XClientId = &clientId
-cashfree.XClientSecret = &clientSecret
-cashfree.XEnvironment = cashfree.SANDBOX // or cashfree.PRODUCTION
+xClientId := "<app_id>"
+xClientSecret := "<secret_key>"
+
+cashfree := cashfreepg.Cashfree{
+    XEnvironment:  cashfreepg.SANDBOX, // or cashfreepg.PRODUCTION
+    XClientID:     &xClientId,
+    XClientSecret: &xClientSecret,
+}
 ```
 
 **PHP:**
@@ -225,27 +228,26 @@ public OrderEntity createOrder() throws Exception {
 </details>
 
 <details>
-<summary>Go</summary>
+<summary>Go (v6+)</summary>
 
 ```go
-func createOrder() (*cashfree.OrderEntity, error) {
-    xApiVersion := "2025-01-01"
+func createOrder() (*cashfreepg.OrderEntity, error) {
     returnUrl := "https://yoursite.com/return/{order_id}"
     notifyUrl := "https://yoursite.com/webhook"
 
-    request := cashfree.CreateOrderRequest{
+    request := cashfreepg.CreateOrderRequest{
         OrderAmount:   100.00,
         OrderCurrency: "INR",
-        CustomerDetails: cashfree.CustomerDetails{
+        CustomerDetails: cashfreepg.CustomerDetails{
             CustomerId:    "customer_123",
             CustomerPhone: "9999999999",
         },
-        OrderMeta: &cashfree.OrderMeta{
+        OrderMeta: &cashfreepg.OrderMeta{
             ReturnUrl: &returnUrl,
             NotifyUrl: &notifyUrl,
         },
     }
-    response, _, err := cashfree.PGCreateOrder(&xApiVersion, &request, nil, nil, nil)
+    response, _, err := cashfree.PGCreateOrder(&request, nil, nil, nil)
     return response, err
 }
 ```
@@ -327,9 +329,9 @@ System.out.println(response.getData().getOrderStatus());
 ```
 
 ```go
-// Go
-xApiVersion := "2025-01-01"
-response, _, err := cashfree.PGFetchOrder(&xApiVersion, &orderId, nil, nil, nil)
+// Go (v6+)
+response, _, err := cashfree.PGFetchOrder(orderId, nil, nil, nil)
+fmt.Println(response.OrderStatus)
 ```
 
 ### Step 4: Process Webhooks

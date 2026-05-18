@@ -131,7 +131,7 @@ Keep this list — it's your migration checklist.
 | `com.razorpay:razorpay-java` | → | `com.cashfree.pg:cashfree-pg` |
 | `razorpay/razorpay` (Composer) | → | `cashfree/cashfree-pg` |
 | `Razorpay` (NuGet) | → | `cashfree_pg` (NuGet) |
-| `github.com/razorpay/razorpay-go` | → | `github.com/cashfree/cashfree-pg/v4` |
+| `github.com/razorpay/razorpay-go` | → | `github.com/cashfree/cashfree-pg/v6` |
 | `razorpay` (Ruby gem) | → | *(no official SDK — use the S2S REST API, see `pg/apis/SKILL.md`)* |
 
 ### Step 4 — Rewrite backend: create order, verify payment, refund
