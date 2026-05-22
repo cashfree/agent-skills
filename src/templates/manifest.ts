@@ -19,9 +19,11 @@ You are helping a developer integrate Cashfree Payments.
 ### How to use these skills
 
 1. **Always** read \`${s}/getting-started/SKILL.md\` first if the user is new to Cashfree
-2. Match the user's goal to a skill below and read that file
-3. After any integration code is written, **ALWAYS** read \`${s}/validation-and-testing/SKILL.md\`
-4. After a substantial Cashfree-skill-assisted task is completed, read \`${s}/progress-and-skill-feedback/SKILL.md\` last to capture flow, skills used, completed/pending steps, and honest skill-improvement feedback
+2. Read \`${s}/eligible-payment-modes/SKILL.md\` early in any new integration. **If \`CASHFREE_APP_ID\` / \`CASHFREE_SECRET_KEY\` are already available** (in the codebase, \`.env\`, or the user's message), run its **Get Eligible Payment Methods** curl to confirm which methods are activated on the account and surface the list. **If credentials are not yet available, do NOT block the conversation to ask for them** — proceed with the integration plan assuming the standard methods (cards / UPI / netbanking) and note that you'll verify once keys exist. Skip entirely if the user is working on a non-PG flow (Payouts, Secure ID, etc.)
+3. Match the user's goal to a skill below and read that file
+4. After any integration code is written, **ALWAYS** read \`${s}/validation-and-testing/SKILL.md\`
+5. **Before** using the words "production-ready", "ready to go live", "complete", or "done" about any integration, you MUST read BOTH \`${s}/validation-and-testing/SKILL.md\` AND \`${s}/pg/go-live/SKILL.md\` and surface every unmet item. Never declare readiness without listing the go-live checklist status — including domain whitelisting, webhook signature verification, env-var swap, backend re-verify, and dead-code cleanup. Phrase your verdict as "the integration looks correct, but X / Y / Z must be done before going live" — not as a blanket "production-ready"
+6. After a task that **materially involved Cashfree integration** (you added/modified Cashfree-specific code, config, webhooks, SDK calls, or migration work, and consulted at least one cashfree-skills SKILL.md), read \`${s}/progress-and-skill-feedback/SKILL.md\` last to capture flow, skills used, completed/pending steps, and skill-improvement feedback. **Skip entirely** if the task did not touch Cashfree code — e.g. UI styling, button colour changes, refactors of non-Cashfree files, doc edits, dependency bumps unrelated to cashfree-pg / cashfree-js, or any task where Cashfree skills were merely installed but not consulted
 
 ### Skill Map
 
@@ -50,7 +52,7 @@ You are helping a developer integrate Cashfree Payments.
 | Accept inbound via virtual bank accounts / static VPAs / QR | \`${s}/auto-collect/SKILL.md\` |
 | Migrate an existing Razorpay integration to Cashfree | \`${s}/migrate-from-razorpay/SKILL.md\` |
 | Migrate an existing Juspay integration to Cashfree | \`${s}/migrate-from-juspay/SKILL.md\` |
-| Record end-of-task progress and internal skill-improvement feedback | \`${s}/progress-and-skill-feedback/SKILL.md\` |
+| Record end-of-task progress after a **Cashfree-integration** task (NOT for unrelated UI/refactor/doc work) | \`${s}/progress-and-skill-feedback/SKILL.md\` |
 | Validate or test the integration | \`${s}/validation-and-testing/SKILL.md\` |
 | Debug a broken integration, fix errors, troubleshoot | \`${s}/common-mistakes/SKILL.md\` |
 

@@ -272,8 +272,8 @@ if (order.data.order_status === "PAID") {
 
 | Juspay | Cashfree |
 |---|---|
-| `requests.post("https://sandbox.juspay.in/session", headers={"Authorization": "Basic ...", "x-merchantid": ..., "x-routing-id": ...}, json=...)` | `Cashfree.XClientId = ...; Cashfree.XClientSecret = ...; Cashfree.XEnvironment = Cashfree.XSandbox; cf.PGCreateOrder("2025-01-01", CreateOrderRequest(...))` |
-| `requests.get(f".../orders/{order_id}")` and check `status == "CHARGED"` | `cf.PGFetchOrder("2025-01-01", order_id)` and check `order_status == "PAID"` |
+| `requests.post("https://sandbox.juspay.in/session", headers={"Authorization": "Basic ...", "x-merchantid": ..., "x-routing-id": ...}, json=...)` | `cf = Cashfree(XEnvironment=Cashfree.SANDBOX, XClientId=..., XClientSecret=...); cf.PGCreateOrder(CreateOrderRequest(...), None, None)` (SDK v6+) |
+| `requests.get(f".../orders/{order_id}")` and check `status == "CHARGED"` | `cf.PGFetchOrder(order_id, None, None)` and check `order_status == "PAID"` |
 | Refund body uses `unique_request_id` | Refund body uses `refund_id` |
 
 ### 4.3 Java
@@ -285,12 +285,12 @@ if (order.data.order_status === "PAID") {
 | `GET /orders/{id}` and compare `"CHARGED"` | `cf.PGFetchOrder("2025-01-01", orderId)` and compare `"PAID"` |
 | Custom webhook Basic Auth validation | HMAC verification using raw body + timestamp |
 
-### 4.4 Go
+### 4.4 Go (SDK v6+)
 
 | Juspay | Cashfree |
 |---|---|
-| `http.NewRequest` with Basic Auth and Juspay headers | `cashfree.XClientId = &appId; cashfree.XClientSecret = &secret; cashfree.XEnvironment = cashfree.SANDBOX` |
-| `/orders/{order_id}/refunds` with `unique_request_id` | `cashfree.PGCreateRefund(&version, orderId, &createRefundRequest, nil, nil, nil)` with `refund_id` |
+| `http.NewRequest` with Basic Auth and Juspay headers | `cashfree := cashfreepg.Cashfree{XEnvironment: cashfreepg.SANDBOX, XClientID: &appId, XClientSecret: &secret}` |
+| `/orders/{order_id}/refunds` with `unique_request_id` | `cashfree.PGOrderCreateRefund(orderId, &orderCreateRefundRequest, nil, nil, nil)` with `refund_id` |
 | `status == "CHARGED"` | `order_status == "PAID"` |
 
 ---

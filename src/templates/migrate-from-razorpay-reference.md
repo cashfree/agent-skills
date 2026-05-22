@@ -178,7 +178,7 @@ client.utility.verify_payment_signature({
 client.payment.refund(payment_id, {"amount": refund_rupees * 100})
 ```
 
-**After:**
+**After (Python SDK v6+):**
 ```python
 from cashfree_pg.api_client import Cashfree
 from cashfree_pg.models.create_order_request import CreateOrderRequest
@@ -186,13 +186,13 @@ from cashfree_pg.models.customer_details import CustomerDetails
 from cashfree_pg.models.order_meta import OrderMeta
 from cashfree_pg.models.create_refund_request import CreateRefundRequest
 
-Cashfree.XClientId = os.environ["CASHFREE_APP_ID"]
-Cashfree.XClientSecret = os.environ["CASHFREE_SECRET_KEY"]
-Cashfree.XEnvironment = Cashfree.XSandbox  # or Cashfree.XProduction
-x_api_version = "2025-01-01"
-cf = Cashfree()
+cf = Cashfree(
+    XEnvironment=Cashfree.SANDBOX,  # or Cashfree.PRODUCTION
+    XClientId=os.environ["CASHFREE_APP_ID"],
+    XClientSecret=os.environ["CASHFREE_SECRET_KEY"],
+)
 
-order = cf.PGCreateOrder(x_api_version, CreateOrderRequest(
+order = cf.PGCreateOrder(CreateOrderRequest(
     order_id=receipt_id,
     order_amount=amount_rupees,              # rupees
     order_currency="INR",
@@ -204,20 +204,20 @@ order = cf.PGCreateOrder(x_api_version, CreateOrderRequest(
         return_url=f"{APP_URL}/return/{receipt_id}",
         notify_url=f"{APP_URL}/webhook",
     ),
-))
+), None, None)
 payment_session_id = order.data.payment_session_id
 
 # Verify — re-fetch from backend
-fetched = cf.PGFetchOrder(x_api_version, receipt_id)
+fetched = cf.PGFetchOrder(receipt_id, None, None)
 if fetched.data.order_status == "PAID":
     fulfill(receipt_id)
 
 # Refund
-cf.PGCreateRefund(x_api_version, receipt_id, CreateRefundRequest(
+cf.PGOrderCreateRefund(receipt_id, CreateRefundRequest(
     refund_id=f"refund_{int(time.time())}",
     refund_amount=refund_rupees,
     refund_note="Customer request",
-))
+), None, None)
 ```
 
 ### 4.2 Java (Spring Boot)
@@ -232,13 +232,13 @@ cf.PGCreateRefund(x_api_version, receipt_id, CreateRefundRequest(
 
 Amounts: Razorpay Java takes paise `int`; Cashfree Java takes rupees `Double`.
 
-### 4.3 Go
+### 4.3 Go (SDK v6+)
 
 | Razorpay | Cashfree |
 |---|---|
-| `razorpay.NewClient(keyId, keySecret)` | `cashfree.XClientId = &appId; cashfree.XClientSecret = &secret; cashfree.XEnvironment = cashfree.SANDBOX` |
-| `client.Order.Create(data, nil)` | `cashfree.PGCreateOrder(&version, &createOrderRequest, nil, nil, nil)` |
-| `client.Payment.Refund(pid, amount, data, nil)` | `cashfree.PGCreateRefund(&version, orderId, &createRefundRequest, nil, nil, nil)` |
+| `razorpay.NewClient(keyId, keySecret)` | `cashfree := cashfreepg.Cashfree{XEnvironment: cashfreepg.SANDBOX, XClientID: &appId, XClientSecret: &secret}` |
+| `client.Order.Create(data, nil)` | `cashfree.PGCreateOrder(&createOrderRequest, nil, nil, nil)` |
+| `client.Payment.Refund(pid, amount, data, nil)` | `cashfree.PGOrderCreateRefund(orderId, &orderCreateRefundRequest, nil, nil, nil)` |
 | hex HMAC verify | `cashfree.PGVerifyWebhookSignature(signature, rawBody, timestamp)` — returns boolean |
 
 ### 4.4 PHP

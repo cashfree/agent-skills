@@ -128,19 +128,23 @@ const cashfree = new Cashfree(
 </details>
 
 <details>
-<summary>Python</summary>
+<summary>Python (v6+)</summary>
 
 ```python
 # BEFORE (Sandbox)
-Cashfree.XClientId = "TEST_xxxxxxxxxxxxx"
-Cashfree.XClientSecret = "TEST_xxxxxxxxxxxxx"
-Cashfree.XEnvironment = Cashfree.SANDBOX
+cashfree = Cashfree(
+    XEnvironment=Cashfree.SANDBOX,
+    XClientId="TEST_xxxxxxxxxxxxx",
+    XClientSecret="TEST_xxxxxxxxxxxxx",
+)
 
 # AFTER (Production)
 import os
-Cashfree.XClientId = os.environ["CASHFREE_APP_ID"]         # "PROD_xxxxxxxxxxxxx"
-Cashfree.XClientSecret = os.environ["CASHFREE_SECRET_KEY"]  # "PROD_xxxxxxxxxxxxx"
-Cashfree.XEnvironment = Cashfree.PRODUCTION
+cashfree = Cashfree(
+    XEnvironment=Cashfree.PRODUCTION,
+    XClientId=os.environ["CASHFREE_APP_ID"],         # "PROD_xxxxxxxxxxxxx"
+    XClientSecret=os.environ["CASHFREE_SECRET_KEY"], # "PROD_xxxxxxxxxxxxx"
+)
 ```
 </details>
 
@@ -161,18 +165,28 @@ Cashfree.XEnvironment = Cashfree.PRODUCTION;
 </details>
 
 <details>
-<summary>Go</summary>
+<summary>Go (v6+)</summary>
 
 ```go
+import cashfreepg "github.com/cashfree/cashfree-pg/v6"
+
 // BEFORE (Sandbox)
 clientId := "TEST_xxxxxxxxxxxxx"
 clientSecret := "TEST_xxxxxxxxxxxxx"
-cashfree.XEnvironment = cashfree.SANDBOX
+cashfree := cashfreepg.Cashfree{
+    XEnvironment:  cashfreepg.SANDBOX,
+    XClientID:     &clientId,
+    XClientSecret: &clientSecret,
+}
 
 // AFTER (Production)
-clientId := os.Getenv("CASHFREE_APP_ID")
-clientSecret := os.Getenv("CASHFREE_SECRET_KEY")
-cashfree.XEnvironment = cashfree.PRODUCTION
+clientId = os.Getenv("CASHFREE_APP_ID")       // "PROD_xxxxxxxxxxxxx"
+clientSecret = os.Getenv("CASHFREE_SECRET_KEY") // "PROD_xxxxxxxxxxxxx"
+cashfree = cashfreepg.Cashfree{
+    XEnvironment:  cashfreepg.PRODUCTION,
+    XClientID:     &clientId,
+    XClientSecret: &clientSecret,
+}
 ```
 </details>
 

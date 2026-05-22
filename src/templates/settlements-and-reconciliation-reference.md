@@ -225,22 +225,28 @@ const recon = await cashfree.PGSettlementReconciliation({
 const orderSettles = await cashfree.PGOrderFetchSettlement(orderId);
 ```
 
-### Python
+### Python (v6+)
 
 ```python
 from cashfree_pg.api_client import Cashfree
 from cashfree_pg.models.settlement_fetch_request import SettlementFetchRequest
 from cashfree_pg.models.fetch_settlements_request import FetchSettlementsRequest
 
-res = Cashfree().PGFetchSettlements("2025-01-01", FetchSettlementsRequest(
+cashfree = Cashfree(
+    XEnvironment=Cashfree.PRODUCTION,
+    XClientId=os.environ["CASHFREE_APP_ID"],
+    XClientSecret=os.environ["CASHFREE_SECRET_KEY"],
+)
+
+res = cashfree.PGFetchSettlements(FetchSettlementsRequest(
     pagination={"limit": 100, "cursor": None},
     filters={"start_date": "2026-04-01T00:00:00+05:30", "end_date": "2026-04-30T23:59:59+05:30"},
-))
+), None, None)
 
-recon = Cashfree().PGSettlementReconciliation("2025-01-01", SettlementFetchRequest(
+recon = cashfree.PGSettlementReconciliation(SettlementFetchRequest(
     pagination={"limit": 1000, "cursor": None},
     filters={"cf_settlement_ids": [12345]},
-))
+), None, None)
 ```
 
 ### Java
@@ -255,15 +261,14 @@ req.setFilters(new FetchSettlementsFilters()
 var res = cashfree.PGFetchSettlements("2025-01-01", req, null, null, null);
 ```
 
-### Go
+### Go (v6+)
 
 ```go
-xApiVersion := "2025-01-01"
-req := cashfree.FetchSettlementsRequest{
-    Pagination: &cashfree.PaginationForSettlements{Limit: 100},
-    Filters:    &cashfree.FetchSettlementsFilters{StartDate: &start, EndDate: &end},
+req := cashfreepg.FetchSettlementsRequest{
+    Pagination: &cashfreepg.PaginationForSettlements{Limit: 100},
+    Filters:    &cashfreepg.FetchSettlementsFilters{StartDate: &start, EndDate: &end},
 }
-res, _, err := cashfree.PGFetchSettlements(&xApiVersion, &req, nil, nil, nil)
+res, err := cashfree.PGFetchSettlements(&req, "", "", "", "", nil)
 ```
 
 ### Direct REST (Ruby / PHP / any language)
@@ -287,17 +292,19 @@ A pattern merchants frequently implement as a cron: walk all new settlements sin
 import os, time
 from cashfree_pg.api_client import Cashfree
 
-Cashfree.XClientId = os.environ["CASHFREE_APP_ID"]
-Cashfree.XClientSecret = os.environ["CASHFREE_SECRET_KEY"]
-Cashfree.XEnvironment = Cashfree.XProduction
+cashfree = Cashfree(
+    XEnvironment=Cashfree.PRODUCTION,
+    XClientId=os.environ["CASHFREE_APP_ID"],
+    XClientSecret=os.environ["CASHFREE_SECRET_KEY"],
+)
 
 def pull_settlements_since(iso_from, iso_to):
     cursor = None
     while True:
-        res = Cashfree().PGFetchSettlements("2025-01-01", {
+        res = cashfree.PGFetchSettlements({
             "pagination": {"limit": 200, "cursor": cursor},
             "filters": {"start_date": iso_from, "end_date": iso_to},
-        })
+        }, None, None)
         for s in res.data.data:
             upsert_settlement(s)                           # keyed by cf_settlement_id
             if s.status == "SUCCESS":
@@ -308,10 +315,10 @@ def pull_settlements_since(iso_from, iso_to):
 def pull_recon_for(cf_settlement_id):
     cursor = None
     while True:
-        res = Cashfree().PGSettlementReconciliation("2025-01-01", {
+        res = cashfree.PGSettlementReconciliation({
             "pagination": {"limit": 1000, "cursor": cursor},
             "filters": {"cf_settlement_ids": [cf_settlement_id]},
-        })
+        }, None, None)
         for row in res.data.data:
             upsert_event(row)                              # keyed by event_details.event_id
         cursor = res.data.cursor

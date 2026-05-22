@@ -68,19 +68,19 @@ async function createRefund(orderId, refundAmount, refundId) {
 </details>
 
 <details>
-<summary>Python</summary>
+<summary>Python (v6+)</summary>
 
 ```python
-from cashfree_pg.models import CreateRefundRequest
+from cashfree_pg.models.create_refund_request import CreateRefundRequest
 
 def create_refund(order_id, refund_amount, refund_id):
     request = CreateRefundRequest(
         refund_amount=refund_amount,
         refund_id=refund_id,
         refund_note="Customer requested refund",
-        refund_speed="STANDARD"
+        refund_speed="STANDARD",
     )
-    response = Cashfree.PGOrderCreateRefund("2025-01-01", order_id, request)
+    response = cashfree.PGOrderCreateRefund(order_id, request, None, None)
     return response.data
 ```
 </details>
@@ -104,20 +104,19 @@ public RefundEntity createRefund(String orderId, double amount, String refundId)
 </details>
 
 <details>
-<summary>Go</summary>
+<summary>Go (v6+)</summary>
 
 ```go
-func createRefund(orderId string, amount float64, refundId string) (*cashfree.RefundEntity, error) {
-    xApiVersion := "2025-01-01"
+func createRefund(orderId string, amount float64, refundId string) (*cashfreepg.RefundEntity, error) {
     note := "Customer requested refund"
     speed := "STANDARD"
-    request := cashfree.CreateRefundRequest{
+    request := cashfreepg.OrderCreateRefundRequest{
         RefundAmount: amount,
         RefundId:     refundId,
         RefundNote:   &note,
         RefundSpeed:  &speed,
     }
-    response, _, err := cashfree.PGOrderCreateRefund(&xApiVersion, &orderId, &request, nil, nil, nil)
+    response, _, err := cashfree.PGOrderCreateRefund(orderId, &request, nil, nil, nil)
     return response, err
 }
 ```
@@ -147,8 +146,8 @@ const response = await cashfree.PGOrderFetchPayments(orderId);
 ```
 
 ```python
-# Python
-response = Cashfree.PGOrderFetchPayments("2025-01-01", order_id)
+# Python (v6+)
+response = cashfree.PGOrderFetchPayments(order_id, None, None)
 ```
 
 **Get a specific payment** (`PGOrderFetchPayment`):
@@ -298,7 +297,7 @@ Cashfree SDKs expose a per-call parameter (usually the last optional arg) for se
 ### Node.js
 
 ```javascript
-// cashfree-pg v5 — SDK v4 has the same shape
+// cashfree-pg v6+ — instance method, no API version arg
 const idempotencyKey = `order:${orderId}:v1`;
 
 const response = await cashfree.PGCreateOrder(
@@ -308,11 +307,10 @@ const response = await cashfree.PGCreateOrder(
 );
 ```
 
-### Python
+### Python (v6+)
 
 ```python
-response = Cashfree().PGCreateOrder(
-    "2025-01-01",
+response = cashfree.PGCreateOrder(
     request,
     None,                                         # x_request_id
     f"order:{order_id}:v1",                       # x_idempotency_key
@@ -331,12 +329,11 @@ var response = cashfree.PGCreateOrder(
 );
 ```
 
-### Go
+### Go (v6+)
 
 ```go
-version := "2025-01-01"
 idem := fmt.Sprintf("order:%s:v1", orderId)
-response, _, err := cashfree.PGCreateOrder(&version, &req, nil, &idem, nil)
+response, _, err := cashfree.PGCreateOrder(&req, nil, &idem, nil)
 ```
 
 ### Retry pattern (language-agnostic)
@@ -465,9 +462,9 @@ try {
 ```
 
 ```python
-# Python
+# Python (v6+)
 try:
-    response = Cashfree.PGCreateOrder("2025-01-01", request)
+    response = cashfree.PGCreateOrder(request, None, None)
     return response.data
 except Exception as e:
     print(f"Error: {e}")

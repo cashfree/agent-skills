@@ -482,6 +482,69 @@ componentWillUnmount() {
 
 ---
 
+## 7.5. Category E.5: Web SDK — checkout result handling & init mistakes
+
+### E.5.1. Treating `result.error` from `cashfree.checkout({ redirectTarget: "_modal" })` as "payment failed"
+
+**What goes wrong:** App toasts "Payment failed. Please try again." every time the user closes the Cashfree modal — even when they just changed their mind.
+
+**Why it happens:** `result.error` fires for **three** things: SDK errors, network errors, AND the user dismissing the modal. The code treated it as a single failure signal.
+
+**Fix:** Handle all three resolution states. `result.error` → "Payment was not completed" (neutral), `result.redirect` → the page is navigating (stop), `result.paymentDetails` → an attempt was made (backend-verify before fulfilling). See `pg/web-sdk/SKILL.md` §3 for the full pattern.
+
+### E.5.2. Mounting Cashfree Elements then calling `cashfree.checkout()` to "submit"
+
+**What goes wrong:** App mounts `cardNumber` / `cardCvv` / `cardExpiry` / `cardHolder`. On submit, it calls `cashfree.checkout({ redirectTarget: "_modal" })`. A Drop-in modal opens that **ignores the card form the user just filled in**.
+
+**Why it happens:** The two paths (Drop-in vs Elements) are mutually exclusive but look similar to AI agents and the docs sometimes show both in the same file.
+
+**Fix:** Elements forms **must** submit via `cashfree.pay({ paymentMethod: cardNumber, paymentSessionId })`. `cashfree.checkout()` is for Drop-in only. See the Web SDK decision matrix in `pg/web-sdk/SKILL.md` §2.
+
+### E.5.3. Initializing `Cashfree({ mode })` inside a click handler
+
+**What goes wrong:** A new SDK instance is created on every checkout click. Memory grows, instance state is lost, certain SDK features (event listeners, saved-card cache) behave inconsistently between attempts.
+
+**Fix:** Call `Cashfree({ mode })` **once** at module / page load. The returned instance is reusable across multiple `.checkout()` / `.pay()` calls.
+
+### E.5.4. Dead `?order_id` redirect-handler in a `_modal`-only app
+
+**What goes wrong:** A `DOMContentLoaded` listener reads `?order_id` from the URL and calls `verifyOrder`. The app uses `redirectTarget: "_modal"` everywhere — Cashfree never navigates the browser, so this block is unreachable.
+
+**Fix:** Delete it. The block is only needed for `_self` / `_top` redirect modes. Leaving it in misleads future maintainers (and AI agents) into thinking two flows are supported when only one is.
+
+---
+
+## 7.6. Category E.6: Backend SDK — legacy version-arg & `return_url` traps
+
+### E.6.1. Inconsistent `x_api_version` in `cashfree-pg < 6.x`
+
+**What goes wrong:**
+
+```python
+cashfree_client.PGCreateOrder('2025-01-01', payload)   # ok
+cashfree_client.PGFetchOrder(order_id)                  # ❌ missing version
+```
+
+**Why it happens:** Pre-v6 Python/Node SDKs require the version as the first positional arg on **every** method. AI agents often apply it to `PGCreateOrder` and forget the rest.
+
+**Fix:** Either pass `'2025-01-01'` first on every method (legacy 4.x / 3.x), or upgrade to v6 and drop it everywhere. Mixing the two styles is the most common 4.x→v6 migration bug. See `pg/backend-sdks/SKILL.md` §2.
+
+### E.6.2. `return_url` with literal `{order_id}` inside a Python f-string
+
+**What goes wrong:**
+
+```python
+return_url = f"http://localhost:{PORT}/return/{{order_id}}"
+# Sent to Cashfree: http://localhost:5000/return/{order_id}  (literal braces)
+# Flask route /return/<order_id> tries to match the string "{order_id}" as the path param → 404 / wrong handler
+```
+
+**Why it happens:** `{order_id}` is a Cashfree server-side substitution token. Inside a Python f-string, `{...}` is also interpolation syntax. Escaping as `{{order_id}}` produces a literal `{order_id}` in the URL — which Flask's route converter then can't match.
+
+**Fix:** Use a **static** `return_url` (`https://yoursite.com/return`) — Cashfree appends `?order_id=ORDER_ID` automatically. Read it on the handler with `request.args.get('order_id')`. Avoid the `{order_id}` token unless you really want server-side substitution, and never wrap it in an f-string. See `pg/backend-sdks/SKILL.md` §4 Step 1.
+
+---
+
 ## 8. Category F: Rate Limits & Production Readiness
 
 ### F1. Hitting rate limits (429 Too Many Requests)

@@ -36,13 +36,6 @@ jobs:
             - name: Update package version
               run: npm version ${{ steps.version.outputs.VERSION }} --no-git-tag-version --allow-same-version
 
-            - name: Inject runtime telemetry config
-              run: |
-                  node -e "const fs = require('fs'); const file = 'src/telemetry.ts'; const host = process.env.POSTHOG_HOST || ''; const apiKey = process.env.POSTHOG_PROJECT_API_KEY || ''; let content = fs.readFileSync(file, 'utf8'); content = content.replace('__POSTHOG_HOST__', host).replace('__POSTHOG_API_KEY__', apiKey); fs.writeFileSync(file, content);"
-              env:
-                  POSTHOG_PROJECT_API_KEY: ${{ secrets.POSTHOG_PROJECT_API_KEY }}
-                  POSTHOG_HOST: ${{ vars.POSTHOG_HOST }}
-
             - name: Build package
               run: npm run build
 
@@ -50,6 +43,7 @@ jobs:
               run: npm publish --access public
               env:
                   NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+                  CASHFREE_TELEMETRY_BASE_URL: ${{ secrets.CASHFREE_TELEMETRY_BASE_URL }}
 
             - name: Commit and push version update
               run: |

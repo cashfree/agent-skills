@@ -5,7 +5,7 @@ Add Cashfree Payments skills to your AI coding assistant projects — everything
 ## Quick Start
 
 ```bash
-npx @cashfreepayments/agent-skills@latest add skills
+npx @cashfreepayments/agent-skills add skills
 ```
 
 ![Cashfree Payments](https://github.com/user-attachments/assets/a0a36020-7eee-4fda-9d6b-4002ea4991c6)
@@ -16,19 +16,40 @@ This will prompt you to select which AI coding assistants to configure.
 
 ### Interactive Mode
 ```bash
-npx @cashfreepayments/agent-skills@latest add skills
+npx @cashfreepayments/agent-skills add skills
 ```
 You'll be prompted to select which AI assistants to configure.
 
 ### Specify Frameworks
 ```bash
-npx @cashfreepayments/agent-skills@latest add skills --frameworks cursor,claude-code,gemini-cli
+npx @cashfreepayments/agent-skills add skills --frameworks cursor,claude-code,gemini-cli
 ```
 
 ### Custom Project Path
 ```bash
-npx @cashfreepayments/agent-skills@latest add skills --path /path/to/project
+npx @cashfreepayments/agent-skills add skills --path /path/to/project
 ```
+
+### Updating Existing Skills
+
+If you've already installed skills in a project and a newer version of the package is published, you have two options:
+
+**Option 1 — Re-run `add skills`.** It auto-detects the installed version, compares against the latest published version on npm, and updates in place if outdated. No prompt.
+```bash
+npx @cashfreepayments/agent-skills add skills
+```
+
+**Option 2 — Use the dedicated `update` command.** Force-rewrites every skill file with the latest templates. Auto-detects which frameworks you have installed in the project; no need to re-select.
+```bash
+npx @cashfreepayments/agent-skills update
+```
+
+Target specific frameworks:
+```bash
+npx @cashfreepayments/agent-skills update --frameworks cursor,claude-code
+```
+
+Each skill file embeds its version in the YAML frontmatter (`cashfree-skills-version: …`), so the CLI can tell exactly what's installed and what needs refreshing.
 
 ## What Gets Created
 

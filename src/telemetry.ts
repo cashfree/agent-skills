@@ -47,36 +47,29 @@ interface BuildBaseEventInput {
     selectedFrameworks: Framework[];
 }
 
-const DEFAULT_POSTHOG_HOST = "__POSTHOG_HOST__";
-const DEFAULT_POSTHOG_API_KEY = "__POSTHOG_API_KEY__";
+const TELEMETRY_BASE_URL = "__TELEMETRY_BASE_URL__";
+
+const EVENT_ENDPOINTS: Record<string, string> = {
+    "agent_skills_install_started":               "/telemetry/agent-skills-install/started",
+    "agent_skills_framework_selected":            "/telemetry/agent-skills-install/framework-selected",
+    "agent_skills_framework_install_succeeded":   "/telemetry/agent-skills-install/framework-succeeded",
+    "agent_skills_framework_install_failed":      "/telemetry/agent-skills-install/framework-failed",
+    "agent_skills_install_completed":             "/telemetry/agent-skills-install/completed",
+    "agent_skills_progress_feedback_submitted":   "/telemetry/agent-skills-progress-feedback",
+};
 
 export function createTelemetryDistinctId(): string {
     return randomUUID();
 }
 
 export function isTelemetryEnabled(): boolean {
-    const hasInjectedHost = DEFAULT_POSTHOG_HOST.length > 0 && !DEFAULT_POSTHOG_HOST.startsWith("__POSTHOG_");
-    const hasInjectedApiKey = DEFAULT_POSTHOG_API_KEY.length > 0 && !DEFAULT_POSTHOG_API_KEY.startsWith("__POSTHOG_");
-
-    return Boolean(
-        hasInjectedApiKey &&
-        hasInjectedHost
-    );
+    return TELEMETRY_BASE_URL.length > 0 && !TELEMETRY_BASE_URL.startsWith("__TELEMETRY_");
 }
 
-function buildBaseProperties({
-    distinctId,
-    cliVersion,
-    selectionMode,
-    selectedFrameworks,
-}: BuildBaseEventInput): Record<string, unknown> {
+function buildSystemProperties(distinctId: string, cliVersion: string): Record<string, unknown> {
     return {
         distinct_id: distinctId,
-        $process_person_profile: false,
         cli_version: cliVersion,
-        selection_mode: selectionMode,
-        selected_frameworks: selectedFrameworks,
-        selected_framework_count: selectedFrameworks.length,
         node_version: process.version,
         platform: process.platform,
         arch: process.arch,
@@ -87,7 +80,11 @@ function buildBaseProperties({
 export function createInstallStartedEvent(input: BuildBaseEventInput): InstallTelemetryEvent {
     return {
         event: "agent_skills_install_started",
-        properties: buildBaseProperties(input),
+        properties: {
+            ...buildSystemProperties(input.distinctId, input.cliVersion),
+            selection_mode: input.selectionMode,
+            selected_frameworks: input.selectedFrameworks,
+        },
         timestamp: new Date().toISOString(),
     };
 }
@@ -96,7 +93,7 @@ export function createFrameworkSelectedEvents(input: BuildBaseEventInput): Insta
     return input.selectedFrameworks.map((framework) => ({
         event: "agent_skills_framework_selected",
         properties: {
-            ...buildBaseProperties(input),
+            ...buildSystemProperties(input.distinctId, input.cliVersion),
             framework,
         },
         timestamp: new Date().toISOString(),
@@ -110,7 +107,7 @@ export function createFrameworkSucceededEvent(
     return {
         event: "agent_skills_framework_install_succeeded",
         properties: {
-            ...buildBaseProperties(input),
+            ...buildSystemProperties(input.distinctId, input.cliVersion),
             framework,
         },
         timestamp: new Date().toISOString(),
@@ -125,7 +122,7 @@ export function createFrameworkFailedEvent(
     return {
         event: "agent_skills_framework_install_failed",
         properties: {
-            ...buildBaseProperties(input),
+            ...buildSystemProperties(input.distinctId, input.cliVersion),
             framework,
             error_type: error instanceof Error ? error.name : "UnknownError",
         },
@@ -141,11 +138,9 @@ export function createInstallCompletedEvent(
     return {
         event: "agent_skills_install_completed",
         properties: {
-            ...buildBaseProperties(input),
+            ...buildSystemProperties(input.distinctId, input.cliVersion),
             succeeded_frameworks: succeededFrameworks,
-            succeeded_framework_count: succeededFrameworks.length,
             failed_frameworks: failedFrameworks,
-            failed_framework_count: failedFrameworks.length,
         },
         timestamp: new Date().toISOString(),
     };
@@ -159,24 +154,14 @@ export function createProgressFeedbackSubmittedEvent(
     return {
         event: "agent_skills_progress_feedback_submitted",
         properties: {
-            distinct_id: randomUUID(),
-            $process_person_profile: false,
-            cli_version: input.cliVersion,
+            ...buildSystemProperties(randomUUID(), input.cliVersion),
             flow: input.flow,
             skills_used: input.skillsUsed,
-            skills_used_count: input.skillsUsed.length,
             completed_steps: input.completedSteps,
-            completed_steps_count: input.completedSteps.length,
             pending_steps: input.pendingSteps,
-            pending_steps_count: input.pendingSteps.length,
             llm_feedback: input.llmFeedback,
-            llm_feedback_length: input.llmFeedback.length,
             ...(merchantId !== undefined && merchantId > 0 && { merchant_id: merchantId }),
             ...(input.appId && { app_id: input.appId }),
-            node_version: process.version,
-            platform: process.platform,
-            arch: process.arch,
-            os_release: os.release(),
         },
         timestamp: new Date().toISOString(),
     };
@@ -189,29 +174,26 @@ export async function sendTelemetryEvents(
         return;
     }
 
-    const payload = JSON.stringify({
-        api_key: DEFAULT_POSTHOG_API_KEY,
-        historical_migration: false,
-        batch: events.map((event) => ({
-            event: event.event,
-            properties: event.properties,
-            timestamp: event.timestamp,
-        })),
-    });
+    await Promise.allSettled(
+        events.map(async (event) => {
+            const endpoint = EVENT_ENDPOINTS[event.event];
+            if (!endpoint) return;
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 3000);
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 3000);
 
-    try {
-        await fetch(new URL("/batch/", DEFAULT_POSTHOG_HOST).toString(), {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: payload,
-            signal: controller.signal,
-        });
-    } catch {
-        // Fail silently. Telemetry must never affect installs.
-    } finally {
-        clearTimeout(timeout);
-    }
+            try {
+                await fetch(new URL(endpoint, TELEMETRY_BASE_URL).toString(), {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(event.properties),
+                    signal: controller.signal,
+                });
+            } catch {
+                // Fail silently. Telemetry must never affect installs.
+            } finally {
+                clearTimeout(timeout);
+            }
+        })
+    );
 }

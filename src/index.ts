@@ -11,60 +11,20 @@ import {
     getSkillsBasePath,
     getManifestConfig,
 } from "./config.js";
-import { getGettingStartedSkillTemplate } from "./templates/getting-started.js";
-import { getPaymentModesSkillTemplate } from "./templates/payment-modes.js";
-import { getPGOverviewSkillTemplate } from "./templates/pg-overview.js";
-import {
-    getPGApiSkillTemplate,
-    getPGApiReferenceTemplate,
-    getPGSdkSkillTemplate,
-    getPGSdkReferenceTemplate,
-    getPGMobileSkillTemplate,
-    getPGMobileReferenceTemplate,
-    getPGWebhooksSkillTemplate,
-    getPGWebhooksReferenceTemplate,
-    getPGGoLiveSkillTemplate,
-    getPGGoLiveReferenceTemplate,
-    getPGRefundsSkillTemplate,
-    getPGRefundsReferenceTemplate,
-    getPGDisputesSkillTemplate,
-    getPGDisputesReferenceTemplate,
-    getPGPaymentLinksSkillTemplate,
-    getPGPaymentLinksReferenceTemplate,
-    getPGTokenVaultSkillTemplate,
-    getPGTokenVaultReferenceTemplate,
-    getPGWebSdkSkillTemplate,
-    getPGWebSdkReferenceTemplate,
-    getPGEasySplitSkillTemplate,
-    getPGEasySplitReferenceTemplate,
-    getPGOffersSkillTemplate,
-    getPGOffersReferenceTemplate,
-} from "./templates/pg.js";
-import { getSecureIdSkillTemplate, getSecureIdReferenceTemplate } from "./templates/secure-id.js";
-import { getSubscriptionsSkillTemplate, getSubscriptionsReferenceTemplate } from "./templates/subscriptions.js";
-import { getCrossBorderSkillTemplate, getCrossBorderReferenceTemplate } from "./templates/crossBorder.js";
-import { getPayoutsSkillTemplate, getPayoutsReferenceTemplate } from "./templates/payouts.js";
-import { getValidationAndTestingSkillTemplate } from "./templates/validation-and-testing.js";
-import { getCommonMistakesSkillTemplate } from "./templates/common-mistakes.js";
-import { getProgressAndSkillFeedbackSkillTemplate } from "./templates/progress-and-skill-feedback.js";
-import {
-    getMigrateFromRazorpaySkillTemplate,
-    getMigrateFromRazorpayReferenceTemplate,
-} from "./templates/migrate-from-razorpay.js";
-import {
-    getMigrateFromJuspaySkillTemplate,
-    getMigrateFromJuspayReferenceTemplate,
-} from "./templates/migrate-from-juspay.js";
-import {
-    getSettlementsSkillTemplate,
-    getSettlementsReferenceTemplate,
-} from "./templates/settlements-and-reconciliation.js";
-import {
-    getAutoCollectSkillTemplate,
-    getAutoCollectReferenceTemplate,
-} from "./templates/auto-collect.js";
 import { generateManifestContent } from "./templates/manifest.js";
-import { createSkillFile, createManifestFile } from "./generators/utils.js";
+import { createManifestFile, ensureGitignoreEntry } from "./generators/utils.js";
+import {
+    autoUpgradeIfStale,
+    detectInstalledState,
+    installSkillsForFramework,
+} from "./install.js";
+import {
+    collectOptionValues,
+    findSimilar,
+    getFrameworkName,
+    VALID_ADD_TYPES,
+} from "./cli-utils.js";
+import { printBanner, printHelp, printInstallSuccess } from "./cli-ui.js";
 import {
     createFrameworkFailedEvent,
     createFrameworkSelectedEvents,
@@ -86,168 +46,59 @@ const pkg = JSON.parse(
 );
 
 const program = new Command();
+program.showSuggestionAfterError(true);
+program.showHelpAfterError("(run with --help for available commands)");
 
 program
     .name("cashfree")
     .description("CLI to add Cashfree Payments skills to AI coding assistants")
     .version(pkg.version);
 
-type Skill = { dir: string; fileName?: string; getTemplate: () => string };
-
-/**
- * All skill files in order — each creates {dir}/SKILL.md:
- * 1. Getting Started (setup, auth, environment)
- * 2. Eligible Payment Modes (check what's enabled for the merchant)
- * 3. PG overview + sub-skills (APIs, SDKs, Mobile, Webhooks)
- * 4. Other products (Secure ID, Subscriptions, Cross Border, Payouts)
- * 5. Validation & Testing (post-integration checks)
- */
-const ALL_SKILLS: Skill[] = [
-    // --- Start: onboarding & setup ---
-    { dir: "getting-started", getTemplate: getGettingStartedSkillTemplate },
-    { dir: "eligible-payment-modes", getTemplate: getPaymentModesSkillTemplate },
-
-    // --- Middle: product-specific skills ---
-    { dir: "pg", getTemplate: getPGOverviewSkillTemplate },
-    { dir: "pg/apis", getTemplate: getPGApiSkillTemplate },
-    { dir: "pg/apis/references", fileName: "REFERENCE.md", getTemplate: getPGApiReferenceTemplate },
-    { dir: "pg/backend-sdks", getTemplate: getPGSdkSkillTemplate },
-    { dir: "pg/backend-sdks/references", fileName: "REFERENCE.md", getTemplate: getPGSdkReferenceTemplate },
-    { dir: "pg/mobile-sdks", getTemplate: getPGMobileSkillTemplate },
-    { dir: "pg/mobile-sdks/references", fileName: "REFERENCE.md", getTemplate: getPGMobileReferenceTemplate },
-    { dir: "pg/webhooks", getTemplate: getPGWebhooksSkillTemplate },
-    { dir: "pg/webhooks/references", fileName: "REFERENCE.md", getTemplate: getPGWebhooksReferenceTemplate },
-    { dir: "pg/go-live", getTemplate: getPGGoLiveSkillTemplate },
-    { dir: "pg/go-live/references", fileName: "REFERENCE.md", getTemplate: getPGGoLiveReferenceTemplate },
-    { dir: "pg/refunds", getTemplate: getPGRefundsSkillTemplate },
-    { dir: "pg/refunds/references", fileName: "REFERENCE.md", getTemplate: getPGRefundsReferenceTemplate },
-    { dir: "pg/disputes", getTemplate: getPGDisputesSkillTemplate },
-    { dir: "pg/disputes/references", fileName: "REFERENCE.md", getTemplate: getPGDisputesReferenceTemplate },
-    { dir: "pg/payment-links", getTemplate: getPGPaymentLinksSkillTemplate },
-    { dir: "pg/payment-links/references", fileName: "REFERENCE.md", getTemplate: getPGPaymentLinksReferenceTemplate },
-    { dir: "pg/token-vault", getTemplate: getPGTokenVaultSkillTemplate },
-    { dir: "pg/token-vault/references", fileName: "REFERENCE.md", getTemplate: getPGTokenVaultReferenceTemplate },
-    { dir: "pg/web-sdk", getTemplate: getPGWebSdkSkillTemplate },
-    { dir: "pg/web-sdk/references", fileName: "REFERENCE.md", getTemplate: getPGWebSdkReferenceTemplate },
-    { dir: "pg/easy-split", getTemplate: getPGEasySplitSkillTemplate },
-    { dir: "pg/easy-split/references", fileName: "REFERENCE.md", getTemplate: getPGEasySplitReferenceTemplate },
-    { dir: "pg/offers", getTemplate: getPGOffersSkillTemplate },
-    { dir: "pg/offers/references", fileName: "REFERENCE.md", getTemplate: getPGOffersReferenceTemplate },
-    { dir: "secure-id", getTemplate: getSecureIdSkillTemplate },
-    { dir: "secure-id/references", fileName: "REFERENCE.md", getTemplate: getSecureIdReferenceTemplate },
-    { dir: "subscriptions", getTemplate: getSubscriptionsSkillTemplate },
-    { dir: "subscriptions/references", fileName: "REFERENCE.md", getTemplate: getSubscriptionsReferenceTemplate },
-    { dir: "cross-border", getTemplate: getCrossBorderSkillTemplate },
-    { dir: "cross-border/references", fileName: "REFERENCE.md", getTemplate: getCrossBorderReferenceTemplate },
-    { dir: "payouts", getTemplate: getPayoutsSkillTemplate },
-    { dir: "payouts/references", fileName: "REFERENCE.md", getTemplate: getPayoutsReferenceTemplate },
-    { dir: "settlements-and-reconciliation", getTemplate: getSettlementsSkillTemplate },
-    { dir: "settlements-and-reconciliation/references", fileName: "REFERENCE.md", getTemplate: getSettlementsReferenceTemplate },
-    { dir: "auto-collect", getTemplate: getAutoCollectSkillTemplate },
-    { dir: "auto-collect/references", fileName: "REFERENCE.md", getTemplate: getAutoCollectReferenceTemplate },
-
-    // --- Migration skills (switching from another PG) ---
-    { dir: "migrate-from-razorpay", getTemplate: getMigrateFromRazorpaySkillTemplate },
-    { dir: "migrate-from-razorpay/references", fileName: "REFERENCE.md", getTemplate: getMigrateFromRazorpayReferenceTemplate },
-    { dir: "migrate-from-juspay", getTemplate: getMigrateFromJuspaySkillTemplate },
-    { dir: "migrate-from-juspay/references", fileName: "REFERENCE.md", getTemplate: getMigrateFromJuspayReferenceTemplate },
-    { dir: "progress-and-skill-feedback", getTemplate: getProgressAndSkillFeedbackSkillTemplate },
-
-    // --- End: validation, testing & troubleshooting ---
-    { dir: "validation-and-testing", getTemplate: getValidationAndTestingSkillTemplate },
-    { dir: "common-mistakes", getTemplate: getCommonMistakesSkillTemplate },
-];
-
-function collectOptionValues(value: string, previous: string[]): string[] {
-    previous.push(value);
-    return previous;
-}
-
 program
     .command("add")
     .argument("<type>", "What to add (skills)")
     .description("Add all Cashfree Payments skill files to your project")
     .option("-p, --path <path>", "Project path", process.cwd())
-    .option(
-        "-f, --frameworks <frameworks>",
-        "Comma-separated list of frameworks",
-    )
-    .action(async (_type, options) => {
-        // Amazing branding banner
-        console.log("\n");
-        console.log(
-            chalk.bold.hex("#10b981")(
-                "   ██████╗ █████╗ ███████╗██╗  ██╗███████╗██████╗ ███████╗███████╗",
-            ),
-        );
-        console.log(
-            chalk.bold.hex("#10b981")(
-                "  ██╔════╝██╔══██╗██╔════╝██║  ██║██╔════╝██╔══██╗██╔════╝██╔════╝",
-            ),
-        );
-        console.log(
-            chalk.bold.hex("#10b981")(
-                "  ██║     ███████║███████╗███████║█████╗  ██████╔╝█████╗  █████╗  ",
-            ),
-        );
-        console.log(
-            chalk.bold.hex("#10b981")(
-                "  ██║     ██╔══██║╚════██║██╔══██║██╔══╝  ██╔══██╗██╔══╝  ██╔══╝  ",
-            ),
-        );
-        console.log(
-            chalk.bold.hex("#10b981")(
-                "  ╚██████╗██║  ██║███████║██║  ██║██║     ██║  ██║███████╗███████╗",
-            ),
-        );
-        console.log(
-            chalk.bold.hex("#10b981")(
-                "   ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝  ╚═╝╚══════╝╚══════╝",
-            ),
-        );
-        console.log(
-            chalk.bold.hex("#f59e0b")(
-                "  ██████╗  █████╗ ██╗   ██╗███╗   ███╗███████╗███╗   ██╗████████╗███████╗",
-            ),
-        );
-        console.log(
-            chalk.bold.hex("#f59e0b")(
-                "  ██╔══██╗██╔══██╗╚██╗ ██╔╝████╗ ████║██╔════╝████╗  ██║╚══██╔══╝██╔════╝",
-            ),
-        );
-        console.log(
-            chalk.bold.hex("#f59e0b")(
-                "  ██████╔╝███████║ ╚████╔╝ ██╔████╔██║█████╗  ██╔██╗ ██║   ██║   ███████╗",
-            ),
-        );
-        console.log(
-            chalk.bold.hex("#f59e0b")(
-                "  ██╔═══╝ ██╔══██║  ╚██╔╝  ██║╚██╔╝██║██╔══╝  ██║╚██╗██║   ██║   ╚════██║",
-            ),
-        );
-        console.log(
-            chalk.bold.hex("#f59e0b")(
-                "  ██║     ██║  ██║   ██║   ██║ ╚═╝ ██║███████╗██║ ╚████║   ██║   ███████║",
-            ),
-        );
-        console.log(
-            chalk.bold.hex("#f59e0b")(
-                "  ╚═╝     ╚═╝  ╚═╝   ╚═╝   ╚═╝     ╚═╝╚══════╝╚═╝  ╚═══╝   ╚═╝   ╚══════╝",
-            ),
-        );
-        console.log("\n");
-        console.log(
-            chalk.bold.cyan(
-                "  🎯 Agent Skills Setup - Add Cashfree Payments Integration Knowledge to AI Assistants\n",
-            ),
-        );
+    .option("-f, --frameworks <frameworks>", "Comma-separated list of frameworks")
+    .action(async (type, options) => {
+        if (!VALID_ADD_TYPES.includes(type as (typeof VALID_ADD_TYPES)[number])) {
+            console.error(chalk.red(`\n❌ Unknown type '${type}'.`));
+            const suggestion = findSimilar(type, VALID_ADD_TYPES);
+            if (suggestion) {
+                console.error(
+                    chalk.yellow(`   Did you mean: `) +
+                        chalk.bold.green(`npx @cashfreepayments/agent-skills@latest add ${suggestion}`) +
+                        chalk.yellow(`?`),
+                );
+            }
+            console.error(chalk.dim(`\nValid types: ${VALID_ADD_TYPES.join(", ")}`));
+            console.error(chalk.dim(`Example:     npx @cashfreepayments/agent-skills@latest add skills\n`));
+            process.exit(1);
+        }
+
+        await autoUpgradeIfStale(pkg.version);
+        printBanner();
 
         let selectedFrameworks: Framework[];
 
         if (options.frameworks) {
-            selectedFrameworks = options.frameworks
+            const validValues = FRAMEWORKS.map((f) => f.value);
+            const requested = options.frameworks
                 .split(",")
-                .map((f: string) => f.trim()) as Framework[];
+                .map((f: string) => f.trim())
+                .filter(Boolean);
+            const invalid = requested.filter((f: string) => !validValues.includes(f as Framework));
+
+            if (invalid.length > 0) {
+                console.log(chalk.red(`\n❌ Invalid framework name(s): ${invalid.join(", ")}\n`));
+                console.log(chalk.yellow("Valid frameworks:"));
+                for (const f of FRAMEWORKS) {
+                    console.log(chalk.dim(`  • ${f.value.padEnd(18)} (${f.name})`));
+                }
+                console.log("");
+                process.exit(1);
+            }
+            selectedFrameworks = requested as Framework[];
         } else {
             const answers = await inquirer.prompt([
                 {
@@ -259,12 +110,8 @@ program
                         value: f.value,
                         checked: false,
                     })),
-                    validate: (input: string[]) => {
-                        if (input.length === 0) {
-                            return "Please select at least one framework.";
-                        }
-                        return true;
-                    },
+                    validate: (input: string[]) =>
+                        input.length === 0 ? "Please select at least one framework." : true,
                     pageSize: 10,
                 },
             ]);
@@ -294,94 +141,128 @@ program
             const skillsBasePath = getSkillsBasePath(framework);
             const manifestConfig = getManifestConfig(framework);
 
-            console.log(
-                chalk.blue(`\n📦 Configuring ${frameworkName}...`),
-            );
-            console.log(
-                chalk.dim(`   Skills: ${skillsBasePath}/`),
-            );
-            console.log(
-                chalk.dim(`   Manifest: ${manifestConfig.path}`),
-            );
+            console.log(chalk.blue(`\n📦 Configuring ${frameworkName}...`));
+            console.log(chalk.dim(`   Skills: ${skillsBasePath}/`));
+            console.log(chalk.dim(`   Manifest: ${manifestConfig.path}`));
 
             try {
-                // 1. Create all skill files
-                for (const { dir, fileName, getTemplate } of ALL_SKILLS) {
-                    await createSkillFile(projectPath, skillsBasePath, dir, getTemplate, fileName);
+                const installed = await detectInstalledState(projectPath, skillsBasePath);
+                let overwrite = false;
+                let skipFiles = false;
+
+                if (installed.state === "versioned" && installed.version === pkg.version) {
+                    console.log(chalk.green(`   ✓ Skills already up to date (v${pkg.version})`));
+                    skipFiles = true;
+                } else if (installed.state === "versioned") {
+                    console.log(
+                        chalk.yellow(`   ⬆ Updating skills v${installed.version} → v${pkg.version}`),
+                    );
+                    overwrite = true;
+                } else if (installed.state === "legacy") {
+                    console.log(chalk.yellow(`   ⬆ Updating legacy skills install → v${pkg.version}`));
+                    overwrite = true;
                 }
 
-                // 2. Create manifest with dynamic paths for this framework
-                const manifestContent = generateManifestContent(
-                    skillsBasePath,
-                    manifestConfig.format,
-                );
-                await createManifestFile(projectPath, manifestConfig.path, manifestContent);
+                if (!skipFiles) {
+                    await installSkillsForFramework(framework, projectPath, pkg.version, overwrite);
+                } else {
+                    const manifestContent = generateManifestContent(skillsBasePath, manifestConfig.format);
+                    await createManifestFile(projectPath, manifestConfig.path, manifestContent);
+                    await ensureGitignoreEntry(projectPath, skillsBasePath);
+                }
+
                 succeededFrameworks.push(framework);
-                telemetryEvents.push(
-                    createFrameworkSucceededEvent(telemetryContext, framework),
-                );
+                telemetryEvents.push(createFrameworkSucceededEvent(telemetryContext, framework));
             } catch (error) {
                 failedFrameworks.push(framework);
-                telemetryEvents.push(
-                    createFrameworkFailedEvent(telemetryContext, framework, error),
-                );
+                telemetryEvents.push(createFrameworkFailedEvent(telemetryContext, framework, error));
                 console.log(
-                    chalk.red(
-                        `  Error: ${error instanceof Error ? error.message : "Unknown error"}`,
-                    ),
+                    chalk.red(`  Error: ${error instanceof Error ? error.message : "Unknown error"}`),
                 );
             }
         }
 
         telemetryEvents.push(
-            createInstallCompletedEvent(
-                telemetryContext,
-                succeededFrameworks,
-                failedFrameworks,
-            ),
+            createInstallCompletedEvent(telemetryContext, succeededFrameworks, failedFrameworks),
         );
         await sendTelemetryEvents(telemetryEvents);
 
-        console.log(
-            chalk.bold.green(
-                "\n✅ Cashfree Payments skill configuration complete!\n",
-            ),
-        );
-        console.log(chalk.dim("Skills installed:"));
-        console.log(chalk.dim("  cashfree-skills/"));
-        console.log(chalk.dim("  ├── getting-started/SKILL.md"));
-        console.log(chalk.dim("  ├── eligible-payment-modes/SKILL.md"));
-        console.log(chalk.dim("  ├── pg/"));
-        console.log(chalk.dim("  │   ├── SKILL.md (overview)"));
-        console.log(chalk.dim("  │   ├── apis/SKILL.md + references/SKILL.md"));
-        console.log(chalk.dim("  │   ├── backend-sdks/SKILL.md + references/SKILL.md"));
-        console.log(chalk.dim("  │   ├── mobile-sdks/SKILL.md + references/SKILL.md"));
-        console.log(chalk.dim("  │   ├── webhooks/SKILL.md + references/REFERENCE.md"));
-        console.log(chalk.dim("  │   ├── go-live/SKILL.md + references/REFERENCE.md"));
-        console.log(chalk.dim("  │   ├── refunds/SKILL.md + references/REFERENCE.md"));
-        console.log(chalk.dim("  │   ├── disputes/SKILL.md + references/REFERENCE.md"));
-        console.log(chalk.dim("  │   ├── payment-links/SKILL.md + references/REFERENCE.md"));
-        console.log(chalk.dim("  │   ├── token-vault/SKILL.md + references/REFERENCE.md"));
-        console.log(chalk.dim("  │   ├── web-sdk/SKILL.md + references/REFERENCE.md"));
-        console.log(chalk.dim("  │   ├── easy-split/SKILL.md + references/REFERENCE.md"));
-        console.log(chalk.dim("  │   └── offers/SKILL.md + references/REFERENCE.md"));
-        console.log(chalk.dim("  ├── secure-id/SKILL.md + references/REFERENCE.md"));
-        console.log(chalk.dim("  ├── subscriptions/SKILL.md + references/REFERENCE.md"));
-        console.log(chalk.dim("  ├── cross-border/SKILL.md + references/REFERENCE.md"));
-        console.log(chalk.dim("  ├── payouts/SKILL.md + references/REFERENCE.md"));
-        console.log(chalk.dim("  ├── settlements-and-reconciliation/SKILL.md + references/REFERENCE.md"));
-        console.log(chalk.dim("  ├── auto-collect/SKILL.md + references/REFERENCE.md"));
-        console.log(chalk.dim("  ├── migrate-from-razorpay/SKILL.md + references/REFERENCE.md"));
-        console.log(chalk.dim("  ├── migrate-from-juspay/SKILL.md + references/REFERENCE.md"));
-        console.log(chalk.dim("  ├── progress-and-skill-feedback/SKILL.md"));
-        console.log(chalk.dim("  ├── validation-and-testing/SKILL.md"));
-        console.log(chalk.dim("  └── common-mistakes/SKILL.md"));
-        console.log(
-            chalk.dim(
-                "\nA manifest file has been created/updated to help your AI assistant discover these skills.\n",
-            ),
-        );
+        printInstallSuccess();
     });
+
+program
+    .command("update")
+    .description("Force-update all installed Cashfree skill files to the latest version")
+    .option("-p, --path <path>", "Project path", process.cwd())
+    .option("-f, --frameworks <frameworks>", "Comma-separated frameworks to update (defaults to auto-detect)")
+    .action(async (options) => {
+        await autoUpgradeIfStale(pkg.version);
+
+        const projectPath = path.resolve(options.path);
+
+        let targetFrameworks: Framework[];
+        if (options.frameworks) {
+            const validValues = FRAMEWORKS.map((f) => f.value);
+            const requested = options.frameworks
+                .split(",")
+                .map((f: string) => f.trim())
+                .filter(Boolean);
+            const invalid = requested.filter((f: string) => !validValues.includes(f as Framework));
+            if (invalid.length > 0) {
+                console.log(chalk.red(`\n❌ Invalid framework name(s): ${invalid.join(", ")}\n`));
+                process.exit(1);
+            }
+            targetFrameworks = requested as Framework[];
+        } else {
+            const detected: Framework[] = [];
+            for (const f of FRAMEWORKS) {
+                const s = await detectInstalledState(projectPath, getSkillsBasePath(f.value));
+                if (s.state !== "absent") detected.push(f.value);
+            }
+            if (detected.length === 0) {
+                console.log(chalk.yellow("\nNo installed Cashfree skills detected in this project."));
+                console.log(chalk.dim("Run `npx @cashfreepayments/agent-skills add skills` first.\n"));
+                return;
+            }
+            targetFrameworks = detected;
+        }
+
+        console.log(chalk.bold.cyan(`\n⚡ Updating Cashfree skills to v${pkg.version}\n`));
+        console.log(chalk.dim(`Project path: ${projectPath}\n`));
+
+        for (const framework of targetFrameworks) {
+            const frameworkName = getFrameworkName(framework);
+            const skillsBasePath = getSkillsBasePath(framework);
+            console.log(chalk.blue(`\n📦 ${frameworkName}`));
+            console.log(chalk.dim(`   Skills: ${skillsBasePath}/`));
+
+            const installed = await detectInstalledState(projectPath, skillsBasePath);
+            if (installed.state === "versioned" && installed.version === pkg.version) {
+                console.log(chalk.green(`   ✓ Already up to date (v${pkg.version})`));
+                continue;
+            }
+            if (installed.state === "versioned") {
+                console.log(chalk.yellow(`   v${installed.version} → v${pkg.version}`));
+            } else if (installed.state === "legacy") {
+                console.log(chalk.yellow(`   legacy install → v${pkg.version}`));
+            }
+
+            try {
+                await installSkillsForFramework(framework, projectPath, pkg.version, true);
+            } catch (error) {
+                console.log(
+                    chalk.red(`  Error: ${error instanceof Error ? error.message : "Unknown error"}`),
+                );
+            }
+        }
+
+        console.log(chalk.bold.green(`\n✅ Update complete.\n`));
+    });
+
+program
+    .command("help")
+    .description("Show example prompts to give your AI assistant after installation")
+    .action(() => printHelp());
 
 program
     .command("report-progress-feedback")
@@ -391,6 +272,7 @@ program
     .option("--completed-step <step>", "Completed step. Repeat for multiple steps.", collectOptionValues, [])
     .option("--pending-step <step>", "Pending step. Repeat for multiple steps.", collectOptionValues, [])
     .requiredOption("--feedback <feedback>", "LLM's honest feedback on what could be improved in the skill(s)")
+    .requiredOption("--framework <framework>", "LLM framework/identity submitting this feedback (e.g. claude-code, opencode)")
     .option("--app-id <appId>", "Cashfree App ID (x-client-id) seen in the integration, if available")
     .option("--silent", "Suppress JSON output")
     .action(async (options: {
@@ -399,27 +281,37 @@ program
         completedStep: string[];
         pendingStep: string[];
         feedback: string;
+        framework: string;
         appId?: string;
         silent?: boolean;
     }) => {
+        const validFrameworks = FRAMEWORKS.map((f) => f.value);
+        const framework = options.framework.trim().toLowerCase();
+        if (!validFrameworks.includes(framework as any)) {
+            console.error(`Error: --framework must be one of: ${validFrameworks.join(", ")}`);
+            process.exitCode = 1;
+            return;
+        }
+
+        const trimmedFeedback = options.feedback.trim();
+        if (!trimmedFeedback) {
+            console.error('Error: --feedback is required and cannot be empty.');
+            process.exitCode = 1;
+            return;
+        }
+
         const payload: ProgressFeedbackTelemetryInput = {
             cliVersion: pkg.version,
             flow: options.flow.trim(),
-            skillsUsed: options.skill.map((skill) => skill.trim()).filter(Boolean),
-            completedSteps: options.completedStep.map((step) => step.trim()).filter(Boolean),
-            pendingSteps: options.pendingStep.map((step) => step.trim()).filter(Boolean),
-            llmFeedback: options.feedback.trim(),
+            skillsUsed: options.skill.map((s) => s.trim()).filter(Boolean),
+            completedSteps: options.completedStep.map((s) => s.trim()).filter(Boolean),
+            pendingSteps: options.pendingStep.map((s) => s.trim()).filter(Boolean),
+            llmFeedback: `${trimmedFeedback} [Framework: ${framework}]`,
             appId: options.appId?.trim(),
         };
 
         if (!payload.flow) {
             console.error('Error: --flow is required and cannot be empty.');
-            process.exitCode = 1;
-            return;
-        }
-
-        if (!payload.llmFeedback) {
-            console.error('Error: --feedback is required and cannot be empty.');
             process.exitCode = 1;
             return;
         }
@@ -446,12 +338,6 @@ program
         }
     });
 
-function getFrameworkName(framework: Framework): string {
-    const found = FRAMEWORKS.find((f) => f.value === framework);
-    return found?.name || framework;
-}
-
-// Graceful shutdown
 function handleSignal(signal: string) {
     console.log(chalk.yellow(`\n\nReceived ${signal}. Exiting gracefully...`));
     process.exit(0);
@@ -460,4 +346,30 @@ function handleSignal(signal: string) {
 process.on("SIGINT", () => handleSignal("SIGINT"));
 process.on("SIGTERM", () => handleSignal("SIGTERM"));
 
+/**
+ * Pre-parse argv to catch the case where a user invokes a typo of an "add" type
+ * directly at the top level (e.g. `cashfree skils` or `cashfree skills`).
+ * Commander's built-in suggestion only matches top-level command names, not
+ * positional argument values — so we hint with the full corrected form.
+ */
+function suggestForUnknownTopLevel(): void {
+    const firstArg = process.argv[2];
+    if (!firstArg || firstArg.startsWith("-")) return;
+    const knownCommands = program.commands.map((c) => c.name());
+    if (knownCommands.includes(firstArg)) return;
+
+    const closeToType = findSimilar(firstArg, VALID_ADD_TYPES, 2);
+    if (closeToType) {
+        console.error(chalk.red(`\n❌ Unknown command '${firstArg}'.`));
+        console.error(
+            chalk.yellow(`   Did you mean: `) +
+                chalk.bold.green(`npx @cashfreepayments/agent-skills@latest add ${closeToType}`) +
+                chalk.yellow(`?`),
+        );
+        console.error(chalk.dim(`\n(run with --help for available commands)\n`));
+        process.exit(1);
+    }
+}
+
+suggestForUnknownTopLevel();
 program.parse();

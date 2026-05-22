@@ -549,10 +549,10 @@ app.get('/api/verify', async (req, res) => {
 ```
 
 ```python
-# Python (Flask)
+# Python (Flask) — cashfree-pg v6+
 @app.route('/api/verify')
 def verify():
-    response = Cashfree.PGFetchOrder("2025-01-01", request.args['order_id'])
+    response = cashfree.PGFetchOrder(request.args['order_id'], None, None)
     return jsonify({"order_status": response.data.order_status})
 ```
 
