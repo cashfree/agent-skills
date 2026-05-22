@@ -219,15 +219,17 @@ const current = await cashfree.PGOrderFetchRefund(orderId, refundId);
 const all = await cashfree.PGOrderFetchRefunds(orderId);
 ```
 
-### Python
+### Python (v6+)
 
 ```python
 from cashfree_pg.api_client import Cashfree
 from cashfree_pg.models.create_refund_request import CreateRefundRequest
 
-Cashfree.XClientId = os.environ["CASHFREE_APP_ID"]
-Cashfree.XClientSecret = os.environ["CASHFREE_SECRET_KEY"]
-Cashfree.XEnvironment = Cashfree.XSandbox
+cashfree = Cashfree(
+    XEnvironment=Cashfree.SANDBOX,
+    XClientId=os.environ["CASHFREE_APP_ID"],
+    XClientSecret=os.environ["CASHFREE_SECRET_KEY"],
+)
 
 req = CreateRefundRequest(
     refund_id=f"refund_{order_id}_{int(time.time())}",
@@ -235,9 +237,9 @@ req = CreateRefundRequest(
     refund_note="Customer requested",
     refund_speed="STANDARD",
 )
-created = Cashfree().PGOrderCreateRefund("2025-01-01", order_id, req)
-current = Cashfree().PGOrderFetchRefund("2025-01-01", order_id, refund_id)
-all_refunds = Cashfree().PGOrderFetchRefunds("2025-01-01", order_id)
+created = cashfree.PGOrderCreateRefund(order_id, req, None, None)
+current = cashfree.PGOrderFetchRefund(order_id, refund_id, None, None)
+all_refunds = cashfree.PGOrderFetchRefunds(order_id, None, None)
 ```
 
 ### Java
@@ -254,19 +256,18 @@ var current = new Cashfree().PGOrderFetchRefund("2025-01-01", orderId, refundId,
 var all     = new Cashfree().PGOrderFetchRefunds("2025-01-01", orderId, null, null, null);
 ```
 
-### Go
+### Go (v6+)
 
 ```go
-version := "2025-01-01"
 note := "Customer requested"
 speed := "STANDARD"
-req := cashfree.CreateRefundRequest{
+req := cashfreepg.OrderCreateRefundRequest{
     RefundId:     fmt.Sprintf("refund_%s_%d", orderId, time.Now().Unix()),
     RefundAmount: 50.0,
     RefundNote:   &note,
     RefundSpeed:  &speed,
 }
-created, _, err := cashfree.PGOrderCreateRefund(&version, &orderId, &req, nil, nil, nil)
+created, _, err := cashfree.PGOrderCreateRefund(orderId, &req, nil, nil, nil)
 ```
 
 ### PHP

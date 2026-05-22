@@ -58,6 +58,35 @@ const cashfree = Cashfree({ mode: "sandbox" });   // or "production"
 | **Elements / Headless** | You build your own UI (input fields, buttons, layout) and mount Cashfree components (`cardNumber`, `cardCvv`, etc.) into your DOM. Cashfree handles card data compliance. | SPAs with strict design systems. OneClick / custom checkout. React/Vue apps wanting their own form layout. |
 | **Pure redirect** | No JS — backend redirects the customer to the Cashfree-hosted page via `payment_session_id`'s payment URL. | Non-JS / legacy stacks; minimal-JS SSR apps. Typically implemented via Payment Links instead — see `pg/payment-links/SKILL.md`. |
 
+### Decision matrix — choose the right SDK call before writing code
+
+**Read the user's intent first.** The wrong call will silently ignore what you built.
+
+| User says... | Use this call | Do NOT use |
+|---|---|---|
+| "popup / modal / Drop-in / open a Cashfree payment box" | `cashfree.checkout({ redirectTarget: "_modal" })` | `cashfree.pay()` |
+| "inline form / custom card fields / Elements / my own design" | `cashfree.pay({ paymentMethod: cardNumber, paymentSessionId })` | `cashfree.checkout()` |
+| "redirect to a Cashfree-hosted page" | `cashfree.checkout({ redirectTarget: "_self" })` | `cashfree.pay()` |
+| "saved card / OneClick" | `cashfree.pay({ paymentMethod: { card: { instrument_id, channel: "link" } } })` | `cashfree.checkout()` |
+
+> **NEVER mix Elements with `cashfree.checkout()`.** If you mount `cardNumber`, `cardCvv`, `cardExpiry`, `cardHolder` and then call `cashfree.checkout()`, you have opened a Drop-in modal that ignores the form the user just filled in. The two are mutually exclusive payment paths. The submit handler for an Elements form **must** call `cashfree.pay(...)`.
+
+### Initialize the SDK ONCE — not per click
+
+```javascript
+// ✅ Module / page load — done once
+const cashfree = Cashfree({ mode: "sandbox" });
+
+// ❌ Inside a click handler — re-instantiates on every click,
+//    breaks instance state, wastes memory.
+button.addEventListener("click", () => {
+    const cashfree = Cashfree({ mode: "sandbox" });   // do NOT do this
+    cashfree.checkout({ paymentSessionId });
+});
+```
+
+The `Cashfree({ mode })` instance is reusable across multiple checkouts. Create it once at module load (or first paint in SPAs), then call `.checkout()` / `.pay()` on it as needed.
+
 ### Nothing client-side needs a secret
 
 Unlike some PGs, **nothing you send to the browser is an API credential**. The only token on the client is `payment_session_id` (short-lived, order-scoped). Your backend creates the order, passes the session id down, and the SDK authenticates against that.
@@ -77,6 +106,7 @@ Your backend calls `POST /pg/orders` and returns `payment_session_id` + `order_i
 ```html
 <script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
 <script>
+// Initialise ONCE at module load — never inside the click handler.
 const cashfree = Cashfree({ mode: "sandbox" });
 
 async function pay(paymentSessionId, orderId) {
@@ -85,20 +115,42 @@ async function pay(paymentSessionId, orderId) {
         redirectTarget: "_modal",                  // _modal | _self | _top | _blank
     });
 
-    // `result.redirect === true` means the page navigated (for _self/_top).
-    // For _modal, the Promise resolves once the modal closes.
+    // ⚠️ The Promise has THREE terminal states — handle all of them.
+    // Treating only `result.error` will misreport a closed modal as a failure.
+
     if (result.error) {
-        console.error("Payment error", result.error);
+        // SDK / network error OR user dismissed the modal without paying.
+        // This is NOT necessarily a payment failure — DO NOT toast "Payment failed".
+        // Surface a neutral "Payment was not completed" and let the user retry.
+        showToast("Payment was not completed.");
         return;
     }
 
-    // IMPORTANT: do NOT trust `result` alone to fulfill the order.
-    // Verify via your backend which calls GET /pg/orders/{order_id} → order_status === "PAID".
-    const verify = await fetch(`/verify/${orderId}`).then((r) => r.json());
-    if (verify.status === "PAID") showThankYouPage();
+    if (result.redirect) {
+        // Page is navigating away (only fires for _self / _top, or in-app browsers).
+        // Stop here — the return_url handler will pick up the flow on the way back.
+        return;
+    }
+
+    if (result.paymentDetails) {
+        // The user submitted a payment attempt. The attempt may have SUCCEEDED OR
+        // FAILED at the bank — `result.paymentDetails` only proves they tried.
+        // Always backend-verify before fulfilling.
+        const verify = await fetch(`/verify/${orderId}`).then((r) => r.json());
+        if (verify.status === "PAID") showThankYouPage();
+        else showRetryUI(verify.status);
+    }
 }
 </script>
 ```
+
+**Summary of `cashfree.checkout({ redirectTarget: "_modal" })` resolution states:**
+
+| Field on `result` | What it means | What to do |
+|---|---|---|
+| `result.error` is set | SDK error OR user closed the modal without paying | Show neutral "not completed", offer retry. **Do not** label as "payment failed" |
+| `result.redirect === true` | Page is navigating to a Cashfree-hosted URL (`_self` / `_top` / in-app browser fallback) | Stop client-side flow — wait for `return_url` |
+| `result.paymentDetails` is set | A payment attempt was submitted (may have approved OR failed at the bank) | Always backend-verify `GET /pg/orders/{order_id}` before fulfilling |
 
 `redirectTarget` choices:
 
@@ -114,6 +166,20 @@ async function pay(paymentSessionId, orderId) {
 For `_self` / `_top` modes, Cashfree redirects the browser to the order's `return_url` with `order_id` as a query param. Your return-URL handler **must** call your backend to re-verify (`GET /pg/orders/{order_id}`) — never trust any query-string success signal.
 
 For `_modal`, the Promise resolution carries the terminal state. Still verify from the backend.
+
+### Dead code cleanup — `_modal`-only apps
+
+If your app uses `redirectTarget: "_modal"` exclusively, the `DOMContentLoaded` "check for `?order_id` in the URL" block is **unreachable** — Cashfree never navigates the browser in modal mode. Delete it. Keeping it around makes the file look like it supports two flows when it only supports one, and any future maintainer (or another AI agent) will waste cycles wiring against dead code.
+
+```javascript
+// ❌ Remove this if you only use redirectTarget: "_modal"
+document.addEventListener("DOMContentLoaded", () => {
+    const urlOrderId = new URLSearchParams(location.search).get("order_id");
+    if (urlOrderId) verifyOrder(urlOrderId);
+});
+```
+
+Keep it **only** if you use `_self` / `_top` somewhere in the same app.
 
 ### Step 4 — Backend verification (the rule for every mode)
 
@@ -180,13 +246,25 @@ components.forEach((c) => {
 document.getElementById("payment-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     const save = document.getElementById("save-cb").checked;
+
+    // ⚠️ For Elements you MUST call cashfree.pay() — NOT cashfree.checkout().
+    // cashfree.checkout() opens a Drop-in modal and ignores the components you mounted.
     const result = await cashfree.pay({
         paymentMethod: cardNumber,                // pass any card component
         paymentSessionId: window.__paymentSessionId,
         savePaymentInstrument: save,              // RBI tokenization consent
     });
-    if (result.error) console.error(result.error);
-    // Else — 3DS may redirect; on return, backend re-verifies
+
+    // Same 3-state resolution as cashfree.checkout — handle all three.
+    if (result.error) {
+        showToast("Payment was not completed.");      // do NOT say "failed"
+        return;
+    }
+    if (result.redirect) return;                      // 3DS redirect / in-app browser
+    if (result.paymentDetails) {
+        const v = await fetch(`/verify/${orderId}`).then((r) => r.json());
+        if (v.status === "PAID") showThankYouPage();
+    }
 });
 </script>
 ```

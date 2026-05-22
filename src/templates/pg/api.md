@@ -111,7 +111,7 @@ Headers: x-client-id, x-client-secret, x-api-version: 2025-01-01, Content-Type: 
         "customer_name": "John Doe"
     },
     "order_meta": {
-        "return_url": "https://yoursite.com/return/{order_id}",
+        "return_url": "https://yoursite.com/return",
         "notify_url": "https://yoursite.com/webhook",
         "payment_methods": "cc,dc,upi,nb"
     },
@@ -121,6 +121,8 @@ Headers: x-client-id, x-client-secret, x-api-version: 2025-01-01, Content-Type: 
 ```
 
 **Required:** `order_amount`, `order_currency`, `customer_details.customer_id`, `customer_details.customer_phone`
+
+**On `return_url`:** Cashfree appends `?order_id=ORDER_ID` to whatever URL you supply — keep it a static path (`https://yoursite.com/return`) and read `order_id` from the query string on your handler. If you need Cashfree's server-side `{order_id}` substitution token, leave it as a literal string (`"https://yoursite.com/return/{order_id}"`) — **but** if you're building the URL inside a Python f-string, escape it as `{{order_id}}`, or (better) skip the token entirely. Localhost URLs and route placeholders that Flask/Express try to match against the literal string `{order_id}` are a common production-breaking bug.
 
 **Response — extract and store `payment_session_id`:**
 

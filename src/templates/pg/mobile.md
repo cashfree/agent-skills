@@ -171,8 +171,8 @@ const status = response.data.order_status; // "PAID" | "ACTIVE" | "EXPIRED"
 ```
 
 ```python
-# Python backend
-response = Cashfree.PGFetchOrder("2025-01-01", order_id)
+# Python backend (cashfree-pg v6+)
+response = cashfree.PGFetchOrder(order_id, None, None)
 status = response.data.order_status
 ```
 
@@ -183,9 +183,8 @@ String status = response.getData().getOrderStatus(); // "PAID"
 ```
 
 ```go
-// Go backend
-xApiVersion := "2025-01-01"
-response, _, err := cashfree.PGFetchOrder(&xApiVersion, &orderId, nil, nil, nil)
+// Go backend (cashfree-pg v6+)
+response, _, err := cashfree.PGFetchOrder(orderId, nil, nil, nil)
 ```
 
 | `order_status` | Meaning |

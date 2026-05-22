@@ -80,9 +80,33 @@ The latest Payment Gateway API version is **2025-01-01** (v5). Previous versions
 
 Set the version via the `x-api-version` header (format: `YYYY-MM-DD`). Always use the latest version for new integrations.
 
-## Integration Flow (3 Steps)
+## Integration Flow
 
-The core payment integration follows three steps:
+The core payment integration is **one pre-flight check + three steps**. Do them in this order.
+
+### Step 0 (pre-flight, opportunistic): Confirm what payment modes are enabled
+
+The **Get Eligible Payment Methods** API tells you exactly which methods (UPI, cards, netbanking, paylater, etc.) are activated on the merchant account. Running it early saves a class of "payment mode not enabled" debugging later.
+
+**Run it only if credentials are already at hand** — i.e. you can see `CASHFREE_APP_ID` / `CASHFREE_SECRET_KEY` in the codebase (e.g. `.env`, config files), or the user has pasted them into the conversation. **Do NOT block the conversation to ask for credentials just to run this check.** If the user hasn't shared keys yet, proceed with the integration plan and note that you'll verify enabled methods once keys are available; assume the standard set (cards, UPI, netbanking) in the meantime.
+
+```bash
+curl --request POST \
+  --url https://sandbox.cashfree.com/pg/eligibility/payment_methods \
+  --header 'Content-Type: application/json' \
+  --header 'x-api-version: 2025-01-01' \
+  --header 'x-client-id: <api-key>' \
+  --header 'x-client-secret: <api-key>' \
+  --data '
+{
+  "queries": {
+    "amount": 100
+  }
+}
+'
+```
+
+If you do run it: filter the response's `data[]` for `eligibility: true` rows and surface the list to the user. If anything they need (PayLater, EMI, international cards) is missing, point them to **Dashboard → Settings > Payment Gateway > Payment Methods** to request activation. Full schema and variants live in `eligible-payment-modes/SKILL.md`.
 
 ### Step 1: Create an Order (Server-Side)
 

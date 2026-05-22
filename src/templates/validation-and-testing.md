@@ -7,6 +7,27 @@ description: Post-integration validation checklist, testing guidelines, test cre
 
 Use this skill when the developer needs to validate their Cashfree Payments integration, run sandbox tests, use test credentials, verify webhook security, or prepare for go-live.
 
+## ⚠️ Before you say "production-ready"
+
+Never use the phrases "production-ready", "ready to go live", "complete", or "done" without going through this list and **explicitly reporting the status of each item back to the user**. If any item is unmet, your verdict is "looks correct, but X is still required" — not a blanket "ready".
+
+- [ ] **Domain / app whitelisted** on the production dashboard (HTTPS only). Without this, checkout silently fails in prod even if everything else is right.
+- [ ] **SDK initialised ONCE** at module / page load — never inside a click handler.
+- [ ] **3-state Promise handling** for `cashfree.checkout` / `cashfree.pay` — `result.error` (incl. user dismissed modal), `result.redirect`, `result.paymentDetails`. User-closed modal is **not** "payment failed".
+- [ ] **Backend is the source of truth.** Fulfilment happens only after `GET /pg/orders/{order_id}` returns `order_status === "PAID"`. No frontend-only fulfilment paths.
+- [ ] **Webhook signature verified server-side** with the secret + the raw request body (`x-webhook-signature` + `x-webhook-timestamp`). No "trust the headers" shortcuts.
+- [ ] **Webhook idempotency** — duplicate deliveries do not double-fulfil.
+- [ ] **Dead code removed** — e.g. a `DOMContentLoaded` `?order_id` redirect handler is unreachable in a `_modal`-only app; delete it.
+- [ ] **Env vars used; no hardcoded keys.** `CASHFREE_APP_ID` / `CASHFREE_SECRET_KEY` come from env, not from source.
+- [ ] **Sandbox → Production swap** is end-to-end: keys, mode flag (`Cashfree({ mode: "production" })`), base URL (`https://api.cashfree.com`), webhook URLs registered in the prod dashboard.
+- [ ] **`return_url` is realistic.** No `localhost`, no literal `{order_id}` placeholder that wasn't intended as a Cashfree template token (see `pg/sdk.md` for the `{order_id}` rules).
+- [ ] **Webhook IPs whitelisted on your firewall** if you have one. Sandbox → production IPs change.
+- [ ] **API version pinned consistently.** Mixing `2025-01-01` on some calls and omitting it on others (legacy `cashfree-pg < 6.x`) breaks signatures and response parsing.
+
+If you completed only one or two of these, the integration is not ready — say so. The team has been burned by AI agents confidently calling work "production-ready" while missing domain whitelisting or signature verification.
+
+---
+
 ## Key Documentation Pages
 
 - **Payment Gateway Test Data**: https://www.cashfree.com/docs/api-reference/payments/data-to-test-integration
@@ -239,13 +260,13 @@ app.post('/webhook', function (req, res) {
 });
 ```
 
-**Go:**
+**Go (v6+):**
 ```go
 signature := c.Request().Header.Get("x-webhook-signature")
 timestamp := c.Request().Header.Get("x-webhook-timestamp")
-body, _ := ioutil.ReadAll(c.Request().Body)
+body, _ := io.ReadAll(c.Request().Body)
 rawBody := string(body)
-webhookEvent, err := cashfree.PGVerifyWebhookSignature(signature, rawBody, timestamp)
+ok := cashfree.PGVerifyWebhookSignature(signature, rawBody, timestamp) // returns bool in v6
 ```
 
 **PHP:**

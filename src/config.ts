@@ -28,7 +28,10 @@ export function getSkillsBasePath(framework: Framework): string {
         case "gemini-cli":      return ".gemini/skills/cashfree-skills";
         case "codex":           return ".agents/skills/cashfree-skills";
         case "antigravity":     return ".agent/skills/cashfree-skills";
-        default:                return ".agent/skills/cashfree-skills";
+        default: {
+            const _exhaustive: never = framework;
+            throw new Error(`Unknown framework: ${_exhaustive}`);
+        }
     }
 }
 
@@ -46,6 +49,9 @@ export function getManifestConfig(framework: Framework): { path: string; format:
         case "gemini-cli":      return { path: "GEMINI.md", format: "markdown" };
         case "codex":           return { path: "AGENTS.md", format: "markdown" };
         case "antigravity":     return { path: "AGENTS.md", format: "markdown" };
-        default:                return { path: "AGENTS.md", format: "markdown" };
+        default: {
+            const _exhaustive: never = framework;
+            throw new Error(`Unknown framework: ${_exhaustive}`);
+        }
     }
 }

@@ -54,7 +54,22 @@ description: >
 
 ### API Version
 
-Set `cashfree.XApiVersion = "2025-01-01"` once after initialization (Node.js v5). Python, Java, PHP, and .NET SDKs pass the version as the first parameter to each call. The Go SDK v6 bundles the API version internally — no explicit version parameter is required.
+The Node.js SDK v6, Python SDK v6, and Go SDK v6 bundle the API version internally (defaults to `"2026-01-01"`) — no explicit version parameter is required. Override per-instance only if you need an older API version (e.g. `cashfree.XApiVersion = "2025-01-01"` on Node.js). Java, PHP, and .NET SDKs still pass the version as the first parameter to each call.
+
+#### Using a legacy `cashfree-pg` < 6.x (Python 4.x / 3.x, Node 4.x / 3.x)?
+
+In pre-v6 Python/Node SDKs, every method's **first positional argument is the API version string** — not just `PGCreateOrder`. Be consistent across the whole file, or some calls will succeed and others will throw a missing-version error.
+
+```python
+# cashfree-pg 4.x — version FIRST on every method
+cashfree_client.PGCreateOrder('2025-01-01', payload)
+cashfree_client.PGFetchOrder('2025-01-01', order_id)
+cashfree_client.PGOrderFetchPayments('2025-01-01', order_id)
+cashfree_client.PGOrderFetchRefund('2025-01-01', order_id, refund_id)
+cashfree_client.PGOrderFetchRefunds('2025-01-01', order_id)
+```
+
+Mixing the two styles in the same file (some calls with `'2025-01-01'`, others without) is the single most common 4.x→v6 migration bug. If you see it, either pass the version to every method (legacy) or upgrade to v6 and drop it everywhere. **Strongly recommend upgrading to v6** — fewer footguns.
 
 ---
 
@@ -62,7 +77,7 @@ Set `cashfree.XApiVersion = "2025-01-01"` once after initialization (Node.js v5)
 
 Configure once at application startup. Store credentials in environment variables — **never hardcode**.
 
-**Node.js (v5+):**
+**Node.js (v6+):**
 ```javascript
 import { Cashfree, CFEnvironment } from "cashfree-pg";
 
@@ -71,16 +86,19 @@ const cashfree = new Cashfree(
   process.env.CASHFREE_APP_ID,
   process.env.CASHFREE_SECRET_KEY
 );
+// XApiVersion defaults to "2026-01-01" — override only if you need an older API version.
 ```
 
-**Python:**
+**Python (v6+):**
 ```python
 from cashfree_pg.api_client import Cashfree
 from cashfree_pg.models import *
 
-Cashfree.XClientId = "<app_id>"
-Cashfree.XClientSecret = "<secret_key>"
-Cashfree.XEnvironment = Cashfree.SANDBOX  # or Cashfree.PRODUCTION
+cashfree = Cashfree(
+    XEnvironment=Cashfree.SANDBOX,  # or Cashfree.PRODUCTION
+    XClientId="<app_id>",
+    XClientSecret="<secret_key>",
+)
 ```
 
 **Java (Maven):**
@@ -142,6 +160,20 @@ Call `PGCreateOrder`. Returns `payment_session_id` which your frontend/mobile ap
 
 **Required fields:** `order_amount`, `order_currency`, `customer_details.customer_id`, `customer_details.customer_phone`
 
+**About `return_url`** — keep it simple. Cashfree **automatically appends** `?order_id=ORDER_ID` (and `&order_token=…`) to whatever URL you pass. Use a static path and read the order id from query string on your handler:
+
+```python
+# Flask
+@app.route('/return')
+def handle_return():
+    order_id = request.args.get('order_id')
+    # ... call PGFetchOrder(order_id) and render based on order_status
+```
+
+Cashfree also supports a server-side substitution token `{order_id}` inside the URL (Cashfree's server replaces it before redirect). Two gotchas to flag:
+- **Python f-strings:** `f"…/return/{order_id}"` will try to interpolate a local Python variable named `order_id`. If you actually want the literal Cashfree token, escape it: `f"…/return/{{order_id}}"`. Easier: use a non-f-string.
+- **Flask path params:** if your route is `/return/<order_id>`, the literal string `{order_id}` will not match the path converter — the redirect lands on a 404 or your fallback route. Prefer the static `/return` + query-param pattern above.
+
 <details>
 <summary>Node.js</summary>
 
@@ -158,7 +190,7 @@ async function createOrder() {
       customer_name: "John Doe"
     },
     order_meta: {
-      return_url: "https://yoursite.com/return/{order_id}",
+      return_url: "https://yoursite.com/return",   // Cashfree appends ?order_id=ORDER_ID automatically
       notify_url: "https://yoursite.com/webhook"
     }
   };
@@ -173,10 +205,12 @@ async function createOrder() {
 </details>
 
 <details>
-<summary>Python</summary>
+<summary>Python (v6+)</summary>
 
 ```python
-from cashfree_pg.models import CreateOrderRequest, CustomerDetails, OrderMeta
+from cashfree_pg.models.create_order_request import CreateOrderRequest
+from cashfree_pg.models.customer_details import CustomerDetails
+from cashfree_pg.models.order_meta import OrderMeta
 
 def create_order():
     request = CreateOrderRequest(
@@ -186,14 +220,14 @@ def create_order():
         customer_details=CustomerDetails(
             customer_id="customer_123",
             customer_phone="9999999999",
-            customer_email="customer@example.com"
+            customer_email="customer@example.com",
         ),
         order_meta=OrderMeta(
-            return_url="https://yoursite.com/return/{order_id}",
-            notify_url="https://yoursite.com/webhook"
-        )
+            return_url="https://yoursite.com/return",  # Cashfree appends ?order_id=ORDER_ID automatically
+            notify_url="https://yoursite.com/webhook",
+        ),
     )
-    response = Cashfree.PGCreateOrder("2025-01-01", request)
+    response = cashfree.PGCreateOrder(request, None, None)
     return response.data
 ```
 </details>
@@ -211,7 +245,7 @@ public OrderEntity createOrder() throws Exception {
     customerDetails.setCustomerPhone("9999999999");
 
     OrderMeta orderMeta = new OrderMeta();
-    orderMeta.setReturnUrl("https://yoursite.com/return/{order_id}");
+    orderMeta.setReturnUrl("https://yoursite.com/return");  // Cashfree appends ?order_id=ORDER_ID automatically
     orderMeta.setNotifyUrl("https://yoursite.com/webhook");
 
     CreateOrderRequest request = new CreateOrderRequest();
@@ -232,7 +266,7 @@ public OrderEntity createOrder() throws Exception {
 
 ```go
 func createOrder() (*cashfreepg.OrderEntity, error) {
-    returnUrl := "https://yoursite.com/return/{order_id}"
+    returnUrl := "https://yoursite.com/return"   // Cashfree appends ?order_id=ORDER_ID automatically
     notifyUrl := "https://yoursite.com/webhook"
 
     request := cashfreepg.CreateOrderRequest{
@@ -316,8 +350,8 @@ console.log(response.data.order_status); // "PAID"
 ```
 
 ```python
-# Python
-response = Cashfree.PGFetchOrder("2025-01-01", order_id)
+# Python (v6+)
+response = cashfree.PGFetchOrder(order_id, None, None)
 print(response.data.order_status)
 ```
 
@@ -361,20 +395,22 @@ app.post('/webhook', express.raw({ type: "application/json" }), (req, res) => {
 ```
 
 ```python
-# Python (Flask)
+# Python (Flask) — v6+
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    cashfree = Cashfree()
-    cashfree.XClientId = "<app_id>"
-    cashfree.XClientSecret = "<secret_key>"
+    cashfree = Cashfree(
+        XEnvironment=Cashfree.SANDBOX,
+        XClientId="<app_id>",
+        XClientSecret="<secret_key>",
+    )
     try:
         cashfree.PGVerifyWebhookSignature(
             request.headers['x-webhook-signature'],
             request.data.decode('utf-8'),
-            request.headers['x-webhook-timestamp']
+            request.headers['x-webhook-timestamp'],
         )
         return "OK", 200
-    except:
+    except Exception:
         return "Invalid signature", 400
 ```
 

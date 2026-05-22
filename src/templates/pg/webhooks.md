@@ -178,24 +178,27 @@ app.post('/webhook', express.raw({ type: "application/json" }), function (req, r
 </details>
 
 <details>
-<summary>Python (Flask)</summary>
+<summary>Python (Flask) — v6+</summary>
 
 ```python
 from cashfree_pg.api_client import Cashfree
 
+cashfree = Cashfree(
+    XEnvironment=Cashfree.SANDBOX,  # or Cashfree.PRODUCTION
+    XClientId="<app_id>",
+    XClientSecret="<secret_key>",
+)
+
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    cashfree = Cashfree()
-    cashfree.XClientId = "<app_id>"
-    cashfree.XClientSecret = "<secret_key>"
     try:
         cashfree.PGVerifyWebhookSignature(
             request.headers['x-webhook-signature'],
             request.data.decode('utf-8'),
-            request.headers['x-webhook-timestamp']
+            request.headers['x-webhook-timestamp'],
         )
         return "OK", 200
-    except:
+    except Exception:
         return "Invalid signature", 400
 ```
 </details>
@@ -230,23 +233,27 @@ public String handlePost(HttpServletRequest request) throws IOException {
 </details>
 
 <details>
-<summary>Go (Echo)</summary>
+<summary>Go (Echo) — v6+</summary>
 
 ```go
-func Webhook(c echo.Context) error {
-    clientId := "<x-client-id>"
-    clientSecret := "<x-client-secret>"
-    cashfree.XClientId = &clientId
-    cashfree.XClientSecret = &clientSecret
-    cashfree.XEnvironment = cashfree.SANDBOX
+import cashfreepg "github.com/cashfree/cashfree-pg/v6"
 
-    body, _ := ioutil.ReadAll(c.Request().Body)
-    _, err := cashfree.PGVerifyWebhookSignature(
+clientId := "<x-client-id>"
+clientSecret := "<x-client-secret>"
+cashfree := cashfreepg.Cashfree{
+    XEnvironment:  cashfreepg.SANDBOX,
+    XClientID:     &clientId,
+    XClientSecret: &clientSecret,
+}
+
+func Webhook(c echo.Context) error {
+    body, _ := io.ReadAll(c.Request().Body)
+    ok := cashfree.PGVerifyWebhookSignature(
         c.Request().Header.Get("x-webhook-signature"),
         string(body),
         c.Request().Header.Get("x-webhook-timestamp"),
     )
-    if err != nil {
+    if !ok {
         return c.String(400, "Invalid signature")
     }
     return c.String(200, "OK")

@@ -222,13 +222,13 @@ await cashfree.PGPayOrder({
 });
 ```
 
-### Python
+### Python (v6+)
 
 ```python
-cards = Cashfree().PGCustomerFetchInstruments("2025-01-01", customer_id, "card")
-card  = Cashfree().PGCustomerFetchInstrument("2025-01-01", customer_id, instrument_id)
-Cashfree().PGCustomerDeleteInstrument("2025-01-01", customer_id, instrument_id)
-cryp  = Cashfree().PGCustomerInstrumentsFetchCryptogram("2025-01-01", customer_id, instrument_id)
+cards = cashfree.PGCustomerFetchInstruments(customer_id, "card", None, None)
+card  = cashfree.PGCustomerFetchInstrument(customer_id, instrument_id, None, None)
+cashfree.PGCustomerDeleteInstrument(customer_id, instrument_id, None, None)
+cryp  = cashfree.PGCustomerInstrumentsFetchCryptogram(customer_id, instrument_id, None, None)
 ```
 
 ### Java
@@ -240,15 +240,13 @@ new Cashfree().PGCustomerDeleteInstrument("2025-01-01", customerId, instrumentId
 var cryp  = new Cashfree().PGCustomerInstrumentsFetchCryptogram("2025-01-01", customerId, instrumentId, null, null, null);
 ```
 
-### Go
+### Go (v6+)
 
 ```go
-v := "2025-01-01"
-instrumentType := "card"
-cards, _, _ := cashfree.PGCustomerFetchInstruments(&v, &customerId, &instrumentType, nil, nil, nil)
-card,  _, _ := cashfree.PGCustomerFetchInstrument(&v, &customerId, &instrumentId, nil, nil, nil)
-_,     _, _  = cashfree.PGCustomerDeleteInstrument(&v, &customerId, &instrumentId, nil, nil, nil)
-cryp,  _, _ := cashfree.PGCustomerInstrumentsFetchCryptogram(&v, &customerId, &instrumentId, nil, nil, nil)
+cards, _, _ := cashfree.PGCustomerFetchInstruments(customerId, "card", nil, nil, nil)
+card,  _, _ := cashfree.PGCustomerFetchInstrument(customerId, instrumentId, nil, nil, nil)
+_,     _, _  = cashfree.PGCustomerDeleteInstrument(customerId, instrumentId, nil, nil, nil)
+cryp,  _, _ := cashfree.PGCustomerInstrumentsFetchCryptogram(customerId, instrumentId, nil, nil, nil)
 ```
 
 ### Raw REST (Ruby / any language)

@@ -230,14 +230,20 @@ const res = await cashfree.PGCreateOffer({
 const offer = await cashfree.PGFetchOffer(offerId);
 ```
 
-### Python
+### Python (v6+)
 
 ```python
 from cashfree_pg.api_client import Cashfree
 from cashfree_pg.models.create_offer_request import CreateOfferRequest
 
-res = Cashfree().PGCreateOffer("2025-01-01", CreateOfferRequest(...))
-offer = Cashfree().PGFetchOffer("2025-01-01", offer_id)
+cashfree = Cashfree(
+    XEnvironment=Cashfree.SANDBOX,
+    XClientId=os.environ["CASHFREE_APP_ID"],
+    XClientSecret=os.environ["CASHFREE_SECRET_KEY"],
+)
+
+res = cashfree.PGCreateOffer(CreateOfferRequest(...), None, None)
+offer = cashfree.PGFetchOffer(offer_id, None, None)
 ```
 
 ### Raw REST (any language)

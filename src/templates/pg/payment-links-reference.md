@@ -191,13 +191,19 @@ await cashfree.PGCancelLink(linkId);
 const orders = await cashfree.PGLinkFetchOrders(linkId);
 ```
 
-### Python
+### Python (v6+)
 
 ```python
 from cashfree_pg.api_client import Cashfree
 from cashfree_pg.models.create_link_request import CreateLinkRequest
 from cashfree_pg.models.link_customer_details_entity import LinkCustomerDetailsEntity
 from cashfree_pg.models.link_meta_entity import LinkMetaEntity
+
+cashfree = Cashfree(
+    XEnvironment=Cashfree.SANDBOX,
+    XClientId=os.environ["CASHFREE_APP_ID"],
+    XClientSecret=os.environ["CASHFREE_SECRET_KEY"],
+)
 
 req = CreateLinkRequest(
     link_id=f"invoice_{invoice_id}_v1",
@@ -212,9 +218,9 @@ req = CreateLinkRequest(
         notify_url="https://app.example.com/webhook",
     ),
 )
-created = Cashfree().PGCreateLink("2025-01-01", req)
-fetched = Cashfree().PGFetchLink("2025-01-01", link_id)
-Cashfree().PGCancelLink("2025-01-01", link_id)
+created = cashfree.PGCreateLink(req, None, None)
+fetched = cashfree.PGFetchLink(link_id, None, None)
+cashfree.PGCancelLink(link_id, None, None)
 ```
 
 ### Java
@@ -233,21 +239,20 @@ var fetched = new Cashfree().PGFetchLink("2025-01-01", linkId, null, null, null)
 new Cashfree().PGCancelLink("2025-01-01", linkId, null, null, null);
 ```
 
-### Go
+### Go (v6+)
 
 ```go
-v := "2025-01-01"
 phone := customer.Phone
-req := cashfree.CreateLinkRequest{
+req := cashfreepg.CreateLinkRequest{
     LinkId:        stringPtr("invoice_" + invoiceId + "_v1"),
     LinkAmount:    5000.0,
     LinkCurrency:  "INR",
     LinkPurpose:   "Invoice " + invoiceId,
-    CustomerDetails: cashfree.LinkCustomerDetailsEntity{CustomerPhone: phone},
+    CustomerDetails: cashfreepg.LinkCustomerDetailsEntity{CustomerPhone: phone},
 }
-created, _, err := cashfree.PGCreateLink(&v, &req, nil, nil, nil)
-fetched, _, err := cashfree.PGFetchLink(&v, &linkId, nil, nil, nil)
-_, _, err = cashfree.PGCancelLink(&v, &linkId, nil, nil, nil)
+created, _, err := cashfree.PGCreateLink(&req, nil, nil, nil)
+fetched, _, err := cashfree.PGFetchLink(linkId, nil, nil, nil)
+_, _, err = cashfree.PGCancelLink(linkId, nil, nil, nil)
 ```
 
 ### Raw REST (any language)
