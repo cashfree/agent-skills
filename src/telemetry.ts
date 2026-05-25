@@ -167,6 +167,12 @@ export function createProgressFeedbackSubmittedEvent(
     };
 }
 
+function buildTelemetryUrl(base: string, endpoint: string): string {
+    const trimmedBase = base.replace(/\/+$/, "");
+    const normalizedEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+    return `${trimmedBase}${normalizedEndpoint}`;
+}
+
 export async function sendTelemetryEvents(
     events: InstallTelemetryEvent[],
 ): Promise<void> {
@@ -183,7 +189,7 @@ export async function sendTelemetryEvents(
             const timeout = setTimeout(() => controller.abort(), 3000);
 
             try {
-                await fetch(new URL(endpoint, TELEMETRY_BASE_URL).toString(), {
+                await fetch(buildTelemetryUrl(TELEMETRY_BASE_URL, endpoint), {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(event.properties),
