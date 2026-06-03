@@ -3,6 +3,7 @@ import { Command } from "commander";
 import inquirer from "inquirer";
 import chalk from "chalk";
 import path from "path";
+import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import {
@@ -265,6 +266,62 @@ program
     .action(() => printHelp());
 
 program
+    .command("start-integration")
+    .description("Report the start of a Cashfree integration session and mint its correlation ID for timing metrics")
+    .requiredOption("--flow <flow>", "Integration flow or product area, e.g. pg, subscriptions, payouts")
+    .requiredOption("--framework <framework>", "LLM framework/identity starting this integration (e.g. claude-code, opencode)")
+    .option("--correlation-id <id>", "Correlation ID for this integration session. Minted and printed if omitted.")
+    .option("--app-id <appId>", "Cashfree App ID (x-client-id), if already known")
+    .option("--skill <skill>", "Skill that triggered the integration. Repeat for multiple skills.", collectOptionValues, [])
+    .action(async (options: {
+        flow: string;
+        framework: string;
+        correlationId?: string;
+        appId?: string;
+        skill: string[];
+    }) => {
+        const validFrameworks = FRAMEWORKS.map((f) => f.value);
+        const framework = options.framework.trim().toLowerCase();
+        if (!validFrameworks.includes(framework as any)) {
+            console.error(`Error: --framework must be one of: ${validFrameworks.join(", ")}`);
+            process.exitCode = 1;
+            return;
+        }
+
+        const flow = options.flow.trim();
+        if (!flow) {
+            console.error('Error: --flow is required and cannot be empty.');
+            process.exitCode = 1;
+            return;
+        }
+
+        const correlationId = options.correlationId?.trim() || randomUUID();
+        const appId = options.appId?.trim() || undefined;
+
+        const payload: ProgressFeedbackTelemetryInput = {
+            cliVersion: pkg.version,
+            flow,
+            skillsUsed: options.skill.map((s) => s.trim()).filter(Boolean),
+            completedSteps: [],
+            pendingSteps: [],
+            llmFeedback: `integration started [Framework: ${framework}] [cid:${correlationId}]`,
+            appId,
+        };
+
+        const event = createProgressFeedbackSubmittedEvent(payload);
+        await sendTelemetryEvents([event]);
+
+        console.log(JSON.stringify({
+            ok: true,
+            submitted: isTelemetryEnabled(),
+            event: event.event,
+            correlation_id: correlationId,
+            flow,
+            app_id_captured: Boolean(appId),
+        }));
+    });
+
+program
     .command("report-progress-feedback")
     .description("Submit end-of-task progress and skill-improvement feedback telemetry")
     .requiredOption("--flow <flow>", "Integration flow or product area, e.g. pg, subscriptions, payouts")
@@ -274,6 +331,7 @@ program
     .requiredOption("--feedback <feedback>", "LLM's honest feedback on what could be improved in the skill(s)")
     .requiredOption("--framework <framework>", "LLM framework/identity submitting this feedback (e.g. claude-code, opencode)")
     .option("--app-id <appId>", "Cashfree App ID (x-client-id) seen in the integration, if available")
+    .option("--correlation-id <id>", "Correlation ID minted at integration start (start-integration). Required for timing metrics; auto-generated with an 'auto-' prefix only as a legacy fallback.")
     .option("--silent", "Suppress JSON output")
     .action(async (options: {
         flow: string;
@@ -283,6 +341,7 @@ program
         feedback: string;
         framework: string;
         appId?: string;
+        correlationId?: string;
         silent?: boolean;
     }) => {
         const validFrameworks = FRAMEWORKS.map((f) => f.value);
@@ -300,13 +359,18 @@ program
             return;
         }
 
+        // The correlation ID pairs this end-of-task report with its start-integration
+        // event so integration duration can be computed. Skills always pass it; the
+        // 'auto-' fallback only exists so pre-correlation installs keep reporting.
+        const correlationId = options.correlationId?.trim() || `auto-${randomUUID()}`;
+
         const payload: ProgressFeedbackTelemetryInput = {
             cliVersion: pkg.version,
             flow: options.flow.trim(),
             skillsUsed: options.skill.map((s) => s.trim()).filter(Boolean),
             completedSteps: options.completedStep.map((s) => s.trim()).filter(Boolean),
             pendingSteps: options.pendingStep.map((s) => s.trim()).filter(Boolean),
-            llmFeedback: `${trimmedFeedback} [Framework: ${framework}]`,
+            llmFeedback: `${trimmedFeedback} [Framework: ${framework}] [cid:${correlationId}]`,
             appId: options.appId?.trim(),
         };
 
@@ -330,6 +394,7 @@ program
                 ok: true,
                 submitted: isTelemetryEnabled(),
                 event: event.event,
+                correlation_id: correlationId,
                 flow: payload.flow,
                 skills_used_count: payload.skillsUsed.length,
                 completed_steps_count: payload.completedSteps.length,
