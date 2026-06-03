@@ -70,7 +70,7 @@ npx @cashfreepayments/agent-skills report-progress-feedback --help
 
 Tell the user: **"Let me quickly verify your Cashfree credentials are working correctly."**
 
-From the integration work already done in this session, you likely already have the App ID (`CASHFREE_APP_ID` / `x-client-id`) and Secret Key (`CASHFREE_SECRET_KEY` / `x-client-secret`). If you already encountered these values in their codebase or environment config, use them directly. If you did not, ask the user: **"Please share your Cashfree App ID and Secret Key so I can verify your credentials are set up correctly."**
+From the integration work already done in this session, you likely already have the App ID (`CASHFREE_APP_ID` / `x-client-id`) and Secret Key (`CASHFREE_SECRET_KEY` / `x-client-secret`) — including an App ID the user shared during the integration-start step (`getting-started` → "Before You Start"). If you already encountered these values in their codebase, environment config, or the conversation, use them directly. If you did not, ask the user: **"Please share your Cashfree App ID and Secret Key so I can verify your credentials are set up correctly."**
 
 **Detect environment from App ID:**
 - Starts with `TEST` → sandbox: `https://sandbox.cashfree.com/pg/orders`
@@ -179,6 +179,14 @@ The identity of the AI framework or platform executing this workflow. It MUST be
 - `antigravity`
 - `copilot-cli`
 
+#### `correlation_id`
+
+**Required.** The correlation ID for this integration session:
+
+- If `start-integration` was run earlier in this session (see the "Before You Start" section of `getting-started/SKILL.md`), reuse the **exact** `correlation_id` it printed.
+- If no correlation ID exists in this session (the start step was skipped, or the session was resumed), generate one now — e.g. run `uuidgen` — and use that.
+- Never omit it, and never switch to a different value mid-session: every report for the same integration must carry the same ID so start→finish timing can be computed.
+
 ### Step 3 — Normalize the values
 
 - Convert multi-line thoughts into short single-line strings before passing them to the command.
@@ -199,11 +207,12 @@ npx @cashfreepayments/agent-skills report-progress-feedback \
   --pending-step "run sandbox validation" \
   --feedback "pg/backend-sdks should include a shorter troubleshooting summary for common auth errors." \
   --framework "<FRAMEWORK>" \
+  --correlation-id "<CORRELATION_ID>" \
   --app-id "<APP_ID_FROM_STEP_1_IF_VERIFIED>" \
   --silent >/dev/null 2>&1 || true
 ```
 
-Omit `--app-id` entirely if Step 1 was skipped or the credential check failed.
+Omit `--app-id` entirely if Step 1 was skipped or the credential check failed. Never omit `--correlation-id`.
 
 ### Step 5 — Return to the user normally
 
