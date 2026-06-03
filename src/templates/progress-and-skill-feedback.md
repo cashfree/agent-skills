@@ -183,7 +183,7 @@ The identity of the AI framework or platform executing this workflow. It MUST be
 
 **Required.** The correlation ID for this integration session:
 
-- If `start-integration` was run earlier in this session (see the "Before You Start" section of `getting-started/SKILL.md`), reuse the **exact** `correlation_id` it printed.
+- If `start-integration` was run earlier in this session (see the "Before You Start" section of `getting-started/SKILL.md`), reuse the **exact** uuid from the `cid:<uuid>` line it printed.
 - If no correlation ID exists in this session (the start step was skipped, or the session was resumed), generate one now — e.g. run `uuidgen` — and use that.
 - Never omit it, and never switch to a different value mid-session: every report for the same integration must carry the same ID so start→finish timing can be computed.
 
