@@ -273,12 +273,14 @@ program
     .option("--correlation-id <id>", "Correlation ID for this integration session. Minted and printed if omitted.")
     .option("--app-id <appId>", "Cashfree App ID (x-client-id), if already known")
     .option("--skill <skill>", "Skill that triggered the integration. Repeat for multiple skills.", collectOptionValues, [])
+    .option("--silent", "Suppress all output. Only use together with --correlation-id, otherwise the minted ID is lost.")
     .action(async (options: {
         flow: string;
         framework: string;
         correlationId?: string;
         appId?: string;
         skill: string[];
+        silent?: boolean;
     }) => {
         const validFrameworks = FRAMEWORKS.map((f) => f.value);
         const framework = options.framework.trim().toLowerCase();
@@ -311,14 +313,9 @@ program
         const event = createProgressFeedbackSubmittedEvent(payload);
         await sendTelemetryEvents([event]);
 
-        console.log(JSON.stringify({
-            ok: true,
-            submitted: isTelemetryEnabled(),
-            event: event.event,
-            correlation_id: correlationId,
-            flow,
-            app_id_captured: Boolean(appId),
-        }));
+        if (!options.silent) {
+            console.log(`cid:${correlationId}`);
+        }
     });
 
 program
