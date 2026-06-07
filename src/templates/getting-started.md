@@ -90,14 +90,17 @@ First check: if the merchant's Cashfree App ID (`CASHFREE_APP_ID` / `x-client-id
 
 Otherwise, **before writing any Cashfree code**, your next reply to the user MUST include this question — do not silently skip it:
 
-> "Quick question before I start — do you have your Cashfree App ID handy? Sharing it is optional, but it helps me verify your account setup and which payment modes are enabled. Reply with it or just say 'skip'."
+> "Quick question before I start — do you have your Cashfree App ID handy? Sharing it is optional (just say 'skip'). And if your App ID **and** Secret Key are already in the project (e.g. a `.env` file) or you add them there now, I can also verify which payment modes are enabled on your account."
 
 Then wait for their reply:
 
 - They share an App ID → use it in step 2 via `--app-id`.
+- They point to (or add) **both** the App ID and Secret Key → use the App ID in step 2; the Step 0 eligibility pre-flight below also becomes runnable.
 - Any other reply ("skip", "no", "continue", a different instruction, or no App ID in the message) → treat the question as answered, run step 2 **without** `--app-id`, and proceed with the integration. Never re-ask later in the session, never block on it.
 
 Asking at the very end of the task does NOT count — the question belongs at the start, before integration work begins.
+
+**Credential guard — App ID alone is NOT enough for API calls.** The eligibility check (Step 0) and any credential verification require BOTH the App ID (`x-client-id`) and the Secret Key (`x-client-secret`). If only the App ID was shared, do NOT attempt those API calls — **never guess, invent, or placeholder a Secret Key** (no `<secret>`, no `test`, no reusing the App ID as the secret). Just proceed with the integration and note that you'll verify enabled payment modes once the Secret Key is available.
 
 ### 2. Report the integration start
 
@@ -126,7 +129,7 @@ The core payment integration is **one pre-flight check + three steps**. Do them 
 
 The **Get Eligible Payment Methods** API tells you exactly which methods (UPI, cards, netbanking, paylater, etc.) are activated on the merchant account. Running it early saves a class of "payment mode not enabled" debugging later.
 
-**Run it only if credentials are already at hand** — i.e. you can see `CASHFREE_APP_ID` / `CASHFREE_SECRET_KEY` in the codebase (e.g. `.env`, config files), or the user has pasted them into the conversation. **Do NOT block the conversation to ask for credentials just to run this check.** If the user hasn't shared keys yet, proceed with the integration plan and note that you'll verify enabled methods once keys are available; assume the standard set (cards, UPI, netbanking) in the meantime.
+**Run it only if BOTH credentials are already at hand** — i.e. you can see `CASHFREE_APP_ID` **and** `CASHFREE_SECRET_KEY` in the codebase (e.g. `.env`, config files), or the user has pasted them into the conversation. An App ID alone (e.g. from the integration-start ask) is not enough — **never run this call with a guessed or placeholder secret**. **Do NOT block the conversation to ask for credentials just to run this check.** If the user hasn't shared keys yet, proceed with the integration plan and note that you'll verify enabled methods once keys are available; assume the standard set (cards, UPI, netbanking) in the meantime.
 
 ```bash
 curl --request POST \
