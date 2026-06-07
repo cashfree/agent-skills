@@ -10,7 +10,7 @@ This API is the only source of truth for which payment methods are activated on 
 **When to run it:**
 - The user explicitly asks "what payment modes are enabled?"
 - You already have `CASHFREE_APP_ID` / `CASHFREE_SECRET_KEY` at hand (from the codebase, `.env`, or the user's message) AND you're about to design an integration that depends on what's enabled.
-- An App ID the user shared during the integration-start step (`getting-started` → "Before You Start") counts as "at hand" — you still need the secret key alongside it to call this API.
+- An App ID the user shared during the integration-start step (`getting-started` → "Before You Start") counts as "at hand" — but you still need the Secret Key alongside it to call this API. **Never call this API with a guessed, invented, or placeholder secret** (no `<secret>`, no `test`, no reusing the App ID as the secret). If the Secret Key isn't explicitly available, skip the API entirely and use the dashboard path below instead.
 
 **Do NOT block the conversation to ask the user for credentials just to run this check.** If keys aren't already available, proceed with the integration plan assuming the standard methods (cards / UPI / netbanking) and note that the assistant will verify once keys exist.
 
