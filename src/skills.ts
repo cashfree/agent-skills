@@ -43,6 +43,10 @@ import {
     getMigrateFromJuspayReferenceTemplate,
 } from "./templates/migrate-from-juspay.js";
 import {
+    getMigrateFromPayuSkillTemplate,
+    getMigrateFromPayuReferenceTemplate,
+} from "./templates/migrate-from-payu.js";
+import {
     getSettlementsSkillTemplate,
     getSettlementsReferenceTemplate,
 } from "./templates/settlements-and-reconciliation.js";
@@ -107,6 +111,8 @@ export const ALL_SKILLS: Skill[] = [
     { dir: "migrate-from-razorpay/references", fileName: "REFERENCE.md", getTemplate: getMigrateFromRazorpayReferenceTemplate },
     { dir: "migrate-from-juspay", getTemplate: getMigrateFromJuspaySkillTemplate },
     { dir: "migrate-from-juspay/references", fileName: "REFERENCE.md", getTemplate: getMigrateFromJuspayReferenceTemplate },
+    { dir: "migrate-from-payu", getTemplate: getMigrateFromPayuSkillTemplate },
+    { dir: "migrate-from-payu/references", fileName: "REFERENCE.md", getTemplate: getMigrateFromPayuReferenceTemplate },
     { dir: "progress-and-skill-feedback", getTemplate: getProgressAndSkillFeedbackSkillTemplate },
 
     // --- End: validation, testing & troubleshooting ---

@@ -56,6 +56,7 @@ const INSTALLED_TREE_LINES = [
     "  ├── auto-collect/SKILL.md + references/REFERENCE.md",
     "  ├── migrate-from-razorpay/SKILL.md + references/REFERENCE.md",
     "  ├── migrate-from-juspay/SKILL.md + references/REFERENCE.md",
+    "  ├── migrate-from-payu/SKILL.md + references/REFERENCE.md",
     "  ├── progress-and-skill-feedback/SKILL.md",
     "  ├── validation-and-testing/SKILL.md",
     "  └── common-mistakes/SKILL.md",
@@ -105,6 +106,7 @@ const HELP_SECTIONS: { title: string; prompts: string[] }[] = [
         prompts: [
             "Migrate my Express app from Razorpay to Cashfree",
             "Replace Juspay Hypercheckout with Cashfree in my app",
+            "Migrate my PayU integration to Cashfree",
         ],
     },
     {
