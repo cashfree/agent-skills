@@ -127,6 +127,9 @@ cashfree-skills/
 ├── migrate-from-juspay/
 │   ├── SKILL.md                     ← Juspay → Cashfree migration: orchestrator exit, session/payment_session mapping, webhook/status rewrites
 │   └── references/REFERENCE.md      ← Endpoint map, field diffs, mobile/mandate mapping, orchestrator feature checklist
+├── migrate-from-payu/
+│   ├── SKILL.md                     ← PayU → Cashfree migration: hash-auth → header-auth, 7-step cutover, Bolt/webhook/refund rewrites
+│   └── references/REFERENCE.md      ← Endpoint map, hash vs header auth, per-language SDK rewrites, verify/refund command API, SI → Subscriptions, CheckoutPro mobile
 ├── validation-and-testing/
 │   └── SKILL.md                     ← Post-integration validation & testing
 └── common-mistakes/
@@ -228,6 +231,9 @@ AI: *reads migrate-from-razorpay/SKILL.md → migrate-from-razorpay/references/R
 
 You: "Replace Juspay Hypercheckout with Cashfree in my app"
 AI: *reads migrate-from-juspay/SKILL.md → migrate-from-juspay/references/REFERENCE.md* → Maps sdk_payload/client_auth_token to payment_session_id, rewrites auth/webhooks/status handling, and calls out lost orchestration features early
+
+You: "Migrate my PayU integration to Cashfree"
+AI: *reads migrate-from-payu/SKILL.md → migrate-from-payu/references/REFERENCE.md* → Deletes the SHA-512 hash logic for Cashfree header auth, maps txnid/mihpayid → order_id/cf_payment_id, rewrites Bolt checkout, verify_payment, refunds, and the pending-state handling
 
 You: "My Payout API keeps returning signature mismatch even though IP is whitelisted"
 AI: *reads common-mistakes/SKILL.md* → Multiple account IP mismatch + dynamic IP explanation + fix
