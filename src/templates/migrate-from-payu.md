@@ -134,7 +134,7 @@ PayU's official backend SDKs live under the `payu-india` GitHub org and are not 
 |---|---|---|
 | `payu-india/payu-sdk-node` or hand-rolled hash + `_payment` post | → | `cashfree-pg` (npm) |
 | `payu-india/web-sdk-python` or hand-rolled | → | `cashfree-pg` (PyPI) |
-| `in.payu:payu-sdk` (Maven) or hand-rolled | → | `com.cashfree.pg:cashfree-pg` |
+| `in.payu:payu-sdk` (Maven) or hand-rolled | → | `com.cashfree.pg.java:cashfree_pg` |
 | `payu-india/web-sdk-go` or hand-rolled | → | `github.com/cashfree/cashfree-pg/v6` |
 | `payu-india/payubiz_php7` sample or hand-rolled | → | `cashfree/cashfree-pg` (Composer) |
 | Hand-rolled .NET (no official PayU SDK) | → | `cashfree_pg` (NuGet) |

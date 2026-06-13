@@ -198,7 +198,7 @@ curl --request POST \
 
 **Installation (Gradle):**
 ```groovy
-implementation 'com.cashfree.pg:api:2.3.2'
+implementation 'com.cashfree.pg:api:2.4.0'
 ```
 
 **Android Manifest (required):**
@@ -259,7 +259,7 @@ CFPaymentGatewayService.getInstance().doPayment(this, cfSubscriptionPayment);
 
 **Installation (CocoaPods):**
 ```ruby
-pod 'CashfreePG', '2.3.2'
+pod 'CashfreePG', '2.4.0'
 ```
 
 **Info.plist (for UPI intent):**
@@ -297,7 +297,7 @@ extension ViewController: CFResponseDelegate {
 **pubspec.yaml:**
 ```yaml
 dependencies:
-  flutter_cashfree_pg_sdk: 2.3.3+50
+  flutter_cashfree_pg_sdk: 2.4.0+52
 ```
 
 **Android Manifest (required):**

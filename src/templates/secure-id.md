@@ -3,7 +3,8 @@ name: Cashfree Secure ID — Identity Verification & KYC
 description: >
   Use when integrating Cashfree Secure ID for identity verification, KYC, document authentication, and fraud prevention.
   Triggers: Cashfree Secure ID, identity verification, KYC verification, PAN verification, Aadhaar verification,
-  bank account verification, BAV, GSTIN verification, DigiLocker, Video KYC, face match, face liveness,
+  bank account verification, BAV, penny drop, penny drop verification (= bank account verification),
+  GSTIN verification, DigiLocker, Video KYC, face match, face liveness,
   name match, Smart OCR, e-sign, reverse penny drop, UPI penny drop, mobile penny drop, IFSC verification,
   driving licence verification, passport verification, voter ID verification, CIN verification, vehicle RC,
   Aadhaar masking, KYC link, 1-click onboarding, Mobile 360, account aggregator, geocoding, reverse geocoding,
@@ -25,7 +26,7 @@ Cashfree Secure ID is a comprehensive identity verification and fraud prevention
 **This is primarily a backend integration** — API calls should be routed through your server. Frontend SDKs are available for DigiLocker (React Native), Video KYC (Web, Android, iOS), and 1-Click Onboarding (Web, Android, iOS).
 
 **Product Categories:**
-1. **Core Banking Services**: Bank Account Verification (Sync/Async/Bulk), IFSC, Reverse Penny Drop, UPI Penny Drop, Mobile Penny Drop
+1. **Core Banking Services**: Bank Account Verification — a.k.a. "penny drop", Cashfree credits ₹1 *into* the account (Sync/Async/Bulk), IFSC, Reverse Penny Drop (opposite direction — holder pays ₹1 *from* the account; for self-verification, not beneficiary validation), UPI Penny Drop, Mobile Penny Drop
 2. **Identity Verification**: PAN (Verify/Lite/360/Bulk), Aadhaar (via DigiLocker), Driving Licence, Passport, Voter ID
 3. **Business Verification (KYB)**: GSTIN, CIN, Udyam, PAN to GSTIN, PAN to Udyam
 4. **OCR & Biometric**: Smart OCR, Face Liveness, Face Match, Name Match, Aadhaar Masking
@@ -116,11 +117,13 @@ public static function getSignature() {
 
 ## 5. Core API Examples
 
-### Bank Account Verification — Sync
+### Bank Account Verification — "Penny Drop"
 
-**Endpoint:** `POST /bank-account/sync`
+> **"Penny drop" = Bank Account Verification (BAV).** Cashfree deposits ₹1 **into** the account to confirm it is valid and active and returns the name registered at the bank. This is what is meant by "penny drop", "verify a bank account", or "validate a beneficiary before payout". **Use the `/bank-account/*` endpoints below.**
+>
+> ⚠️ **Do NOT use Reverse Penny Drop (`/reverse-penny-drop`) for this.** RPD is the *opposite* direction — the account **holder** sends ₹1 **from** their own account via a UPI intent/QR/collect link (auto-refunded). It is for *user self-verification during onboarding*, not for validating a beneficiary you are about to pay. Different endpoint, different payload, different purpose. If the requirement is "verify/validate this bank account", always use BAV — never `reverse-penny-drop`. See `references/REFERENCE.md` § Reverse Penny Drop.
 
-Real-time validation. Returns instant results.
+**Sync — `POST /bank-account/sync`** — real-time; the verification result (`account_status`, `name_at_bank`, name-match score) is returned **in the HTTP response**. Use this for a single interactive check. Default choice for "verify a bank account".
 
 ```bash
 curl -X POST 'https://sandbox.cashfree.com/verification/bank-account/sync' \
@@ -134,6 +137,10 @@ curl -X POST 'https://sandbox.cashfree.com/verification/bank-account/sync' \
     "phone": "9999999999"
   }'
 ```
+
+**Async — `POST /bank-account/async`** (use for bulk / high volume) — the POST returns only an **acknowledgement** with a `reference_id`, **not** the verification outcome. The final result arrives via webhook (`BANK_ACCOUNT_VERIFICATION_SUCCESS` / `_REJECTED` / `_FAILED`) or by polling `GET /bank-account/status?reference_id=...`.
+
+> ⚠️ **Async result trap:** never treat the async submission response as the final verification result — it only confirms the request was accepted. You **must** implement a webhook handler (or poll the status endpoint) to capture the actual `account_status`. The sync endpoint above does return the result inline; the async/bulk and RPD flows do not.
 
 > Cashfree does not support verification of Deutsche Bank and Paytm Payments Bank accounts. IMPS verifies only the first 5 characters of the IFSC code.
 

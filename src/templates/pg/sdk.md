@@ -40,7 +40,7 @@ description: >
 |---|---|---|
 | **Node.js** | `cashfree-pg` (npm) | `npm install cashfree-pg` |
 | **Python** | `cashfree-pg` (PyPI) | `pip install cashfree-pg` |
-| **Java** | `com.cashfree.pg:cashfree-pg` (Maven Central) | Maven/Gradle (see Section 4) |
+| **Java** | `com.cashfree.pg.java:cashfree_pg` (Maven Central) | Maven/Gradle (see Section 4) |
 | **Go** | `github.com/cashfree/cashfree-pg/v6` | `go get github.com/cashfree/cashfree-pg/v6` |
 | **PHP** | `cashfree/cashfree-pg` (Packagist) | `composer require cashfree/cashfree-pg` |
 | **.NET** | `cashfree_pg` (NuGet) | `dotnet add package cashfree_pg` |
@@ -54,7 +54,7 @@ description: >
 
 ### API Version
 
-The Node.js SDK v6, Python SDK v6, and Go SDK v6 bundle the API version internally (defaults to `"2026-01-01"`) — no explicit version parameter is required. Override per-instance only if you need an older API version (e.g. `cashfree.XApiVersion = "2025-01-01"` on Node.js). Java, PHP, and .NET SDKs still pass the version as the first parameter to each call.
+The Node.js SDK v6, Python SDK v6, and Go SDK v6 bundle the API version internally (defaults to `"2026-01-01"`) — no explicit version parameter is required. Override per-instance only if you need an older API version (e.g. `cashfree.XApiVersion = "2025-01-01"` on Node.js). The current Java (5.x), PHP (6.x), and .NET (5.x) SDKs also configure credentials on the client and **do not** require an API-version argument per call — e.g. `cashfree.PGCreateOrder(request, null, null, null)`. Passing the version as the first method argument is only a **legacy overload** (available on the Java/.NET no-arg constructor path; PHP v6 dropped it entirely).
 
 #### Using a legacy `cashfree-pg` < 6.x (Python 4.x / 3.x, Node 4.x / 3.x)?
 
@@ -104,9 +104,9 @@ cashfree = Cashfree(
 **Java (Maven):**
 ```xml
 <dependency>
-  <groupId>com.cashfree.pg</groupId>
-  <artifactId>cashfree-pg</artifactId>
-  <version>LATEST</version>
+  <groupId>com.cashfree.pg.java</groupId>
+  <artifactId>cashfree_pg</artifactId>
+  <version>5.0.1</version>
 </dependency>
 ```
 ```java
