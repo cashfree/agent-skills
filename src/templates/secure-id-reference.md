@@ -106,7 +106,7 @@ private static String generateEncryptedSignature(String clientIdWithEpochTimesta
 - **Get BAV Status (V2):** `GET /bank-account/status` — By `reference_id` or `user_id`
 - **Get Bulk BAV Status (V2):** `GET /bank-account/bulk/status`
 - **IFSC Verification:** `POST /ifsc` — Verify IFSC and retrieve bank branch details
-- **Reverse Penny Drop:** `POST /reverse-penny-drop` — ₹1 UPI deposit for verification. Link valid **10 minutes**
+- **Reverse Penny Drop (RPD):** `POST /reverse-penny-drop` — the account **holder** sends ₹1 **from** their own account via a UPI intent/QR/collect link (auto-refunded), and Cashfree returns the verified account details. This is the **opposite direction** to penny drop / BAV (where Cashfree deposits ₹1 *into* the account). Use RPD for **user self-verification during onboarding**, *not* for validating a beneficiary before payout — for that, use Bank Account Verification (`/bank-account/sync` or `/async`). Result is async (via `RPD_BANK_ACCOUNT_VERIFICATION_*` webhook / status poll). Link valid **10 minutes**
 - **Get RPD Status:** `GET /reverse-penny-drop/status`
 - **UPI Penny Drop:** `POST /upi-penny-drop` — Send ₹1 to VPA, retrieve bank account info
 - **Mobile Penny Drop:** `POST /mobile-penny-drop` — Send ₹1 to mobile, retrieve bank account info
@@ -407,7 +407,7 @@ cf.closeSDK();
 
 **Android:**
 ```kotlin
-dependencies { implementation("com.cashfree.vrs:kyc-verification:1.0.1") }
+dependencies { implementation("com.cashfree.vrs:kyc-verification:1.0.4") }
 
 verificationService.set1ClickOnboardingCallback(object : CF1ClickOnboardingCallback {
     override fun onVerification(response: CF1ClickOnboardingResponse) { /* handle */ }

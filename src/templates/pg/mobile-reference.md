@@ -20,7 +20,7 @@ description: >
 
 ```groovy
 // build.gradle (app)
-implementation 'com.cashfree.pg:api:2.3.2'
+implementation 'com.cashfree.pg:api:2.4.0'
 ```
 
 ### Complete Sample (Java — Web Checkout)
@@ -120,7 +120,7 @@ CFPaymentGatewayService.getInstance().doPayment(this@YourActivity, cfupiIntentCh
 
 **CocoaPods:**
 ```ruby
-pod 'CashfreePG', '2.3.2'
+pod 'CashfreePG', '2.4.0'
 ```
 Then: `pod install`
 
@@ -210,7 +210,7 @@ try pgService.doPayment(upiIntentPayment, viewController: self)
 ```yaml
 # pubspec.yaml
 dependencies:
-  flutter_cashfree_pg_sdk: 2.2.10+48
+  flutter_cashfree_pg_sdk: 2.4.0+52
 ```
 
 ### iOS Configuration
@@ -382,12 +382,12 @@ cordova plugin add cordova-plugin-cashfree-pg
 ionic cordova plugin add cordova-plugin-cashfree-pg
 ```
 
-**Capacitor / Ionic Capacitor:**
+**Capacitor / Ionic Capacitor (Capacitor 7+):**
+
+Use the dedicated Capacitor plugin (bundles Cashfree Android/iOS SDK 2.4.0) — not the Cordova plugin:
 ```bash
-npm install cordova-plugin-cashfree-pg@capacitor
-npm install @awesome-cordova-plugins/core
-npm install @awesome-cordova-plugins/cashfree-pg
-ionic cap sync
+npm install capacitor-plugin-cashfree-pg cashfree-pg-api-contract
+npx cap sync
 ```
 
 ### iOS Configuration
@@ -589,4 +589,4 @@ def verify():
 | Using Expo Go instead of dev client | Native modules not supported | `npx expo prebuild` + `npx expo run:android/ios` |
 | Testing production from sideloaded APK | Cashfree Integrity blocks payment | Use Play Store Internal Testing track |
 | Not removing RN callback in `componentWillUnmount` | Memory leak; stale callbacks | Call `CFPaymentGatewayService.removeCallback()` |
-| Wrong Capacitor plugin version | Plugin incompatible | Use `cordova-plugin-cashfree-pg@capacitor` |
+| Using the Cordova plugin under Capacitor | Plugin incompatible | Use the dedicated `capacitor-plugin-cashfree-pg` (Capacitor 7+) |

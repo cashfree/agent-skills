@@ -128,7 +128,7 @@ Keep this list — it's your migration checklist.
 |---|---|---|
 | `razorpay` (npm) | → | `cashfree-pg` (npm) |
 | `razorpay` (PyPI) | → | `cashfree-pg` (PyPI) |
-| `com.razorpay:razorpay-java` | → | `com.cashfree.pg:cashfree-pg` |
+| `com.razorpay:razorpay-java` | → | `com.cashfree.pg.java:cashfree_pg` |
 | `razorpay/razorpay` (Composer) | → | `cashfree/cashfree-pg` |
 | `Razorpay` (NuGet) | → | `cashfree_pg` (NuGet) |
 | `github.com/razorpay/razorpay-go` | → | `github.com/cashfree/cashfree-pg/v6` |

@@ -452,16 +452,17 @@ Run this after every dependency change for Flutter, React Native, and Cordova iO
 
 ---
 
-### E7. Using wrong Capacitor plugin version
+### E7. Using the Cordova plugin under Capacitor
 
-**What goes wrong:** The Cordova plugin doesn't work with Capacitor.
+**What goes wrong:** The Cordova plugin doesn't work cleanly with Capacitor.
 
-**Why it happens:** The default `cordova-plugin-cashfree-pg` is for Cordova. Capacitor needs a different tag.
+**Why it happens:** `cordova-plugin-cashfree-pg` is built for Cordova. Capacitor (7+) has its own dedicated plugin.
 
 **How to fix it:**
 ```bash
-# For Capacitor — use the @capacitor tag
-npm install cordova-plugin-cashfree-pg@capacitor
+# For Capacitor 7+ — use the dedicated Capacitor plugin
+npm install capacitor-plugin-cashfree-pg cashfree-pg-api-contract
+npx cap sync
 
 # NOT this (this is for Cordova only):
 npm install cordova-plugin-cashfree-pg

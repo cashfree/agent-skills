@@ -454,7 +454,7 @@ Critical: register `setCallback` BEFORE `doPayment` and remove on unmount. See `
 
 | Razorpay | Cashfree |
 |---|---|
-| `cordova-plugin-razorpaycheckout` | `cordova-plugin-cashfree-pg` (Cordova) **or** `cordova-plugin-cashfree-pg@capacitor` (Capacitor — use this tag, see `common-mistakes/SKILL.md` §E7) |
+| `cordova-plugin-razorpaycheckout` | `cordova-plugin-cashfree-pg` (Cordova) **or** `capacitor-plugin-cashfree-pg` (Capacitor 7+, see `common-mistakes/SKILL.md` §E7) |
 
 Full Cashfree mobile details + `CFSession` vs `CFDropCheckoutPayment` vs `CFPaymentComponentBuilder`: `pg/mobile-sdks/references/REFERENCE.md`.
 

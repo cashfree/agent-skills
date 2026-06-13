@@ -65,11 +65,11 @@ All Cashfree mobile SDK integrations follow a **3-step flow**:
 
 | Platform | Package | Latest SDK |
 |---|---|---|
-| **Android** | `com.cashfree.pg:api` (Maven) | `2.3.2` (Android SDK 19+) |
-| **iOS** | `CashfreePG` (SPM / CocoaPods) | `2.3.2` (iOS 11+) |
-| **Flutter** | `flutter_cashfree_pg_sdk` (pub.dev) | `2.2.10+48` |
-| **React Native** | `react-native-cashfree-pg-sdk` (npm) | `2.2.6` |
-| **Cordova** | `cordova-plugin-cashfree-pg` (npm) | `1.0.12` |
+| **Android** | `com.cashfree.pg:api` (Maven) | `2.4.0` (Android SDK 19+) |
+| **iOS** | `CashfreePG` (SPM / CocoaPods) | `2.4.0` (iOS 11+) |
+| **Flutter** | `flutter_cashfree_pg_sdk` (pub.dev) | `2.4.0+52` |
+| **React Native** | `react-native-cashfree-pg-sdk` (npm) | `2.4.0` |
+| **Cordova** | `cordova-plugin-cashfree-pg` (npm) | `1.1.0` |
 
 ### Checkout Flow Types
 
@@ -108,7 +108,7 @@ Response: extract `payment_session_id` and `order_id`, send to your mobile app.
 ### Step 2: Open Checkout (Android — Kotlin)
 
 ```kotlin
-// Install: implementation 'com.cashfree.pg:api:2.3.2' in build.gradle
+// Install: implementation 'com.cashfree.pg:api:2.4.0' in build.gradle
 
 // Set callback in onCreate (BEFORE doPayment)
 CFPaymentGatewayService.getInstance().setCheckoutCallback(this)
@@ -210,7 +210,7 @@ Configure `notify_url` in Create Order. Verify webhook signatures before process
 - **Flutter** → `flutter_cashfree_pg_sdk` via pub.dev.
 - **React Native / Expo** → `react-native-cashfree-pg-sdk`. For Expo: run `npx expo prebuild` (Expo Go is NOT supported).
 - **Cordova / Ionic** → `cordova-plugin-cashfree-pg`.
-- **Capacitor / Ionic Capacitor** → `cordova-plugin-cashfree-pg@capacitor`.
+- **Capacitor / Ionic Capacitor** → `capacitor-plugin-cashfree-pg` (dedicated Capacitor 7+ plugin; install alongside `cashfree-pg-api-contract`).
 
 **Callback registration timing:**
 - Android → `onCreate()`
