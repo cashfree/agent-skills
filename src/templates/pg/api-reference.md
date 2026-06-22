@@ -454,6 +454,34 @@ They are unrelated beyond the shared name. Both are cheap — use both.
 | `bank_processing_failure` | 502 | Transaction failed at banking partner |
 | `version_missing` | 400 | API version header missing or invalid |
 
+### Payment-failure `error_details` (declined/failed payments)
+
+When a **payment** fails (as opposed to a request being rejected), the order/payment object and the webhook carry an `error_details` object. **Branch on the codes/enums below — never on `error_description`, which is human-facing text that gets reworded across API & SDK versions** (see `common-mistakes/SKILL.md` §C4).
+
+```json
+"error_details": {
+  "error_code": "issuer_declined",
+  "error_description": "The card issuer declined the transaction",
+  "error_reason": "bank_declined",
+  "error_source": "bank"
+}
+```
+
+| Field | Branch on it? | What it carries |
+|---|---|---|
+| `error_code` | ✅ Precise machine code | e.g. `issuer_declined`, `instrument_id_expired`, `cryptogram_expired`, `tokenization_service_unavailable`, `bank_processing_failure` |
+| `error_reason` | ✅ Category bucket | e.g. `bank_declined`, `insufficient_funds`, `invalid_card`, `auth_failed`, `transaction_timeout` |
+| `error_source` | ✅ Origin (decides retryability) | `bank` · `cashfree` · `user` · `gateway` |
+| `error_description` | ❌ Display/log only | Free text — **do not** string-match or branch on it |
+
+**How to use it:**
+- `error_source === "user"` (e.g. wrong OTP, cancelled) → safe to let the user retry.
+- `error_reason === "insufficient_funds"` → prompt a smaller amount / different instrument.
+- `error_code === "instrument_id_expired"` → token rotated, re-collect the card.
+- `error_source === "bank"` / `"gateway"` with a generic reason → transient; offer retry or an alternate method.
+
+The full, authoritative decline-code list is large and maintained by Cashfree — **do not hardcode an exhaustive list from memory**; treat the codes above as the stable shape and look up specifics at the official reference: https://www.cashfree.com/docs/api-reference/payments/errors
+
 ### Common mistakes
 
 | Mistake | Consequence | Fix |
