@@ -485,6 +485,6 @@ Product-specific follow-ups:
 - [Hypercheckout overview](https://docs.juspay.io/hyper-checkout/overview)
 - [Session API](https://docs.juspay.io/hyper-checkout/web/base-sdk-integration/session)
 - [Create Order API](https://docs.juspay.io/api-reference/docs/express-checkout/create-order-api)
-- [Order Status API](https://docs.juspay.io/api-reference/docs/express-checkout/order-status-api/edit.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md.md)
+- [Order Status API](https://docs.juspay.io/api-reference/docs/express-checkout/order-status-api)
 - [Refund Order API](https://docs.juspay.io/hyper-checkout/capacitor/base-sdk-integration/refund-order-api)
 - [Webhooks](https://docs.juspay.io/express-checkout-sdk-global/react-native/base-sdk-integration/1-webhooks)
