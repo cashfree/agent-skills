@@ -54,14 +54,19 @@ description: >
 
 ### API Version
 
-The Node.js SDK v6, Python SDK v6, and Go SDK v6 bundle the API version internally (defaults to `"2026-01-01"`) — no explicit version parameter is required. Override per-instance only if you need an older API version (e.g. `cashfree.XApiVersion = "2025-01-01"` on Node.js). The current Java (5.x), PHP (6.x), and .NET (5.x) SDKs also configure credentials on the client and **do not** require an API-version argument per call — e.g. `cashfree.PGCreateOrder(request, null, null, null)`. Passing the version as the first method argument is only a **legacy overload** (available on the Java/.NET no-arg constructor path; PHP v6 dropped it entirely).
+Every current PG SDK supports **two call styles**, and the style decides whether you pass `x-api-version` per call:
 
-#### Using a legacy `cashfree-pg` < 6.x (Python 4.x / 3.x, Node 4.x / 3.x)?
+- **Instance style (recommended)** — build a client with credentials, then call methods **without** a version argument; the SDK supplies its bundled default. Offered by **Node, Python, Java, Go, and .NET** — e.g. `new Cashfree(Cashfree.SANDBOX, id, secret)` → `cashfree.PGCreateOrder(request)` (Node); `Cashfree(XEnvironment=…, XClientId=…, XClientSecret=…)` → `cashfree.PGCreateOrder(request, None, None)` (Python).
+- **Static / legacy style** — set credentials on the class (`Cashfree.XClientId = …`) and pass the version as the **first positional argument of every method** (`cashfree.PGCreateOrder("2023-08-01", request, …)`). Still supported in the current majors, and it is the **only** style PHP documents (`$cashfree->PGCreateOrder($x_api_version, $request)`).
 
-In pre-v6 Python/Node SDKs, every method's **first positional argument is the API version string** — not just `PGCreateOrder`. Be consistent across the whole file, or some calls will succeed and others will throw a missing-version error.
+**Bundled default vs published version — pin if it matters.** The current Node/Python/Go SDK source hardcodes `x-api-version = "2026-01-01"` as its internal default. But the latest **published** REST API version is **`2025-01-01` (v5)** — `2026-01-01` is not in Cashfree's public docs / OpenAPI / version switcher. If your code depends on the documented v5 response contract, pin the version explicitly (instance style: set `XApiVersion`, e.g. `cashfree.XApiVersion = "2025-01-01"` on Node; legacy style: pass `"2025-01-01"` as the first arg). See the `changelog` skill → `references/pg-api-versions.md` for the full reconciliation.
+
+#### Pinning a specific API version (or using an older SDK that requires it)
+
+In the static/legacy style, pass the version as the **first positional argument of every method** — not just `PGCreateOrder`. Be consistent across the whole file, or some calls will succeed and others will throw a missing-version error.
 
 ```python
-# cashfree-pg 4.x — version FIRST on every method
+# legacy / version-pinned style — version FIRST on every method
 cashfree_client.PGCreateOrder('2025-01-01', payload)
 cashfree_client.PGFetchOrder('2025-01-01', order_id)
 cashfree_client.PGOrderFetchPayments('2025-01-01', order_id)
@@ -69,7 +74,7 @@ cashfree_client.PGOrderFetchRefund('2025-01-01', order_id, refund_id)
 cashfree_client.PGOrderFetchRefunds('2025-01-01', order_id)
 ```
 
-Mixing the two styles in the same file (some calls with `'2025-01-01'`, others without) is the single most common 4.x→v6 migration bug. If you see it, either pass the version to every method (legacy) or upgrade to v6 and drop it everywhere. **Strongly recommend upgrading to v6** — fewer footguns.
+Mixing styles in the same file (some calls with `'2025-01-01'`, others without) is a common bug. Pick **one** style per client: either pass the version to every method, or use the instance style and omit it everywhere.
 
 ---
 
@@ -106,7 +111,7 @@ cashfree = Cashfree(
 <dependency>
   <groupId>com.cashfree.pg.java</groupId>
   <artifactId>cashfree_pg</artifactId>
-  <version>5.0.1</version>
+  <version>6.0.2</version>
 </dependency>
 ```
 ```java

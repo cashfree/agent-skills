@@ -562,7 +562,7 @@ componentWillUnmount() {
 
 ## 7.6. Category E.6: Backend SDK — legacy version-arg & `return_url` traps
 
-### E.6.1. Inconsistent `x_api_version` in `cashfree-pg < 6.x`
+### E.6.1. Inconsistent `x_api_version` in the legacy version-first style
 
 **What goes wrong:**
 
@@ -571,9 +571,9 @@ cashfree_client.PGCreateOrder('2025-01-01', payload)   # ok
 cashfree_client.PGFetchOrder(order_id)                  # ❌ missing version
 ```
 
-**Why it happens:** Pre-v6 Python/Node SDKs require the version as the first positional arg on **every** method. AI agents often apply it to `PGCreateOrder` and forget the rest.
+**Why it happens:** In the static/legacy call style, the SDK requires the version as the first positional arg on **every** method. AI agents often apply it to `PGCreateOrder` and forget the rest.
 
-**Fix:** Either pass `'2025-01-01'` first on every method (legacy 4.x / 3.x), or upgrade to v6 and drop it everywhere. Mixing the two styles is the most common 4.x→v6 migration bug. See `pg/backend-sdks/SKILL.md` §2.
+**Fix:** Pick **one** style per client. Either pass `'2025-01-01'` first on **every** method (static/legacy style), or use the instance style (`new Cashfree(env, id, secret)`) and omit the version everywhere. Mixing the two is the most common migration bug. See `pg/backend-sdks/SKILL.md` §2.
 
 ### E.6.2. `return_url` with literal `{order_id}` inside a Python f-string
 

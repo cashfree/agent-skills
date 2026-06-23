@@ -58,6 +58,8 @@ const INSTALLED_TREE_LINES = [
     "  ├── migrate-from-juspay/SKILL.md + references/REFERENCE.md",
     "  ├── migrate-from-payu/SKILL.md + references/REFERENCE.md",
     "  ├── progress-and-skill-feedback/SKILL.md",
+    "  ├── changelog/SKILL.md + references/ (7 files: SDK & API release notes)",
+    "  ├── upgrade-advisor/SKILL.md (SDK/API version-upgrade planner)",
     "  ├── validation-and-testing/SKILL.md",
     "  └── common-mistakes/SKILL.md",
 ];
@@ -107,6 +109,13 @@ const HELP_SECTIONS: { title: string; prompts: string[] }[] = [
             "Migrate my Express app from Razorpay to Cashfree",
             "Replace Juspay Hypercheckout with Cashfree in my app",
             "Migrate my PayU integration to Cashfree",
+        ],
+    },
+    {
+        title: "Versions & upgrades",
+        prompts: [
+            "What changed between cashfree-pg 4.x and 6.x — is it breaking?",
+            "Plan an upgrade of my Cashfree SDK from 4.2 to the latest",
         ],
     },
     {

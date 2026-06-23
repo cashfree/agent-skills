@@ -130,6 +130,18 @@ cashfree-skills/
 ├── migrate-from-payu/
 │   ├── SKILL.md                     ← PayU → Cashfree migration: hash-auth → header-auth, 7-step cutover, Bolt/webhook/refund rewrites
 │   └── references/REFERENCE.md      ← Endpoint map, hash vs header auth, per-language SDK rewrites, verify/refund command API, SI → Subscriptions, CheckoutPro mobile
+├── changelog/
+│   ├── SKILL.md                     ← SDK/API release notes & breaking changes (entry schema + reference map)
+│   └── references/
+│       ├── pg-backend-sdks.md       ← Node/Python/Java/Go/PHP/.NET version timelines & breaking changes
+│       ├── pg-api-versions.md       ← REST x-api-version line (2021-05-21 → 2025-01-01)
+│       ├── pg-web-sdk.md            ← cashfree.js v3, pg-react, pg-svelte
+│       ├── pg-mobile-sdks.md        ← Android, iOS, Flutter, React Native, Cordova/Capacitor
+│       ├── payouts.md               ← Payout SDKs + Payouts REST API
+│       ├── verification-secure-id.md ← Verification / Secure ID (VRS) SDKs + API
+│       └── subscriptions.md         ← Subscriptions API + SDK methods
+├── upgrade-advisor/
+│   └── SKILL.md                     ← Plan an SDK/API version upgrade: detect current → diff changelog → migration plan + tests
 ├── validation-and-testing/
 │   └── SKILL.md                     ← Post-integration validation & testing
 └── common-mistakes/
@@ -240,4 +252,10 @@ AI: *reads common-mistakes/SKILL.md* → Multiple account IP mismatch + dynamic 
 
 You: "Why isn't my webhook firing / payment not being fulfilled?"
 AI: *reads common-mistakes/SKILL.md* → Diagnostic tree narrows to exact cause and fix
+
+You: "What changed between cashfree-pg 4.x and 6.x — is it breaking?"
+AI: *reads changelog/SKILL.md → references/pg-backend-sdks.md* → Lists the 5.0.0 instance-client break and the 6.x spec bump, with what to fix and what to test per version
+
+You: "Upgrade my cashfree-pg integration from 4.2 to the latest"
+AI: *reads upgrade-advisor/SKILL.md (+ changelog references)* → Detects the installed version & call style, re-verifies the latest on npm, then emits an ordered migration plan with code diffs, a test checklist, and any undocumented gaps to validate
 ```
