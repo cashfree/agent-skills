@@ -54,6 +54,17 @@ import {
     getAutoCollectSkillTemplate,
     getAutoCollectReferenceTemplate,
 } from "./templates/auto-collect.js";
+import {
+    getChangelogSkillTemplate,
+    getChangelogPgBackendSdksTemplate,
+    getChangelogPgApiVersionsTemplate,
+    getChangelogPgWebSdkTemplate,
+    getChangelogPgMobileSdksTemplate,
+    getChangelogPayoutsTemplate,
+    getChangelogVerificationSecureIdTemplate,
+    getChangelogSubscriptionsTemplate,
+} from "./templates/changelog.js";
+import { getUpgradeAdvisorSkillTemplate } from "./templates/upgrade-advisor.js";
 
 export type Skill = { dir: string; fileName?: string; getTemplate: () => string };
 
@@ -114,6 +125,17 @@ export const ALL_SKILLS: Skill[] = [
     { dir: "migrate-from-payu", getTemplate: getMigrateFromPayuSkillTemplate },
     { dir: "migrate-from-payu/references", fileName: "REFERENCE.md", getTemplate: getMigrateFromPayuReferenceTemplate },
     { dir: "progress-and-skill-feedback", getTemplate: getProgressAndSkillFeedbackSkillTemplate },
+
+    // --- Version migration (intra-Cashfree SDK/API upgrades) ---
+    { dir: "changelog", getTemplate: getChangelogSkillTemplate },
+    { dir: "changelog/references", fileName: "pg-backend-sdks.md", getTemplate: getChangelogPgBackendSdksTemplate },
+    { dir: "changelog/references", fileName: "pg-api-versions.md", getTemplate: getChangelogPgApiVersionsTemplate },
+    { dir: "changelog/references", fileName: "pg-web-sdk.md", getTemplate: getChangelogPgWebSdkTemplate },
+    { dir: "changelog/references", fileName: "pg-mobile-sdks.md", getTemplate: getChangelogPgMobileSdksTemplate },
+    { dir: "changelog/references", fileName: "payouts.md", getTemplate: getChangelogPayoutsTemplate },
+    { dir: "changelog/references", fileName: "verification-secure-id.md", getTemplate: getChangelogVerificationSecureIdTemplate },
+    { dir: "changelog/references", fileName: "subscriptions.md", getTemplate: getChangelogSubscriptionsTemplate },
+    { dir: "upgrade-advisor", getTemplate: getUpgradeAdvisorSkillTemplate },
 
     // --- End: validation, testing & troubleshooting ---
     { dir: "validation-and-testing", getTemplate: getValidationAndTestingSkillTemplate },

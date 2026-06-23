@@ -22,7 +22,8 @@ Never use the phrases "production-ready", "ready to go live", "complete", or "do
 - [ ] **Sandbox → Production swap** is end-to-end: keys, mode flag (`Cashfree({ mode: "production" })`), base URL (`https://api.cashfree.com`), webhook URLs registered in the prod dashboard.
 - [ ] **`return_url` is realistic.** No `localhost`, no literal `{order_id}` placeholder that wasn't intended as a Cashfree template token (see `pg/sdk.md` for the `{order_id}` rules).
 - [ ] **Webhook IPs whitelisted on your firewall** if you have one. Sandbox → production IPs change.
-- [ ] **API version pinned consistently.** Mixing `2025-01-01` on some calls and omitting it on others (legacy `cashfree-pg < 6.x`) breaks signatures and response parsing.
+- [ ] **API version pinned consistently.** In the static/legacy call style, mixing `2025-01-01` on some calls and omitting it on others breaks signatures and response parsing. Pick one call style per client (see `pg/backend-sdks/SKILL.md` §2).
+- [ ] **Control flow branches on codes/enums, never on message text.** All decisions key off `order_status` / `payment_status` / `error_details.error_code` / `refund_status` etc. No `if (error_description === "...")` or `.includes("declined")`. Description/message strings are display-and-log only — they get reworded across API & SDK versions and will silently break string matches. (See `common-mistakes/SKILL.md` §C4.)
 
 If you completed only one or two of these, the integration is not ready — say so. The team has been burned by AI agents confidently calling work "production-ready" while missing domain whitelisting or signature verification.
 

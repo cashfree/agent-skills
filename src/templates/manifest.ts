@@ -54,6 +54,8 @@ You are helping a developer integrate Cashfree Payments.
 | Migrate an existing Razorpay integration to Cashfree | \`${s}/migrate-from-razorpay/SKILL.md\` |
 | Migrate an existing Juspay integration to Cashfree | \`${s}/migrate-from-juspay/SKILL.md\` |
 | Migrate an existing PayU integration to Cashfree | \`${s}/migrate-from-payu/SKILL.md\` |
+| Know what changed / what's breaking between Cashfree SDK or API versions (release notes) | \`${s}/changelog/SKILL.md\` |
+| Plan an upgrade between Cashfree SDK or API versions (e.g. \`cashfree-pg\` 4.x → 6.x, bump \`x-api-version\`) | \`${s}/upgrade-advisor/SKILL.md\` |
 | Record end-of-task progress after a **Cashfree-integration** task (NOT for unrelated UI/refactor/doc work) | \`${s}/progress-and-skill-feedback/SKILL.md\` |
 | Validate or test the integration | \`${s}/validation-and-testing/SKILL.md\` |
 | Debug a broken integration, fix errors, troubleshoot | \`${s}/common-mistakes/SKILL.md\` |

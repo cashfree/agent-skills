@@ -230,6 +230,51 @@ Each mistake follows the format: **What goes wrong → Why it happens → How to
 
 ---
 
+### C4. Branching on error message strings instead of error codes
+
+**What goes wrong:** Code compares against the human-readable failure text — e.g. `if (error_description === "Your card was declined by the bank")` or `if (msg.includes("insufficient funds"))`. The message wording then changes in a later API/SDK version (or differs by issuer/locale), the comparison silently stops matching, and the failure-handling branch (retry, fallback mode, user messaging) breaks in production with no error thrown.
+
+**Why it happens:** The description string is the most visible field in the response, so developers reach for it. The machine-readable `error_code` looks less friendly and gets ignored.
+
+**How to fix it:** Branch **only** on the stable, machine-readable fields. Treat description text as display-only — log it, show it to the user, but never make a control-flow decision on it.
+
+A payment failure carries four `error_details` fields. Three are stable, machine-readable contract; one is free text:
+
+| Field | Use for control flow? | Example values |
+|---|---|---|
+| `error_code` | ✅ yes — precise code | `issuer_declined`, `instrument_id_expired`, `cryptogram_expired` |
+| `error_reason` | ✅ yes — category | `bank_declined`, `insufficient_funds` |
+| `error_source` | ✅ yes — origin | `bank`, `cashfree`, `user` |
+| `error_description` | ❌ **no** — display/log only | "Card issuer did not support tokenization" |
+
+```js
+// ❌ Fragile — breaks the moment Cashfree rewords the message
+if (err?.error_description?.includes("declined")) { ... }
+
+// ✅ Stable — error_code / error_reason / error_source are part of the API contract
+const err = payment.error_details;
+if (err?.error_reason === "insufficient_funds") { suggestLowerAmount(); }
+else if (err?.error_code === "issuer_declined")  { promptRetryDifferentCard(); }
+else if (err?.error_source === "user")           { allowRetry(); }      // user-side, retryable
+// error_description is for the UI / logs only:
+log.info(err?.error_description);
+```
+
+> Full decline-code catalog: `pg/apis/references/REFERENCE.md` §5, and the official list at https://www.cashfree.com/docs/api-reference/payments/errors.
+
+Apply the same rule to every status-like field:
+
+| Branch on (stable, contracted) | Never branch on (display-only, mutable) |
+|---|---|
+| `order_status`, `payment_status`, `transaction_status` | any "*_message" / "*_description" / "*_note" |
+| `error_details.error_code`, `error_reason`, `error_source` | `error_details.error_description` |
+| refund `refund_status`, dispute `dispute_status` | reason / remarks free-text |
+| webhook `type` + the typed `error_code` | webhook human-readable summary text |
+
+Rule of thumb: **codes and enums are the contract; descriptions are documentation.** If you find yourself string-matching a description, there is almost always a code field carrying the same signal — use that instead. This also keeps your integration forward-compatible across API-version and SDK upgrades.
+
+---
+
 ## 6. Category D: Webhook Mistakes
 
 ### D1. Webhook signature verification fails (signature mismatch)
@@ -517,7 +562,7 @@ componentWillUnmount() {
 
 ## 7.6. Category E.6: Backend SDK — legacy version-arg & `return_url` traps
 
-### E.6.1. Inconsistent `x_api_version` in `cashfree-pg < 6.x`
+### E.6.1. Inconsistent `x_api_version` in the legacy version-first style
 
 **What goes wrong:**
 
@@ -526,9 +571,9 @@ cashfree_client.PGCreateOrder('2025-01-01', payload)   # ok
 cashfree_client.PGFetchOrder(order_id)                  # ❌ missing version
 ```
 
-**Why it happens:** Pre-v6 Python/Node SDKs require the version as the first positional arg on **every** method. AI agents often apply it to `PGCreateOrder` and forget the rest.
+**Why it happens:** In the static/legacy call style, the SDK requires the version as the first positional arg on **every** method. AI agents often apply it to `PGCreateOrder` and forget the rest.
 
-**Fix:** Either pass `'2025-01-01'` first on every method (legacy 4.x / 3.x), or upgrade to v6 and drop it everywhere. Mixing the two styles is the most common 4.x→v6 migration bug. See `pg/backend-sdks/SKILL.md` §2.
+**Fix:** Pick **one** style per client. Either pass `'2025-01-01'` first on **every** method (static/legacy style), or use the instance style (`new Cashfree(env, id, secret)`) and omit the version everywhere. Mixing the two is the most common migration bug. See `pg/backend-sdks/SKILL.md` §2.
 
 ### E.6.2. `return_url` with literal `{order_id}` inside a Python f-string
 
