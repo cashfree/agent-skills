@@ -34,31 +34,36 @@ Headers: `x-client-id`, `x-client-secret`, `x-api-version: 2025-01-01`, `Content
 ```jsonc
 {
     "customer_id": "customer_123",
-    "instrument_id": "54deabb4-ba45-4a60-9e6a-9c016fe7ab10",
+    "afa_reference": "3128531647",             // cf_payment_id of the save-time transaction
+    "instrument_id": "54de41ad34ee-36a0-409e-aec9-bdc9d232add0",
     "instrument_type": "card",
-    "instrument_uid": "4111XXXXXXXX1111",     // masked PAN, first 6 + last 4
-    "instrument_display": "XXXX XXXX XXXX 1111",
-    "instrument_status": "ACTIVE",             // CREATED | ACTIVE | FAILED | DELETED
-    "afa_reference": "...",                    // additional-factor authentication reference
+    "instrument_uid": "78c2a3b90265436eceb4c09d8b09c85432ee1bb57512cc24ba998a12cd0180c2",  // 64-char hash — NOT a PAN
+    "instrument_display": "XXXXXXXXXXXX1001",  // last 4 digits of the card number
+    "instrument_status": "ACTIVE",             // API: ACTIVE | INACTIVE  (a deleted instrument becomes INACTIVE)
+    "created_at": "2024-10-10T10:16:18.000+00:00",
     "instrument_meta": {
-        "card_network":  "VISA",               // VISA | MASTERCARD | RUPAY | AMEX | DINERS
-        "card_bank_name": "HDFC",
+        "card_network":  "mastercard",         // visa | mastercard | rupay | amex | diners  (lowercase)
+        "card_bank_name": "ICICI BANK",
         "card_country":  "IN",
-        "card_type":     "CREDIT",             // CREDIT | DEBIT | PREPAID
-        "card_token_details": null              // populated with TRID for network tokens
-    },
-    "created_at": "2026-04-19T10:00:00+05:30"
+        "card_type":     "credit_card",        // credit_card | debit_card | prepaid_card
+        "card_sub_type": "P",                  // R (retail) | P (premium) | C (corporate)
+        "card_token_details": {                // object — null in the webhook (PAR arrives as card_par there)
+            "par": "5001AJE6CSF757UMKRTKK61PRVYGC",
+            "expiry_month": "11",
+            "expiry_year": "2027"
+        }
+    }
 }
 ```
 
 ### Instrument statuses
 
-| Status | Meaning | Usable for CoF? |
+The status surface differs between the **API** and the **webhook**:
+
+| Surface | Statuses | Notes |
 |---|---|---|
-| `CREATED` | Consent captured; tokenization in progress | No — wait for ACTIVE |
-| `ACTIVE` | Network token issued | **Yes** |
-| `FAILED` | Issuer rejected tokenization | No — prompt re-entry |
-| `DELETED` | Customer deleted | No |
+| API (`GET .../instruments`, fetch one) | `ACTIVE`, `INACTIVE` | A successfully deleted instrument returns `INACTIVE`. There is no `CREATED`/`DELETED` value. |
+| Webhook (`INSTRUMENT_ACTIVE_WEBHOOK` / `INSTRUMENT_FAILED_WEBHOOK`) | `ACTIVE`, `FAILED` | `ACTIVE` = tokenized successfully (usable for CoF); `FAILED` = issuer/network rejected the save. |
 
 ---
 
@@ -154,25 +159,30 @@ Use sparingly — prefer the `instrument_id`-only path (§4 first sub-block), wh
     "data": {
         "instrument": {
             "customer_id": "customer_123",
-            "afa_reference": "xxxxx",
-            "instrument_id": "54deabb4-ba45-4a60-9e6a-9c016fe7ab10",
+            "afa_reference": "887316963",
+            "instrument_id": "af250dc5-e5e5-4e7d-a7cf-3f446741fa54",
             "instrument_type": "card",
-            "instrument_uid": "4111XXXXXXXX1111",
-            "instrument_display": "XXXX XXXX XXXX 1111",
+            "instrument_uid": "680cd7171583f9f64b426983d4501d6941b462932ce5f626be78392d5ec42660",
+            "instrument_display": "XXXXXXXXXXXX6854",
             "instrument_status": "ACTIVE",
+            "added_at": "2022-04-14T10:42:59+05:30",
             "instrument_meta": {
-                "card_network": "VISA",
-                "card_bank_name": "HDFC",
+                "card_network": "visa",
+                "card_bank_name": "HDFC BANK",
                 "card_country": "IN",
-                "card_type": "CREDIT",
+                "card_type": "credit",
+                "sub_type": "R",
+                "card_par": "50012ADWQZJKHCLXLT61QTYD5QNX1",
                 "card_token_details": null
             }
         }
     },
-    "event_time": "2026-04-19T11:00:00+05:30",
+    "event_time": "2022-04-14T10:44:14+05:30",
     "type": "INSTRUMENT_ACTIVE_WEBHOOK"
 }
 ```
+
+> **Webhook field nuances vs the API object:** the webhook uses `added_at` (API uses `created_at`); `instrument_meta` carries `sub_type` (API: `card_sub_type`) and a top-level `card_par` (the PAR), with `card_token_details` always `null`; `card_type` is the **short** form `credit`/`debit`/`prepaid` (API uses `credit_card`/`debit_card`/`prepaid_card`); `instrument_status` is `ACTIVE`/`FAILED` (API: `ACTIVE`/`INACTIVE`).
 
 ### `INSTRUMENT_FAILED_WEBHOOK`
 
@@ -183,10 +193,9 @@ Same envelope, `instrument_status: "FAILED"`, plus an `error_details` object:
     "data": {
         "instrument": { ... "instrument_status": "FAILED" },
         "error_details": {
-            "error_code": "issuer_declined",
-            "error_description": "Card issuer did not support tokenization",
-            "error_reason": "tokenization_not_supported",
-            "error_source": "bank"
+            "error_code": "NETWORK_ERROR",
+            "error_description": "Error while processing the request",
+            "error_source": "NETWORK"
         }
     },
     "event_time": "2026-04-19T11:00:00+05:30",
@@ -234,10 +243,11 @@ cryp  = cashfree.PGCustomerInstrumentsFetchCryptogram(customer_id, instrument_id
 ### Java
 
 ```java
-var cards = new Cashfree().PGCustomerFetchInstruments("2025-01-01", customerId, "card", null, null, null);
-var card  = new Cashfree().PGCustomerFetchInstrument("2025-01-01", customerId, instrumentId, null, null, null);
-new Cashfree().PGCustomerDeleteInstrument("2025-01-01", customerId, instrumentId, null, null, null);
-var cryp  = new Cashfree().PGCustomerInstrumentsFetchCryptogram("2025-01-01", customerId, instrumentId, null, null, null);
+Cashfree cashfree = new Cashfree(Cashfree.SANDBOX, "<app_id>", "<secret_key>", null, null, null);
+var cards = cashfree.PGCustomerFetchInstruments(customerId, "card", null, null, null);
+var card  = cashfree.PGCustomerFetchInstrument(customerId, instrumentId, null, null, null);
+cashfree.PGCustomerDeleteInstrument(customerId, instrumentId, null, null, null);
+var cryp  = cashfree.PGCustomerInstrumentsFetchCryptogram(customerId, instrumentId, null, null, null);
 ```
 
 ### Go (v6+)

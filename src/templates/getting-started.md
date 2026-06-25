@@ -149,7 +149,7 @@ curl --request POST \
 '
 ```
 
-If you do run it: filter the response's `data[]` for `eligibility: true` rows and surface the list to the user. If anything they need (PayLater, EMI, international cards) is missing, point them to **Dashboard → Settings > Payment Gateway > Payment Methods** to request activation. Full schema and variants live in `eligible-payment-modes/SKILL.md`.
+If you do run it: the response is a **top-level JSON array** (not a `{ "data": [...] }` wrapper) — iterate it and keep elements where `eligibility: true`, then surface the list to the user. If anything they need (PayLater, EMI, international cards) is missing, point them to **Dashboard → Settings > Payment Gateway > Payment Methods** to request activation. Full schema and variants live in `eligible-payment-modes/SKILL.md`.
 
 ### Step 1: Create an Order (Server-Side)
 

@@ -18,12 +18,12 @@ description: >
 
 | Method | Path | Purpose |
 |---|---|---|
-| POST | `/pg/offers` | Create a new offer |
-| GET  | `/pg/offers/{offer_id}` | Fetch one |
-| GET  | `/pg/offers` | List (filters on status / time range) |
+| POST | `/pg/offers` | Create a new offer (`PGCreateOffer`) |
+| GET  | `/pg/offers/{offer_id}` | Fetch one (`PGFetchOffer`) |
+| POST | `/pg/eligibility/offers` | Offers eligible for a given order/amount |
 | Pay with offer | `POST /pg/orders/sessions` — include `offer_id` | — |
 
-Offer statuses: `active`, `expired`, `inactive`. Default on creation: `active`.
+There is **no "list all offers" endpoint** (and no `PGFetchOffers` method) — track your `offer_id`s, fetch by id, or use the eligibility endpoint. Offer statuses: `active`, `expired`, `inactive`. Default on creation: `active`.
 
 ---
 
@@ -94,13 +94,13 @@ Use exactly one of:
 
 ```json
 "card": {
-    "type": "cc" | "dc" | "prepaid",
-    "bank_name": "hdfc" | "icici" | "axis" | "kotak" | "sbi" | "rbl" | "bob" | "standard chartered" | "au" | "yes" | "fed" | "hsbc" | "citi" | "amex" | "onecard" | "idfc",
-    "scheme_name": "visa" | "mastercard" | "rupay" | "amex" | "diners"
+    "type": ["cc", "dc"],                       // ARRAY — values: cc | dc | prepaid
+    "bank_name": "hdfc bank",                   // bank display name, e.g. "hdfc bank", "icici bank", "axis bank"
+    "scheme_name": ["visa", "mastercard"]       // ARRAY — values: visa | mastercard | rupay | amex | diners
 }
 ```
 
-All three optional — omit to broaden the filter.
+`type`, `bank_name`, and `scheme_name` are **all required** for a `card` filter (`type` and `scheme_name` are arrays).
 
 ### Netbanking
 
@@ -117,8 +117,10 @@ All three optional — omit to broaden the filter.
 ### Wallet
 
 ```json
-"wallet": { "provider": "paytm" | "phonepe" | "amazon" | "freecharge" | "mobikwik" | "airtel" | "ola" | "jio" }
+"app": { "provider": "paytm" | "phonepe" | "amazon" | "freecharge" | "mobikwik" | "airtel" | "ola" | "jio" }
 ```
+
+(The wallet filter key is `app`, not `wallet`.)
 
 ### Paylater
 
@@ -131,12 +133,12 @@ All three optional — omit to broaden the filter.
 ```json
 "emi": {
     "type": "credit_card_emi" | "debit_card_emi" | "cardless_emi",
-    "issuer": "hdfc" | "icici" | "axis" | ...,
+    "issuer": "hdfc bank" | "icici bank" | "axis bank" | ...,
     "tenures": [3, 6, 9, 12, 18, 24]
 }
 ```
 
-Omit `tenures` to cover all supported tenures.
+`type`, `issuer`, and `tenures` are **all required** for an `emi` filter.
 
 ### Universal
 
@@ -166,7 +168,7 @@ Only one `payment_method` object per offer. If you need to cover two distinct me
 await cashfree.pay({
     paymentSessionId: paymentSessionId,
     paymentMethod: cardComponent,
-    offerId: "b1c2d3e4-5678-90ab-cdef-1234567890ab",
+    offerID: "b1c2d3e4-5678-90ab-cdef-1234567890ab",   // note the capital "ID"
 });
 ```
 
@@ -212,7 +214,7 @@ On `FAILED`, common `offer_ineligibility_reason` values:
 
 ## 6. Per-Language SDK Usage
 
-Many Cashfree SDKs expose `PGCreateOffer` / `PGFetchOffer` / `PGFetchOffers` directly; where not, raw REST works.
+Cashfree SDKs expose `PGCreateOffer` / `PGFetchOffer` (there is no `PGFetchOffers` list method); where not, raw REST works.
 
 ### Node.js
 
@@ -224,7 +226,7 @@ const res = await cashfree.PGCreateOffer({
     offer_meta: { ... },
     offer_tnc:  { ... },
     offer_details: { offer_type: "DISCOUNT", discount_details: { discount_type: "percentage", discount_value: 10, max_discount_amount: 500 } },
-    offer_validations: { min_amount: 1500, max_allowed: 1000, payment_method: { card: { type: "cc", bank_name: "hdfc" } } },
+    offer_validations: { max_allowed: 1000, payment_method: { card: { type: ["cc"], bank_name: "hdfc bank", scheme_name: ["visa"] } } },
 });
 
 const offer = await cashfree.PGFetchOffer(offerId);
@@ -310,7 +312,7 @@ Exact availability per merchant category varies; confirm with Cashfree support b
 | Discount visible in API but not on customer receipt | Receipt rendered by merchant | Include `payment_offers` data in your own receipt email |
 | Cashback not credited to customer card | Bank's own cashback cycle (T+30) | Normal; disclose expected credit timeline in T&Cs |
 | No-cost EMI: customer charged interest upfront on statement | Bank applies interest then Cashfree reverses | Standard; inform customer via email |
-| Fetching offers returns expired ones in list | No state filter | `GET /pg/offers?status=active` — always filter in the request |
+| Need offers eligible for an order | There's no list-all endpoint | Use `POST /pg/eligibility/offers`, or track `offer_id`s and `GET /pg/offers/{id}` |
 | Two offers look like they stack but only one applied | Stacking not enabled | Contact Cashfree; otherwise design one as merchant-only cart discount |
 | Offer created via API doesn't show in Dashboard | Cache / view permission | `GET /pg/offers/{offer_id}` is source of truth; refresh Dashboard |
 | Customer complains "offer code HDFC10APR didn't work" | Entered at merchant checkout but merchant didn't attach `offer_id` at Cashfree | Ensure checkout wiring passes `offer_id` to `cashfree.pay()` / Order Pay |

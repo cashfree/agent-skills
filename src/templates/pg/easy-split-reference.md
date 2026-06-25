@@ -22,12 +22,12 @@ description: >
 | PATCH  | `/pg/easy-split/vendors/{vendor_id}` | Update vendor |
 | GET    | `/pg/easy-split/vendors` | List vendors |
 | GET    | `/pg/easy-split/vendors/{vendor_id}` | Fetch one vendor |
-| GET    | `/pg/easy-split/vendors/{vendor_id}/on-demand-balance` | Current balance |
-| POST   | `/pg/easy-split/vendors/on-demand-transfer` | Trigger instant vendor payout |
+| GET    | `/pg/easy-split/vendors/{vendor_id}/balances` | Current balance |
+| POST   | `/pg/easy-split/vendors/{vendor_id}/transfer` | Trigger instant vendor payout |
 | POST   | `/pg/orders` (with `order_splits`) | Static split at order creation |
-| POST   | `/pg/orders/{order_id}/split` | Dynamic split after payment |
-| GET    | `/pg/orders/{order_id}/split` | Fetch split details for an order |
-| GET    | `/pg/recon/vendor-recon` | Per-vendor transaction-level recon |
+| POST   | `/pg/easy-split/orders/{order_id}/split` | Dynamic split after payment |
+| GET    | `/pg/easy-split/orders/{order_id}` | Fetch split / settlement details for an order |
+| POST   | `/pg/recon/vendor` | Per-vendor transaction-level recon (filters in body) |
 
 Headers on every call: `x-client-id`, `x-client-secret`, `x-api-version: 2025-01-01`, `Content-Type: application/json`.
 
@@ -96,9 +96,8 @@ Echoes the request plus:
 | Field | Type | Notes |
 |---|---|---|
 | `status` | enum | Current vendor status (may be `PENDING` initially pending KYC + penny-test) |
-| `added_on` / `last_modified` | ISO-8601 | — |
+| `added_on` / `updated_on` | ISO-8601 | — |
 | `schedule_option` | array | Full schedule metadata — `settlement_schedule_message`, `schedule_id`, `merchant_default` |
-| `bank_details_verified` | boolean | Outcome of penny-test (when `verify_account: true`) |
 
 ### Vendor statuses
 
@@ -162,7 +161,7 @@ Cashfree response echoes `order_splits` back on `GET /pg/orders/{order_id}`.
 
 ## 5. Dynamic Split After Payment
 
-`POST /pg/orders/{order_id}/split`
+`POST /pg/easy-split/orders/{order_id}/split`
 
 Must be called **after** `PAYMENT_SUCCESS_WEBHOOK` but **before** order settlement (typically within 24h).
 
@@ -181,7 +180,7 @@ Must be called **after** `PAYMENT_SUCCESS_WEBHOOK` but **before** order settleme
 | `split[]` | Same shape as `order_splits` on create |
 | `disable_split` | `true` = no split at all (funds stay with merchant). Useful as an opt-out for dynamic-split orders where the condition never materialized |
 
-Response: the order with `split` details attached. Fetch via `GET /pg/orders/{order_id}/split` for current state.
+Response: the order with `split` details attached. Fetch via `GET /pg/easy-split/orders/{order_id}` for current state.
 
 ---
 
@@ -192,32 +191,34 @@ Move funds from vendor balance → vendor bank account immediately, outside the 
 ### Fetch balance
 
 ```
-GET /pg/easy-split/vendors/{vendor_id}/on-demand-balance
+GET /pg/easy-split/vendors/{vendor_id}/balances
 ```
 
-Returns `merchant_balance` + `vendor_balance` (rupees). Use the vendor balance as the upper bound for the transfer request.
+Returns `merchant_unsettled` + `vendor_unsettled` (rupees), plus `service_charges` / `service_tax`. Use the vendor's unsettled amount as the upper bound for the transfer request.
 
 ### Initiate transfer
 
 ```
-POST /pg/easy-split/vendors/on-demand-transfer
+POST /pg/easy-split/vendors/{vendor_id}/transfer
 ```
 
 ```json
 {
-    "vendor_id": "vendor_acme_01",
-    "amount": 5000.00,
-    "transfer_mode": "BANK",
-    "tag": "advance_payout_april"
+    "transfer_from": "VENDOR",
+    "transfer_type": "ON_DEMAND",
+    "transfer_amount": 5000.00,
+    "remark": "advance_payout_april",
+    "tags": { "cycle": "april" }
 }
 ```
 
 | Field | Notes |
 |---|---|
-| `vendor_id` | The vendor to pay |
-| `amount` | Rupees; ≤ vendor balance |
-| `transfer_mode` | `BANK` or `UPI` — must match what's configured on the vendor |
-| `tag` | Free-form merchant-side correlation id |
+| `transfer_from` | `MERCHANT` or `VENDOR` — whose balance the on-demand amount moves from |
+| `transfer_type` | `ON_DEMAND` |
+| `transfer_amount` | Rupees; ≤ the unsettled balance |
+| `remark` | Free-form note |
+| `tags` | Optional key/value tags |
 
 Fee applies per Cashfree rate card. Response returns a `transfer_id` + `status`.
 
@@ -225,9 +226,9 @@ Fee applies per Cashfree rate card. Response returns a `transfer_id` + `status`.
 
 ## 7. Vendor Reconciliation
 
-`GET /pg/recon/vendor-recon`
+`POST /pg/recon/vendor`
 
-Query params: `vendor_id`, `start_date`, `end_date`, `page`, `size`.
+Request body: `vendor_id` + date-range filters (and pagination). It is a **POST** with a JSON body, not a GET with query params.
 
 Response rows: per-transaction ledger scoped to the vendor — `order_id`, `cf_payment_id`, `transaction_type` (`PAYMENT` / `REFUND` / `ADJUSTMENT`), `amount`, `settlement_id`, `settlement_utr`, `settlement_time`.
 
@@ -277,7 +278,7 @@ await cashfree.PGCreateOrder({
 });
 
 // Dynamic split after payment
-await fetch(`https://api.cashfree.com/pg/orders/${orderId}/split`, {
+await fetch(`https://api.cashfree.com/pg/easy-split/orders/${orderId}/split`, {
     method: "POST",
     headers: { /* same auth headers */ },
     body: JSON.stringify({ split: [{ vendor_id: "vendor_acme_01", amount: 950 }] }),
@@ -300,10 +301,10 @@ def create_vendor(body):
     return requests.post(f"{BASE}/easy-split/vendors", headers=HDR, json=body).json()
 
 def split_after_payment(order_id, split):
-    return requests.post(f"{BASE}/orders/{order_id}/split", headers=HDR, json={"split": split}).json()
+    return requests.post(f"{BASE}/easy-split/orders/{order_id}/split", headers=HDR, json={"split": split}).json()
 
 def vendor_balance(vendor_id):
-    return requests.get(f"{BASE}/easy-split/vendors/{vendor_id}/on-demand-balance", headers=HDR).json()
+    return requests.get(f"{BASE}/easy-split/vendors/{vendor_id}/balances", headers=HDR).json()
 ```
 
 ---

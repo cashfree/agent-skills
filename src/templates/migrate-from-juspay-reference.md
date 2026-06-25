@@ -280,9 +280,9 @@ if (order.data.order_status === "PAID") {
 
 | Juspay | Cashfree |
 |---|---|
-| `HttpClient` / `OkHttp` with Basic Auth + `x-merchantid` + `x-routing-id` | `Cashfree.XClientId = appId; Cashfree.XClientSecret = secret; Cashfree.XEnvironment = Cashfree.SANDBOX; Cashfree cf = new Cashfree();` |
-| `/session` or `/orders` | `cf.PGCreateOrder("2025-01-01", createOrderRequest)` |
-| `GET /orders/{id}` and compare `"CHARGED"` | `cf.PGFetchOrder("2025-01-01", orderId)` and compare `"PAID"` |
+| `HttpClient` / `OkHttp` with Basic Auth + `x-merchantid` + `x-routing-id` | `Cashfree cf = new Cashfree(Cashfree.SANDBOX, appId, secret, null, null, null);` |
+| `/session` or `/orders` | `cf.PGCreateOrder(createOrderRequest, null, null, null)` |
+| `GET /orders/{id}` and compare `"CHARGED"` | `cf.PGFetchOrder(orderId, null, null, null)` and compare `"PAID"` |
 | Custom webhook Basic Auth validation | HMAC verification using raw body + timestamp |
 
 ### 4.4 Go (SDK v6+)

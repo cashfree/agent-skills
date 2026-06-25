@@ -6,7 +6,7 @@ description: >
   vendor KYC, vendor settlements, and commission holds. Triggers: marketplace payments, split
   payment, Easy Split, Cashfree vendor, vendor_id, order_splits, split after payment, commission,
   platform payout, vendor settlement, vendor KYC, vendor dashboard, static split, dynamic split,
-  POST /pg/easy-split/vendors, POST /pg/orders with order_splits, POST /pg/orders/{id}/split,
+  POST /pg/easy-split/vendors, POST /pg/orders with order_splits, POST /pg/easy-split/orders/{id}/split,
   on-demand vendor balance, vendor recon, vendor_recon, food-delivery split, edtech commission,
   freelancer platform, rental platform, split_details, split_service_charge, vendor_commission.
   Pair with pg/refunds (refund-before-split behaviour) and settlements-and-reconciliation
@@ -68,11 +68,11 @@ Headers: `x-client-id`, `x-client-secret`, `x-api-version: 2025-01-01`, `Content
 | Update vendor | `PATCH /pg/easy-split/vendors/{vendor_id}` |
 | List / fetch vendors | `GET /pg/easy-split/vendors` |
 | Static split (at order create) | `POST /pg/orders` with `order_splits: [{vendor_id, amount|percentage}]` |
-| Dynamic split (after payment) | `POST /pg/orders/{order_id}/split` |
-| Order split details | `GET /pg/orders/{order_id}/split` |
-| On-demand vendor balance | `GET /pg/easy-split/vendors/{vendor_id}/on-demand-balance` |
-| On-demand transfer (instant vendor payout) | `POST /pg/easy-split/vendors/on-demand-transfer` |
-| Vendor reconciliation | `GET /pg/recon/vendor-recon` |
+| Dynamic split (after payment) | `POST /pg/easy-split/orders/{order_id}/split` |
+| Order split / settlement details | `GET /pg/easy-split/orders/{order_id}` |
+| On-demand vendor balance | `GET /pg/easy-split/vendors/{vendor_id}/balances` |
+| On-demand transfer (instant vendor payout) | `POST /pg/easy-split/vendors/{vendor_id}/transfer` |
+| Vendor reconciliation | `POST /pg/recon/vendor` (filters in the body) |
 
 ### Prerequisites
 
@@ -156,7 +156,7 @@ Use static split when **you know the split upfront** — sellers on an e-commerc
 Create the order without `order_splits`, wait for `PAYMENT_SUCCESS_WEBHOOK`, then:
 
 ```
-POST /pg/orders/{order_id}/split
+POST /pg/easy-split/orders/{order_id}/split
 ```
 
 ```json
@@ -192,7 +192,7 @@ See `pg/refunds/SKILL.md` for the refund-side depth. Always supply a `refund_spl
 
 ### Step 5 — Vendor reconciliation
 
-Your vendor-facing ops build a dashboard or email-statement flow using `GET /pg/recon/vendor-recon`. The response is a per-transaction ledger scoped to a vendor and date range — payments in, refunds out, adjustments, settlement UTRs.
+Your vendor-facing ops build a dashboard or email-statement flow using `POST /pg/recon/vendor` (vendor id + date-range filters in the request body). The response is a per-transaction ledger scoped to a vendor and date range — payments in, refunds out, adjustments, settlement UTRs.
 
 For the merchant's own recon, the same events also appear in **settlement recon** with an `event_details.event_type: "PAYMENT"` and `sale_type: "DEBIT"` rows tagged by vendor_id — see `settlements-and-reconciliation/SKILL.md`.
 
@@ -211,9 +211,9 @@ For the merchant's own recon, the same events also appear in **settlement recon*
 ## 5. Testing in Sandbox
 
 - Onboard a test vendor with sandbox KYC values (ask Cashfree for the test PAN / GST / bank numbers that don't fail verification).
-- Create a sandbox order with `order_splits`, pay with `testsuccess@gocash`, verify the split via `GET /pg/orders/{order_id}/split`.
-- For dynamic split: create an order without `order_splits`, pay, then call `POST /pg/orders/{order_id}/split`.
-- Use `GET /pg/easy-split/vendors/{vendor_id}/on-demand-balance` to confirm the vendor balance moved.
+- Create a sandbox order with `order_splits`, pay with `testsuccess@gocash`, verify the split via `GET /pg/easy-split/orders/{order_id}`.
+- For dynamic split: create an order without `order_splits`, pay, then call `POST /pg/easy-split/orders/{order_id}/split`.
+- Use `GET /pg/easy-split/vendors/{vendor_id}/balances` to confirm the vendor balance moved.
 - Batch-resend vendor settlement webhooks from Dashboard → Webhooks → Logs to verify idempotency.
 
 ---
@@ -225,7 +225,7 @@ For the merchant's own recon, the same events also appear in **settlement recon*
 | Vendor stuck at `PENDING` | Bank penny-test failed | Check Dashboard → Vendors → status detail; re-upload correct account/IFSC |
 | `POST /pg/orders` with `order_splits` returns `400 vendor_not_active` | Vendor is `PENDING` / `BLOCKED` | Wait for verification; don't assign orders to inactive vendors |
 | Sum of `order_splits` exceeds `order_amount` | Math error in platform logic | Validate server-side: `Σ splits ≤ order_amount` |
-| `POST /pg/orders/{id}/split` returns `409 split_already_finalized` | Order already settled | Record as a manual adjustment; use next-cycle correction |
+| `POST /pg/easy-split/orders/{id}/split` returns `409 split_already_finalized` | Order already settled | Record as a manual adjustment; use next-cycle correction |
 | Vendor didn't get paid despite `SETTLEMENT_SUCCESS` | Bank-side delay or wrong IFSC | Re-fetch vendor; check Dashboard for settlement UTR; verify IFSC |
 | `refund_splits` omitted — wrong vendor debited | Cashfree defaulted to proportional | Always specify `refund_splits` on split-order refunds |
 | Vendor recon shows negative balance | Refund exceeded vendor's credit | Cashfree will recover from future orders; track "vendor IOU" explicitly |

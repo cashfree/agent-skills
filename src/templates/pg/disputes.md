@@ -15,7 +15,7 @@ description: >
 
 # Cashfree Payment Gateway — Disputes & Chargebacks
 
-> **References available:** This SKILL.md covers the dispute lifecycle, the three state-change endpoints, the evidence contract, and the webhook. For the full list of 24 `dispute_status` values, reason-code semantics, per-language SDK code, evidence document format/size limits, and how disputes show up in settlement recon — read `references/REFERENCE.md` in this directory.
+> **References available:** This SKILL.md covers the dispute lifecycle, the three state-change endpoints, the evidence contract, and the webhook. For the full list of all 35 `dispute_status` values, reason-code semantics, per-language SDK code, evidence document format/size limits, and how disputes show up in settlement recon — read `references/REFERENCE.md` in this directory.
 
 ---
 
@@ -39,7 +39,7 @@ description: >
 
 ## 2. Dispute Lifecycle
 
-Every dispute moves through a state machine. The exact state name is `{TYPE}_{SUB_STATUS}` (e.g. `CHARGEBACK_CREATED`, `RETRIEVAL_DOCS_RECEIVED`, `PRE_ARBITRATION_MERCHANT_WON`). There are **five** dispute types and **seven** sub-statuses, giving up to 24 distinct `dispute_status` values.
+Every dispute moves through a state machine. The exact state name is `{TYPE}_{SUB_STATUS}` (e.g. `CHARGEBACK_CREATED`, `RETRIEVAL_DOCS_RECEIVED`, `PRE_ARBITRATION_MERCHANT_WON`). There are **five** dispute types and **seven** sub-statuses, giving **35** distinct `dispute_status` values (5 × 7).
 
 ### The 5 `dispute_type` values (ordered by escalation)
 
@@ -91,7 +91,7 @@ Signature verification is identical to every other Cashfree webhook: `HMAC-SHA25
 {
     "data": {
         "dispute": {
-            "dispute_id": 1234567,
+            "dispute_id": "1234567",
             "dispute_type": "CHARGEBACK",
             "dispute_status": "CHARGEBACK_CREATED",
             "dispute_amount": 500.00,
@@ -169,34 +169,36 @@ Decision rubric (each merchant should write their own):
 ### Step 4a — Accept the dispute
 
 ```
-POST /pg/disputes/{dispute_id}/accept
+PUT /pg/disputes/{dispute_id}/accept
 ```
 
-No request body needed beyond auth. Response confirms `dispute_status: "{TYPE}_MERCHANT_ACCEPTED"`. The disputed amount has already been debited — no further accounting movement (beyond what's in settlement recon).
+No request body needed beyond auth (SDK: `PGAcceptDisputeByID`). Response confirms `dispute_status: "{TYPE}_MERCHANT_ACCEPTED"`. The disputed amount has already been debited — no further accounting movement (beyond what's in settlement recon).
 
-### Step 4b — Contest the dispute with evidence
+### Step 4b — Contest the dispute by uploading evidence
+
+There is **no JSON "contest" call**. You contest by **uploading evidence documents** (one per request) as `multipart/form-data`:
 
 ```
-POST /pg/disputes/{dispute_id}/contest
+POST /pg/disputes/{dispute_id}/documents
+Content-Type: multipart/form-data
 ```
 
-```json
-{
-    "evidence_document_urls": [
-        "https://cdn.example.com/evidence/order_42_invoice.pdf",
-        "https://cdn.example.com/evidence/order_42_delivery_proof.pdf",
-        "https://cdn.example.com/evidence/order_42_customer_chat.pdf"
-    ],
-    "evidence_text": "Order order_42 was delivered to the billing address on 2026-04-01 per tracking ID AWB123456 with customer signature. All communication logs attached. The dispute appears to be a forgotten-purchase case — customer's own emails thank us for the product.",
-    "contact_name": "Ops Team",
-    "contact_email": "disputes@example.com",
-    "contact_phone": "9988776655"
-}
+| Form field | Required | Notes |
+|---|---|---|
+| `file` | Yes | The evidence document (PDF/JPG/PNG). **Max 20 MB.** |
+| `doc_type` | Yes | Evidence category — match a `document_type` from the dispute's `preferred_evidence` (Step 3) |
+| `note` | No | Free-text note for the bank |
+
+```bash
+# Contest = upload each required document (SDK: PGUploadDisputesDocuments)
+curl -X POST "https://api.cashfree.com/pg/disputes/{dispute_id}/documents" \
+  -H "x-client-id: $APP_ID" -H "x-client-secret: $SECRET_KEY" -H "x-api-version: 2025-01-01" \
+  -F "file=@order_42_delivery_proof.pdf" \
+  -F "doc_type=DeliveryProof" \
+  -F "note=Delivered to billing address on 2026-04-01, AWB123456, signed."
 ```
 
-Evidence URLs must be **publicly reachable HTTPS** at the time of submission — Cashfree fetches and archives them. Max file size and supported formats (PDF, JPG, PNG) are in REFERENCE §4.
-
-You can contest only while `dispute_status` is `CREATED` or `DOCS_RECEIVED`. Once `UNDER_REVIEW`, evidence is locked — re-opens only with a `DISPUTE_UPDATED` status reverting to `DOCS_RECEIVED` (rare, and flagged by the webhook).
+Upload one document per `preferred_evidence` item the bank requested. You can submit only while `dispute_status` is `CREATED` or `DOCS_RECEIVED`; once `UNDER_REVIEW`, evidence is locked (re-opens only if a `DISPUTE_UPDATED` reverts status to `DOCS_RECEIVED`).
 
 ### Step 5 — Track transitions to terminal status
 
@@ -214,7 +216,7 @@ If the dispute escalates to `PRE_ARBITRATION`, a new `DISPUTE_CREATED` webhook f
 ## 4. Security Constraints — Never Violate
 
 - **Never miss `respond_by`.** It is a hard clock; Cashfree cannot extend it. Auto-schedule a 24h-prior reminder and a final-hour escalation.
-- **Never expose evidence URLs as public forever.** Generate signed URLs (S3 presigned / GCS signed / CloudFront signed) with a 7-day expiry — Cashfree fetches them within minutes of your POST, so short-lived is fine and safer.
+- **Contest by uploading the document directly** (`multipart/form-data` to `/documents`) — Cashfree does **not** fetch evidence from a URL. Upload over HTTPS; keep each file ≤ 20 MB.
 - **Never put customer PAN, full card numbers, or CVV in evidence text or documents.** Redact. You only need the last 4 digits and the transaction reference for the bank's purposes.
 - **Always dedupe dispute webhooks.** At-least-once delivery means `DISPUTE_CREATED` may fire twice; keyed-by-`dispute_id` upsert is mandatory.
 - **Never accept a dispute without operator review above your auto-accept threshold.** A low-value threshold can still be exploited by fraudsters.
@@ -252,7 +254,7 @@ Arbitration fees (if you take an arbitration to the network and lose) show up as
 |---|---|---|
 | `DISPUTE_CREATED` fired but our system didn't register | Webhook not subscribed, or handler non-200 | Subscribe dispute events, use `common-mistakes/SKILL.md` §D webhook fixes |
 | Contest returned `409 dispute_already_closed` | Dispute moved to `UNDER_REVIEW` or terminal before your POST | Act faster; set up a near-real-time alert on `DISPUTE_CREATED` |
-| Contest returned `400 evidence_url_unreachable` | Presigned URL expired, 404, or not HTTPS | Re-issue presigned URLs with ≥24h TTL, HTTPS only |
+| Evidence upload rejected (`400`) | File > 20 MB or unsupported format | Keep each file ≤ 20 MB; use PDF/JPG/PNG; upload one doc per `preferred_evidence` item |
 | `CHARGEBACK_INSUFFICIENT_EVIDENCE` though we did contest | Evidence submitted was missing a `preferred_evidence` category | Always fetch `GET /pg/disputes/{id}` and cover every item in `preferred_evidence` |
 | Same dispute appears twice | At-least-once delivery on webhook, not deduping | Upsert by `dispute_id` |
 | `respond_by` unexpectedly shorter than 30 days | Not a card chargeback — likely a `RETRIEVAL` or UPI `DISPUTE` (shorter SLAs) | Handle per `dispute_type`, not one-size-fits-all |

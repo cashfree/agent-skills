@@ -46,9 +46,10 @@ Since October 2022, the Reserve Bank of India prohibits merchants and payment ag
 
 | Object | Description |
 |---|---|
-| **Instrument** | A saved payment method (primarily cards; wallets may appear). Identified by Cashfree's `instrument_id` and owned by a `customer_id`. Has a lifecycle: created → active → deleted. |
+| **Instrument** | A saved payment method (primarily cards; wallets may appear). Identified by Cashfree's `instrument_id` and owned by a `customer_id`. `instrument_status` is `ACTIVE` / `INACTIVE` on the API (a deleted instrument becomes `INACTIVE`); the webhook reports `ACTIVE` / `FAILED`. |
 | **Cryptogram** | A one-time, dynamic code tied to a network token. Required for each CoF transaction — the card network generates it when Cashfree asks. Expires quickly (seconds to minutes). |
 | **Token Requestor ID (TRID)** | The network's identifier for Cashfree-as-tokenizer. Surfaces in the cryptogram response; rarely needed at the merchant layer. |
+| **`card_token_details`** | An object on `instrument_meta` (API fetch responses): `{ par, expiry_month, expiry_year }` — the PAR and token expiry. (In the INSTRUMENT webhooks this is sent as `null`; the PAR arrives as `card_par` instead.) |
 | **Consent** | Customer opt-in to save the instrument. Captured at payment time via the `save_instrument` flag. Required by RBI. |
 
 ### Environments & auth
@@ -115,13 +116,13 @@ if (event.type === "INSTRUMENT_ACTIVE_WEBHOOK") {
     await db.savedCards.upsert({
         customer_id: i.customer_id,
         instrument_id: i.instrument_id,
-        instrument_uid: i.instrument_uid,          // "4111XXXXXXXX1111"
-        instrument_display: i.instrument_display,   // "XXXX XXXX XXXX 1111"
+        instrument_uid: i.instrument_uid,          // 64-char hash, e.g. "680cd71715...ec42660" — NOT a PAN
+        instrument_display: i.instrument_display,   // masked last 4: "XXXXXXXXXXXX6854"
         instrument_type: i.instrument_type,         // "card"
-        instrument_status: "ACTIVE",
-        card_network: i.instrument_meta?.card_network,  // VISA | MASTERCARD | RUPAY
+        instrument_status: i.instrument_status,     // webhook: "ACTIVE" | "FAILED"
+        card_network: i.instrument_meta?.card_network,  // lowercase: visa | mastercard | rupay | amex | diners
         card_bank_name: i.instrument_meta?.card_bank_name,
-        card_type: i.instrument_meta?.card_type,         // CREDIT | DEBIT
+        card_type: i.instrument_meta?.card_type,         // webhook short form: credit | debit | prepaid
     });
 } else if (event.type === "INSTRUMENT_FAILED_WEBHOOK") {
     const i = event.data.instrument;

@@ -141,26 +141,33 @@ curl -X POST 'https://sandbox.cashfree.com/payout/transfers' \
   -H 'x-api-version: 2024-01-01' \
   -H 'Content-Type: application/json' \
   -d '{
-    "beneficiary_id": "JOHN18011343",
-    "amount": 100.00,
     "transfer_id": "TRANSFER_001",
+    "transfer_amount": 100.00,
+    "transfer_currency": "INR",
     "transfer_mode": "banktransfer",
-    "remarks": "Payout for order"
+    "beneficiary_details": {
+      "beneficiary_id": "JOHN18011343"
+    },
+    "transfer_remarks": "Payout for order"
   }'
 ```
 
-**transfer_mode values:** `banktransfer`, `upi`, `imps`, `neft`, `rtgs`, `paytm`, `amazonpay`
+**transfer_mode values:** `banktransfer`, `imps`, `neft`, `rtgs`, `upi`, `paytm`, `amazonpay`, `card`, `cardupi`
+
+> The transfer body is **nested**: `beneficiary_details` is an object (pass `beneficiary_id` of an existing beneficiary, or inline `beneficiary_name` + `beneficiary_instrument_details` + `beneficiary_contact_details`). Amount is `transfer_amount`, remarks is `transfer_remarks` — there are no flat `amount`/`remarks` fields.
 
 Transfers are **async by default** — you receive `RECEIVED` immediately; final status via webhook.
 
 ### Get Transfer Status
 
 ```bash
-curl -X GET 'https://sandbox.cashfree.com/payout/transfers/TRANSFER_001' \
+curl -X GET 'https://sandbox.cashfree.com/payout/transfers?transfer_id=TRANSFER_001' \
   -H 'x-client-id: <CLIENT_ID>' \
   -H 'x-client-secret: <CLIENT_SECRET>' \
   -H 'x-api-version: 2024-01-01'
 ```
+
+> Status lookup is a **query parameter** (`?transfer_id=` or `?cf_transfer_id=`), not a path segment.
 
 ---
 
@@ -201,7 +208,6 @@ curl -X GET 'https://sandbox.cashfree.com/payout/transfers/TRANSFER_001' \
 | `TRANSFER_FAILED` | Transfer attempt failed |
 | `TRANSFER_REVERSED` | Beneficiary bank reversed the transfer |
 | `TRANSFER_REJECTED` | Cashfree rejected the transfer |
-| `TRANSFER_APPROVED` | Transfer approved by Approver |
 | `BULK_TRANSFER_REJECTED` | One or more transfers in batch rejected |
 | `BENEFICIARY_INCIDENT` | Service disruption for beneficiary bank/payment mode |
 | `CREDIT_CONFIRMATION` | Funds credited to your account balance |

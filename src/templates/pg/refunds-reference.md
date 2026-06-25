@@ -49,11 +49,11 @@ POST /pg/orders/{order_id}/refunds
 
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| `refund_id` | string (40 max, `^[a-zA-Z0-9_-]+$`) | Yes | Unique per order. Used as Cashfree's idempotency key — reusing returns the existing refund |
+| `refund_id` | string (min 3, max 40) | Yes | Unique per order. Used as Cashfree's idempotency key — reusing returns the existing refund |
 | `refund_amount` | number | Yes | Rupees, decimal, max 2 dp. Must be ≤ (paid − sum_of_prior_refunds) |
-| `refund_note` | string (100 max) | No | Shown in Dashboard and recon |
-| `refund_speed` | enum | No | `STANDARD` (default) or `INSTANT` |
-| `refund_splits` | array | No | Easy-Split only. `[{ vendor_id, amount }]` or `[{ vendor_id, percentage }]`. Omit to inherit the order's split |
+| `refund_note` | string (min 3, max 100) | No | Shown in Dashboard and recon |
+| `refund_speed` | enum | No | `STANDARD` (default) or `INSTANT` — a **plain string** on the request (the response returns a `refund_speed` object) |
+| `refund_splits` | array | No | Easy-Split only. Items are `{ vendor_id, amount, tags? }` — `vendor_id` is required. The **request** has no `percentage` field (that appears only on the response split object). Omit to inherit the order's split |
 
 ### Refund idempotency
 
@@ -80,27 +80,30 @@ You can also send the request with an `x-idempotency-key` header (opaque UUID) f
 
 ## 3. Refund Response — Full Schema
 
+> This is the **REST** response object (`RefundEntity`). The `REFUND_STATUS_WEBHOOK` payload uses different field names/types — see §5.
+
 | Field | Type | Notes |
 |---|---|---|
-| `cf_refund_id` | integer | Cashfree's internal id. Stable forever; use as a primary key alongside your `refund_id` |
+| `cf_refund_id` | **string** | Cashfree's internal id. Stable forever; use as a primary key alongside your `refund_id`. (The webhook emits this as a number.) |
 | `refund_id` | string | What you sent |
 | `order_id` | string | — |
-| `cf_payment_id` | integer | The payment being refunded |
+| `cf_payment_id` | **string** | The payment being refunded. (The webhook emits this as a number.) |
+| `entity` | string | `"refund"` |
 | `refund_amount` | number | — |
 | `refund_currency` | string | `INR` |
-| `refund_status` | enum | `PENDING` \| `SUCCESS` \| `CANCELLED` \| `ONHOLD` \| `FAILED` |
+| `refund_status` | enum | `SUCCESS` \| `PENDING` \| `CANCELLED` \| `ONHOLD` \| `FAILED` |
 | `status_description` | string | Populated on non-`SUCCESS`; explains why |
 | `refund_note` | string | — |
 | `refund_arn` | string \| null | Acquirer's reference; populated at `SUCCESS` |
-| `refund_type` | enum | `MERCHANT_INITIATED`, `CUSTOMER_INITIATED` (rare), `AUTO_INITIATED` |
+| `refund_type` | enum | `PAYMENT_AUTO_REFUND` \| `MERCHANT_INITIATED` \| `UNRECONCILED_AUTO_REFUND` |
+| `refund_charge` | number | Refund processing charge in INR (INSTANT, else 0). *(REST field — the webhook uses `service_charge`/`service_tax` instead.)* |
+| `refund_mode` | string | Method/speed of processing the refund, e.g. `STANDARD` |
+| `refund_speed` | **object** | `{ requested, accepted, processed, message }`. *(On the webhook these are flat `requested_speed`/`processed_speed` instead.)* |
 | `created_at` | ISO-8601 | — |
 | `processed_at` | ISO-8601 \| null | Set when terminal status reached |
-| `requested_speed` | enum | What you asked for |
-| `processed_speed` | enum | What actually ran — may differ if fell back |
-| `service_charge` | number | Refund processing fee (INSTANT only, else 0) |
-| `service_tax` | number | 18% GST on `service_charge` |
-| `refund_splits` | array | `[{ merchantVendorId, amount, percentage }]` |
-| `entity` | string | `"Refund"` |
+| `refund_splits` | array | `[{ vendor_id, amount, percentage, tags }]` — REST uses `vendor_id` (the webhook uses `merchantVendorId`) |
+| `metadata` | object | Up to 5 key-value pairs you set on the request |
+| `forex_conversion_handling_charge` / `forex_conversion_handling_tax` / `forex_conversion_rate` / `charges_currency` | number / string | Present for cross-currency refunds |
 
 ---
 
@@ -223,7 +226,7 @@ const all = await cashfree.PGOrderFetchRefunds(orderId);
 
 ```python
 from cashfree_pg.api_client import Cashfree
-from cashfree_pg.models.create_refund_request import CreateRefundRequest
+from cashfree_pg.models.order_create_refund_request import OrderCreateRefundRequest
 
 cashfree = Cashfree(
     XEnvironment=Cashfree.SANDBOX,
@@ -231,7 +234,7 @@ cashfree = Cashfree(
     XClientSecret=os.environ["CASHFREE_SECRET_KEY"],
 )
 
-req = CreateRefundRequest(
+req = OrderCreateRefundRequest(
     refund_id=f"refund_{order_id}_{int(time.time())}",
     refund_amount=50.0,
     refund_note="Customer requested",
@@ -245,15 +248,16 @@ all_refunds = cashfree.PGOrderFetchRefunds(order_id, None, None)
 ### Java
 
 ```java
-CreateRefundRequest req = new CreateRefundRequest()
+OrderCreateRefundRequest req = new OrderCreateRefundRequest()
     .refundId("refund_" + orderId + "_" + System.currentTimeMillis())
     .refundAmount(50.0)
     .refundNote("Customer requested")
     .refundSpeed("STANDARD");
 
-var created = new Cashfree().PGOrderCreateRefund("2025-01-01", orderId, req, null, null, null);
-var current = new Cashfree().PGOrderFetchRefund("2025-01-01", orderId, refundId, null, null, null);
-var all     = new Cashfree().PGOrderFetchRefunds("2025-01-01", orderId, null, null, null);
+Cashfree cashfree = new Cashfree(Cashfree.SANDBOX, "<app_id>", "<secret_key>", null, null, null);
+var created = cashfree.PGOrderCreateRefund(orderId, req, null, null, null);
+var current = cashfree.PGOrderFetchRefund(orderId, refundId, null, null, null);
+var all     = cashfree.PGOrderFetchRefunds(orderId, null, null, null);
 ```
 
 ### Go (v6+)
@@ -273,17 +277,20 @@ created, _, err := cashfree.PGOrderCreateRefund(orderId, &req, nil, nil, nil)
 ### PHP
 
 ```php
-Cashfree::$XClientId      = $_ENV["CASHFREE_APP_ID"];
-Cashfree::$XClientSecret  = $_ENV["CASHFREE_SECRET_KEY"];
-Cashfree::$XEnvironment   = Cashfree::$XSandbox;
+$cashfree = new \Cashfree\Cashfree(
+    \Cashfree\Cashfree::$SANDBOX,
+    $_ENV["CASHFREE_APP_ID"],
+    $_ENV["CASHFREE_SECRET_KEY"],
+    "", "", "", true
+);
 
-$req = new CreateRefundRequest();
+$req = new \Cashfree\Model\OrderCreateRefundRequest();
 $req->setRefundId("refund_{$orderId}_" . time());
 $req->setRefundAmount(50.0);
 $req->setRefundNote("Customer requested");
 $req->setRefundSpeed("STANDARD");
 
-$created = (new Cashfree())->PGOrderCreateRefund("2025-01-01", $orderId, $req);
+$created = $cashfree->PGOrderCreateRefund($orderId, $req);
 ```
 
 ### .NET
@@ -292,16 +299,18 @@ $created = (new Cashfree())->PGOrderCreateRefund("2025-01-01", $orderId, $req);
 // TLS 1.2 at startup — see pg/backend-sdks/references/REFERENCE.md
 ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
 
-Cashfree.XClientId     = Environment.GetEnvironmentVariable("CASHFREE_APP_ID");
-Cashfree.XClientSecret = Environment.GetEnvironmentVariable("CASHFREE_SECRET_KEY");
-Cashfree.XEnvironment  = Cashfree.SANDBOX;
+var cashfree = new Cashfree(
+    Cashfree.SANDBOX,
+    Environment.GetEnvironmentVariable("CASHFREE_APP_ID"),
+    Environment.GetEnvironmentVariable("CASHFREE_SECRET_KEY"),
+    null, null, null, null);
 
-var req = new CreateRefundRequest(
+var req = new OrderCreateRefundRequest(
     refundId:     $"refund_{orderId}_{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}",
     refundAmount: 50.0,
     refundNote:   "Customer requested",
     refundSpeed:  "STANDARD");
-var created = new Cashfree().PGOrderCreateRefund("2025-01-01", orderId, req);
+var created = cashfree.PGOrderCreateRefund(orderId, req, null, null, null);
 ```
 
 ### Raw REST (Ruby / any language)

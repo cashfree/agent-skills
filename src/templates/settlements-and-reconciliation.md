@@ -62,10 +62,12 @@ Auth is identical to the rest of the PG API — `x-client-id`, `x-client-secret`
 
 | Purpose | Endpoint | SDK method |
 |---|---|---|
-| List all settlements (filtered) | `GET /pg/settlements` | `PGFetchSettlements` |
+| List all settlements (filtered) | `POST /pg/settlements` (body = `FetchSettlementsRequest`: `{ pagination, filters }`) | `PGFetchSettlements` |
 | Settlements for a specific order | `GET /pg/orders/{order_id}/settlements` | `PGOrderFetchSettlement` |
-| **Settlement Reconciliation** (event-level breakdown of settled/to-be-settled transactions) | `POST /pg/settlement/recon` | `PGSettlementReconciliation` |
-| **PG Reconciliation** (transaction-level, by date range) | `POST /pg/recon` | `PGPaymentReconciliation` |
+| **Settlement Reconciliation** (event-level breakdown of settled/to-be-settled transactions) | `POST /pg/settlement/recon` | `PGSettlementFetchRecon` |
+| **PG Reconciliation** (transaction-level, by date range) | `POST /pg/recon` | `PGFetchRecon` |
+
+> "List all settlements" is a **POST** (it takes a `FetchSettlementsRequest` body with `pagination` + `filters`), not a GET with query params.
 
 ### Webhook Events
 
@@ -158,7 +160,7 @@ A settlement row tells you the totals. To attribute each rupee to an order / ref
 async function pullReconFor(cfSettlementId) {
     let cursor = null;
     do {
-        const response = await cashfree.PGSettlementReconciliation({
+        const response = await cashfree.PGSettlementFetchRecon({
             pagination: { limit: 1000, cursor },
             filters: { cf_settlement_ids: [cfSettlementId] },
         });
@@ -207,7 +209,7 @@ A non-empty result = a break. Investigate **before** the next cycle.
 Use `POST /pg/recon` when you want every transaction (including not-yet-settled ones) between two dates — useful for a daily "what was captured yesterday" report that doesn't depend on cycle timing.
 
 ```javascript
-const response = await cashfree.PGPaymentReconciliation({
+const response = await cashfree.PGFetchRecon({
     pagination: { limit: 1000, cursor: null },
     filters: {
         start_date: "2026-04-18T00:00:00+05:30",

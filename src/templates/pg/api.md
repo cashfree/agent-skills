@@ -128,7 +128,7 @@ Headers: x-client-id, x-client-secret, x-api-version: 2025-01-01, Content-Type: 
 
 ```json
 {
-    "cf_order_id": 2149460581,
+    "cf_order_id": "2149460581",
     "order_id": "order_123",
     "order_status": "ACTIVE",
     "payment_session_id": "session_xxx..."
@@ -160,8 +160,10 @@ Headers: x-api-version: 2025-01-01, Content-Type: application/json
     "action": "link | post | custom | form",
     "cf_payment_id": "string",
     "data": {
-        "url": "redirect URL or OTP submission URL",
-        "payload": "HTML form content (for action: form)",
+        "url": "redirect URL or OTP/form submission URL",
+        "payload": { },
+        "content_type": "application/x-www-form-urlencoded",
+        "method": "POST",
         "redirect_to_bank": "fallback bank redirect URL (Native OTP only)"
     }
 }
@@ -171,7 +173,7 @@ Headers: x-api-version: 2025-01-01, Content-Type: application/json
 
 - **`"link"`** → Redirect the customer to `data.url`.
 - **`"post"`** → Native OTP flow. Render OTP input UI, POST OTP to `data.url`. See `REFERENCE.md` Workflow B.
-- **`"form"`** → Render HTML from `data.payload`, auto-submit to `data.url`.
+- **`"form"`** → `data.payload` is an **object of key/value pairs**. Build a form with those as fields and submit (using `data.method` / `data.content_type`) to `data.url`.
 - **`"custom"`** → Poll `GET /orders/{order_id}/payments` every 3–5 seconds (UPI collect, bank transfer).
 
 ### Step 3: Verify Payment (MANDATORY)
@@ -191,13 +193,13 @@ Headers: x-client-id, x-client-secret, x-api-version: 2025-01-01
 
 For payment-level status: `GET /orders/{order_id}/payments/{cf_payment_id}`
 
-Payment status values: `SUCCESS`, `FAILED`, `PENDING`, `NOT_ATTEMPTED`, `USER_DROPPED`
+Payment status values: `SUCCESS`, `FAILED`, `PENDING`, `NOT_ATTEMPTED`, `USER_DROPPED`, `VOID`, `CANCELLED`
 
 ### Step 4: Process Webhooks
 
 Cashfree sends async notifications to your `notify_url`.
 
-**Webhook events:** `PAYMENT_SUCCESS_WEBHOOK`, `PAYMENT_FAILED_WEBHOOK`, `PAYMENT_USER_DROPPED_WEBHOOK`, `REFUND_STATUS_WEBHOOK`, `SETTLEMENT_WEBHOOK`
+**Webhook events:** `PAYMENT_SUCCESS_WEBHOOK`, `PAYMENT_FAILED_WEBHOOK`, `PAYMENT_USER_DROPPED_WEBHOOK`, `REFUND_STATUS_WEBHOOK`, and the settlement events `SETTLEMENT_INITIATED`, `SETTLEMENT_SUCCESS`, `SETTLEMENT_FAILED`, `SETTLEMENT_REVERSED`
 
 **Signature verification (REQUIRED — never skip):**
 

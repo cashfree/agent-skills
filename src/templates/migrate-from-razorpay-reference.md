@@ -184,7 +184,7 @@ from cashfree_pg.api_client import Cashfree
 from cashfree_pg.models.create_order_request import CreateOrderRequest
 from cashfree_pg.models.customer_details import CustomerDetails
 from cashfree_pg.models.order_meta import OrderMeta
-from cashfree_pg.models.create_refund_request import CreateRefundRequest
+from cashfree_pg.models.order_create_refund_request import OrderCreateRefundRequest
 
 cf = Cashfree(
     XEnvironment=Cashfree.SANDBOX,  # or Cashfree.PRODUCTION
@@ -213,7 +213,7 @@ if fetched.data.order_status == "PAID":
     fulfill(receipt_id)
 
 # Refund
-cf.PGOrderCreateRefund(receipt_id, CreateRefundRequest(
+cf.PGOrderCreateRefund(receipt_id, OrderCreateRefundRequest(
     refund_id=f"refund_{int(time.time())}",
     refund_amount=refund_rupees,
     refund_note="Customer request",
@@ -224,9 +224,9 @@ cf.PGOrderCreateRefund(receipt_id, CreateRefundRequest(
 
 | Razorpay | Cashfree |
 |---|---|
-| `new RazorpayClient(keyId, keySecret)` | `Cashfree.XClientId = appId; Cashfree.XClientSecret = secretKey; Cashfree.XEnvironment = Cashfree.SANDBOX; Cashfree cf = new Cashfree();` |
-| `razorpay.orders.create(new JSONObject(...))` | `cf.PGCreateOrder("2025-01-01", createOrderRequest)` |
-| `razorpay.payments.refund(id, json)` | `cf.PGCreateRefund("2025-01-01", orderId, createRefundRequest)` |
+| `new RazorpayClient(keyId, keySecret)` | `Cashfree cf = new Cashfree(Cashfree.SANDBOX, appId, secretKey, null, null, null);` |
+| `razorpay.orders.create(new JSONObject(...))` | `cf.PGCreateOrder(createOrderRequest, null, null, null)` |
+| `razorpay.payments.refund(id, json)` | `cf.PGOrderCreateRefund(orderId, orderCreateRefundRequest, null, null, null)` |
 | `Utils.verifyPaymentSignature(attrs, secret)` | **None.** Call `cf.PGFetchOrder` and check `order_status == "PAID"` |
 | `Utils.verifyWebhookSignature(body, sig, secret)` | `cf.PGVerifyWebhookSignature(signature, rawBody, timestamp)` |
 
@@ -245,17 +245,17 @@ Amounts: Razorpay Java takes paise `int`; Cashfree Java takes rupees `Double`.
 
 | Razorpay | Cashfree |
 |---|---|
-| `new Razorpay\Api\Api($keyId, $keySecret)` | `Cashfree::$XClientId = $appId; Cashfree::$XClientSecret = $secret; Cashfree::$XEnvironment = Cashfree::$XSandbox;` |
-| `$api->order->create($data)` | `(new Cashfree)->PGCreateOrder("2025-01-01", $createOrderRequest)` |
+| `new Razorpay\Api\Api($keyId, $keySecret)` | `$cf = new \Cashfree\Cashfree(\Cashfree\Cashfree::$SANDBOX, $appId, $secret, "", "", "", true);` |
+| `$api->order->create($data)` | `$cf->PGCreateOrder($createOrderRequest)` |
 | `$api->utility->verifyPaymentSignature($attrs)` | `GET /pg/orders/{order_id}` re-fetch (no equivalent utility) |
-| `$api->utility->verifyWebhookSignature($body, $sig, $secret)` | `(new Cashfree)->PGVerifyWebhookSignature($signature, $rawBody, $timestamp)` |
+| `$api->utility->verifyWebhookSignature($body, $sig, $secret)` | `$cf->PGVerifyWebhookSignature($signature, $rawBody, $timestamp)` |
 
 ### 4.5 .NET (C#)
 
 | Razorpay | Cashfree |
 |---|---|
-| `new RazorpayClient(keyId, keySecret)` | `Cashfree.XClientId = appId; Cashfree.XClientSecret = secret; Cashfree.XEnvironment = Cashfree.SANDBOX; var cf = new Cashfree();` |
-| `client.Order.Create(options)` | `cf.PGCreateOrder("2025-01-01", createOrderRequest)` |
+| `new RazorpayClient(keyId, keySecret)` | `var cf = new Cashfree(Cashfree.SANDBOX, appId, secret, null, null, null, null);` |
+| `client.Order.Create(options)` | `cf.PGCreateOrder(createOrderRequest, null, null, null)` |
 | `Utils.verifyPaymentSignature(attrs, secret)` | Re-fetch via `cf.PGFetchOrder` |
 
 **TLS note:** older .NET Framework clients default to TLS 1.0 — Cashfree requires TLS 1.2. Set `ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;` at startup. See `pg/backend-sdks/references/REFERENCE.md`.

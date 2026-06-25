@@ -100,12 +100,7 @@ V1 base URLs: Production `https://payout-api.cashfree.com` | Sandbox `https://pa
 
 ## 4. Batch Transfer (V2)
 
-Transfer money to multiple beneficiaries in a single API call.
-
-| Format | Description |
-|---|---|
-| `BENEFICIARY_ID` | Use pre-added beneficiary IDs |
-| `BANK_ACCOUNT` | Pass bank account details directly |
+Transfer money to multiple beneficiaries in a single API call. The body has a top-level `batch_transfer_id` plus a `transfers` array; each entry has the **same nested shape as a single transfer** (`transfer_id`, `transfer_amount`, optional `transfer_currency`/`transfer_mode`, and a nested `beneficiary_details` object — either a `beneficiary_id` for a pre-added beneficiary, or inline `beneficiary_name` + `beneficiary_instrument_details`). There is no `batch_format`, `delete_bene`, or flat `amount`/`bank_account`/`ifsc`/`name` field in V2.
 
 ```bash
 curl -X POST 'https://sandbox.cashfree.com/payout/transfers/batch' \
@@ -115,26 +110,26 @@ curl -X POST 'https://sandbox.cashfree.com/payout/transfers/batch' \
   -H 'Content-Type: application/json' \
   -d '{
     "batch_transfer_id": "BATCH_001",
-    "batch_format": "BANK_ACCOUNT",
-    "delete_bene": 1,
-    "batch": [
+    "transfers": [
       {
         "transfer_id": "TXN_001",
-        "amount": 100,
-        "phone": "9876543210",
-        "bank_account": "00111122233",
-        "ifsc": "HDFC0000001",
-        "email": "user1@email.com",
-        "name": "User One"
+        "transfer_amount": 100,
+        "transfer_mode": "imps",
+        "beneficiary_details": {
+          "beneficiary_id": "JOHN18011343"
+        }
       },
       {
         "transfer_id": "TXN_002",
-        "amount": 200,
-        "phone": "9876543211",
-        "bank_account": "00111122234",
-        "ifsc": "ICIC0000009",
-        "email": "user2@email.com",
-        "name": "User Two"
+        "transfer_amount": 200,
+        "transfer_mode": "imps",
+        "beneficiary_details": {
+          "beneficiary_name": "User Two",
+          "beneficiary_instrument_details": {
+            "bank_account_number": "00111122234",
+            "bank_ifsc": "ICIC0000009"
+          }
+        }
       }
     ]
   }'
@@ -142,7 +137,7 @@ curl -X POST 'https://sandbox.cashfree.com/payout/transfers/batch' \
 
 **When you receive a 5XX response, do NOT initiate another transaction.** Check status using Get Batch Transfer Status first.
 
-**Get Batch Transfer Status:** `GET /payout/transfers/batch/<batch_transfer_id>`
+**Get Batch Transfer Status:** `GET /payout/transfers/batch?batch_transfer_id=BATCH_001` (query parameter — accepts `batch_transfer_id` or `cf_batch_transfer_id`).
 
 ---
 
@@ -358,6 +353,8 @@ curl -X GET 'https://payout-api.cashfree.com/payout/v1/getBalance' \
 {
   "event": "TRANSFER_REVERSED",
   "transferId": "TRANSFER_001",
+  "referenceId": "123456",
+  "eventTime": "2024-01-15T10:30:00Z",
   "reason": "Invalid account",
   "signature": "base64_encoded_signature"
 }

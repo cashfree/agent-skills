@@ -346,7 +346,7 @@ Authorization status values: `SUCCESS`, `PENDING`
 |---|---|
 | First request with key `k` | Processes normally. Response includes `x-idempotency-key: k`. |
 | Retry with the **same key and same body** within 24h | Returns the **original response** verbatim. Response includes `x-idempotency-replayed: true`. No side effects run twice. |
-| Retry with the **same key but different body** | Returns `400` with `code: "idempotency_key_mismatch"`. Either reuse the original body or mint a fresh key. |
+| Retry with the **same key but different body** | Returns `422` with `type: "idempotency_error"`. Either reuse the original body or mint a fresh key. |
 | Retry after 24h | Treated as a fresh request — no replay. |
 
 Keys are scoped per endpoint + per credential set (sandbox vs production are separate namespaces).
@@ -417,7 +417,7 @@ They are unrelated beyond the shared name. Both are cheap — use both.
 | Mistake | Consequence | Fix |
 |---|---|---|
 | Using a random UUID per retry attempt | Cashfree treats each as a new request; duplicates | Derive key from the business operation and persist before the first call |
-| Reusing a key with a different body | `400 idempotency_key_mismatch` | Either mint a new key or send the original body |
+| Reusing a key with a different body | `422 idempotency_error` | Either mint a new key or send the original body |
 | Relying only on `x-idempotency-key` with no network-level retry cap | Infinite retries can still cause issues on Cashfree side | Cap retries (3 attempts with backoff is standard) |
 | Mixing sandbox and production keys in the same namespace | Test requests don't replay in prod | Scope keys by environment in your storage |
 
@@ -447,7 +447,7 @@ They are unrelated beyond the shared name. Both are cheap — use both.
 | `emi_tenure_missing` | 400 | EMI tenure required |
 | `netbanking_bank_code_invalid` | 400 | Invalid bank code |
 | `payment_method_invalid` | 400 | Unrecognized payment method |
-| `order_amount_invalid` | 400 | Amount exceeds max (1,000,000) |
+| `order_amount_invalid` | 400 | Amount below minimum (`1.00`) or above your MID's configured per-transaction limit (no fixed `1,000,000` cap) |
 | `orderpay_not_found` | 404 | Order is no longer active |
 | `request_failed` | 400 | Payment mode not configured for account |
 | `request_invalid` | 400 | Indian cards cannot be used for non-INR transactions |
