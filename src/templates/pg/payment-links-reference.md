@@ -125,31 +125,39 @@ Fires on every `link_status` transition. Envelope same as all Cashfree webhooks 
 ```json
 {
     "data": {
-        "link": {
-            "cf_link_id": 55566677,
-            "link_id": "invoice_4402_2026",
-            "link_status": "PARTIALLY_PAID",
-            "link_url": "https://payments.cashfree.com/links/abcXYZ123",
-            "link_amount": 5000.00,
-            "link_amount_paid": 1000.00,
-            "link_currency": "INR",
-            "link_purpose": "Invoice 4402 ...",
-            "link_expiry_time": "2026-04-30T23:59:59+05:30",
-            "link_created_at": "2026-04-19T10:00:00+05:30",
-            "customer_details": { ... },
-            "link_notes": { "invoice_id": "4402" }
-        },
+        "cf_link_id": 55566677,
+        "link_id": "invoice_4402_2026",
+        "link_status": "PARTIALLY_PAID",
+        "link_currency": "INR",
+        "link_amount": "5000.00",
+        "link_amount_paid": "1000.00",
+        "link_partial_payments": true,
+        "link_minimum_partial_amount": "1000.00",
+        "link_purpose": "Invoice 4402 ...",
+        "link_created_at": "2026-04-19T10:00:00+05:30",
+        "link_expiry_time": "2026-04-30T23:59:59+05:30",
+        "link_url": "https://payments.cashfree.com/links/abcXYZ123",
+        "link_notes": { "invoice_id": "4402" },
+        "link_auto_reminders": true,
+        "customer_details": { "customer_phone": "9999999999", "customer_email": "client@acme.com", "customer_name": "Acme Corp" },
+        "link_meta": { "notify_url": "https://app.example.com/webhook" },
+        "link_notify": { "send_sms": true, "send_email": true },
         "order": {
-            "order_id": "CFPL_1712340000",
-            "order_amount": 1000.00,
-            "order_currency": "INR",
-            "payment_status": "SUCCESS"
+            "order_id": "CFPay_U1mgll3c0e9g_ehdcjjbtckf",
+            "order_amount": "1000.00",
+            "order_expiry_time": "2026-04-20T08:34:50+05:30",
+            "order_hash": "Gb2gC7z0tILhGbZUIeds",
+            "transaction_id": 1021206,
+            "transaction_status": "SUCCESS"
         }
     },
-    "event_time": "2026-04-20T08:30:00+05:30",
-    "type": "PAYMENT_LINK_EVENT"
+    "type": "PAYMENT_LINK_EVENT",
+    "version": 1,
+    "event_time": "2026-04-20T08:30:00+05:30"
 }
 ```
+
+> **Payload shape — read carefully.** The link fields are **flat under `data`**; there is **no `data.link` wrapper**. `data.order` is the order that triggered the event and is **`null` for `CANCELLED` / `EXPIRED`** transitions; it carries **`transaction_id` / `transaction_status`** (not `cf_payment_id` / `payment_status`). Amounts arrive as **strings** in this webhook — compare numerically, don't `===` against a number. The envelope carries `type`, `version`, and `event_time`.
 
 Dedupe on `(cf_link_id, link_status, link_amount_paid)` — at-least-once delivery means each transition may arrive multiple times. For v2025-01-01+ use the `x-idempotency-key` header if your storage layer supports it.
 
@@ -187,8 +195,12 @@ const current = await cashfree.PGFetchLink(linkId);
 // Cancel
 await cashfree.PGCancelLink(linkId);
 
-// Underlying orders
-const orders = await cashfree.PGLinkFetchOrders(linkId);
+// Underlying orders — HEADER list only (no cf_payment_id). Default status is PAID;
+// pass "ALL" to enumerate every order. Signature:
+//   PGLinkFetchOrders(link_id, x_request_id?, x_idempotency_key?, status?)
+const orders = await cashfree.PGLinkFetchOrders(linkId, undefined, undefined, "ALL");
+// For payment id / instrument / charge details, re-fetch each order:
+//   const payments = await cashfree.PGOrderFetchPayments(order.order_id);
 ```
 
 ### Python (v6+)
@@ -234,9 +246,10 @@ var req = new CreateLinkRequest()
     .customerDetails(new LinkCustomerDetailsEntity().customerPhone(phone))
     .linkAutoReminders(true);
 
-var created = new Cashfree().PGCreateLink("2025-01-01", req, null, null, null);
-var fetched = new Cashfree().PGFetchLink("2025-01-01", linkId, null, null, null);
-new Cashfree().PGCancelLink("2025-01-01", linkId, null, null, null);
+Cashfree cashfree = new Cashfree(Cashfree.SANDBOX, "<app_id>", "<secret_key>", null, null, null);
+var created = cashfree.PGCreateLink(req, null, null, null);
+var fetched = cashfree.PGFetchLink(linkId, null, null, null);
+cashfree.PGCancelLink(linkId, null, null, null);
 ```
 
 ### Go (v6+)
@@ -284,6 +297,13 @@ curl -X POST "https://api.cashfree.com/pg/links/invoice_4402_v1/cancel" \
     -H "x-client-id: $CASHFREE_APP_ID" \
     -H "x-client-secret: $CASHFREE_SECRET_KEY" \
     -H "x-api-version: 2025-01-01"
+
+# List underlying orders — default status=PAID; pass ?status=ALL for reconciliation.
+# Returns order HEADERS (no cf_payment_id); re-fetch /pg/orders/{order_id}/payments for payment details.
+curl "https://api.cashfree.com/pg/links/invoice_4402_v1/orders?status=ALL" \
+    -H "x-client-id: $CASHFREE_APP_ID" \
+    -H "x-client-secret: $CASHFREE_SECRET_KEY" \
+    -H "x-api-version: 2025-01-01"
 ```
 
 ---
@@ -309,7 +329,7 @@ curl -X POST "https://api.cashfree.com/pg/links/invoice_4402_v1/cancel" \
 
 The link itself isn't a refundable object — refund the underlying order:
 
-1. `GET /pg/links/{link_id}/orders` → find the `order_id`(s) with `payment_status: "SUCCESS"`.
+1. `GET /pg/links/{link_id}/orders?status=ALL` → find the `order_id`(s) with `order_status: "PAID"`. (This list has **no `cf_payment_id`** — if you need the payment id, re-fetch with `GET /pg/orders/{order_id}/payments`.)
 2. `POST /pg/orders/{order_id}/refunds` with your merchant-generated `refund_id`.
 3. Listen for `REFUND_STATUS_WEBHOOK` per `pg/refunds/SKILL.md`.
 

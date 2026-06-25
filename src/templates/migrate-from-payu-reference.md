@@ -247,7 +247,7 @@ from cashfree_pg.api_client import Cashfree
 from cashfree_pg.models.create_order_request import CreateOrderRequest
 from cashfree_pg.models.customer_details import CustomerDetails
 from cashfree_pg.models.order_meta import OrderMeta
-from cashfree_pg.models.create_refund_request import CreateRefundRequest
+from cashfree_pg.models.order_create_refund_request import OrderCreateRefundRequest
 
 cf = Cashfree(
     XEnvironment=Cashfree.SANDBOX,   # or Cashfree.PRODUCTION
@@ -270,7 +270,7 @@ if fetched.data.order_status == "PAID":
     fulfill(txnid)
 
 # Refund — keyed by order_id (replaces cancel_refund_transaction + mihpayid)
-cf.PGOrderCreateRefund(txnid, CreateRefundRequest(
+cf.PGOrderCreateRefund(txnid, OrderCreateRefundRequest(
     refund_id=f"refund_{int(time.time())}",
     refund_amount=refund_rupees,
     refund_note="Customer request",
@@ -281,10 +281,10 @@ cf.PGOrderCreateRefund(txnid, CreateRefundRequest(
 
 | PayU | Cashfree |
 |---|---|
-| `MessageDigest.getInstance("SHA-512")` over `key\|txnid\|...\|salt` | `Cashfree.XClientId = appId; Cashfree.XClientSecret = secret; Cashfree.XEnvironment = Cashfree.SANDBOX; Cashfree cf = new Cashfree();` |
-| Form post to `/_payment` | `cf.PGCreateOrder("2025-01-01", createOrderRequest)` |
-| `verify_payment` postservice call | `cf.PGFetchOrder("2025-01-01", orderId)` → check `order_status == "PAID"` |
-| `cancel_refund_transaction` postservice call | `cf.PGCreateRefund("2025-01-01", orderId, createRefundRequest)` |
+| `MessageDigest.getInstance("SHA-512")` over `key\|txnid\|...\|salt` | `Cashfree cf = new Cashfree(Cashfree.SANDBOX, appId, secret, null, null, null);` |
+| Form post to `/_payment` | `cf.PGCreateOrder(createOrderRequest, null, null, null)` |
+| `verify_payment` postservice call | `cf.PGFetchOrder(orderId, null, null, null)` → check `order_status == "PAID"` |
+| `cancel_refund_transaction` postservice call | `cf.PGOrderCreateRefund(orderId, orderCreateRefundRequest, null, null, null)` |
 | Reverse-hash verify on webhook | `cf.PGVerifyWebhookSignature(signature, rawBody, timestamp)` |
 
 Amounts: both PayU and Cashfree use rupees; Cashfree Java takes a `Double`.
@@ -303,10 +303,10 @@ Amounts: both PayU and Cashfree use rupees; Cashfree Java takes a `Double`.
 
 | PayU | Cashfree |
 |---|---|
-| `hash('sha512', "$key\|$txnid\|...\|$salt")` | `Cashfree::$XClientId = $appId; Cashfree::$XClientSecret = $secret; Cashfree::$XEnvironment = Cashfree::$XSandbox;` |
-| `curl` form post to `/_payment` | `(new Cashfree)->PGCreateOrder("2025-01-01", $createOrderRequest)` |
+| `hash('sha512', "$key\|$txnid\|...\|$salt")` | `$cf = new \Cashfree\Cashfree(\Cashfree\Cashfree::$SANDBOX, $appId, $secret, "", "", "", true);` |
+| `curl` form post to `/_payment` | `$cf->PGCreateOrder($createOrderRequest)` |
 | `verify_payment` postservice | `GET /pg/orders/{order_id}` re-fetch via `PGFetchOrder` |
-| reverse-hash webhook verify | `(new Cashfree)->PGVerifyWebhookSignature($signature, $rawBody, $timestamp)` |
+| reverse-hash webhook verify | `$cf->PGVerifyWebhookSignature($signature, $rawBody, $timestamp)` |
 
 ### 5.5 .NET (C#)
 
@@ -314,8 +314,8 @@ PayU has no official .NET SDK, so existing code is hand-rolled `SHA512Managed` +
 
 | PayU | Cashfree |
 |---|---|
-| `SHA512.Create().ComputeHash(...)` | `Cashfree.XClientId = appId; Cashfree.XClientSecret = secret; Cashfree.XEnvironment = Cashfree.SANDBOX; var cf = new Cashfree();` |
-| `HttpClient` form post to `/_payment` | `cf.PGCreateOrder("2025-01-01", createOrderRequest)` |
+| `SHA512.Create().ComputeHash(...)` | `var cf = new Cashfree(Cashfree.SANDBOX, appId, secret, null, null, null, null);` |
+| `HttpClient` form post to `/_payment` | `cf.PGCreateOrder(createOrderRequest, null, null, null)` |
 | `verify_payment` call | `cf.PGFetchOrder(...)` → check `order_status == "PAID"` |
 
 **TLS note:** older .NET Framework clients default to TLS 1.0 — Cashfree requires TLS 1.2. Set `ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;` at startup.

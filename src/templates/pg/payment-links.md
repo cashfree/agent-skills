@@ -23,7 +23,7 @@ description: >
 ### When to use this skill
 
 - The merchant needs to **collect a payment without building a checkout** — SMB, tuition, freelancers, B2B invoices, event tickets, rent, dealer collections. Everything where an integrated JS SDK is overkill.
-- The developer needs to **programmatically create, fetch, cancel, and list payments under a link**, and wire the `PAYMENT_LINK_EVENT` webhook to update their CRM / invoicing / accounting system.
+- The developer needs to **programmatically create, fetch, cancel, and list the orders under a link**, and wire the `PAYMENT_LINK_EVENT` webhook to update their CRM / invoicing / accounting system.
 - The merchant wants **partial payments** (customer pays in installments on the same link) or **auto-reminders** (Cashfree sends SMS/email nudges until paid).
 - The use case is **one-off or ad-hoc collection** rather than a high-volume checkout. For high-volume checkouts, use `pg/SKILL.md` → `pg/apis/SKILL.md` / `pg/backend-sdks/SKILL.md` / `pg/web-sdk/SKILL.md`.
 
@@ -65,7 +65,7 @@ Headers on every call: `x-client-id`, `x-client-secret`, `x-api-version: 2025-01
 | Create payment link | `POST /pg/links` | `PGCreateLink` |
 | Fetch link details | `GET /pg/links/{link_id}` | `PGFetchLink` |
 | Cancel link | `POST /pg/links/{link_id}/cancel` | `PGCancelLink` |
-| List payments under link | `GET /pg/links/{link_id}/orders` | `PGLinkFetchOrders` |
+| List orders under a link | `GET /pg/links/{link_id}/orders` | `PGLinkFetchOrders` |
 
 Webhook: `PAYMENT_LINK_EVENT` (fires on every link state transition).
 
@@ -151,22 +151,26 @@ Subscribe in Dashboard → PG → Developers → Webhooks. The event fires on ev
 ```javascript
 // Node.js — already did raw-body + HMAC verify (see pg/webhooks/SKILL.md)
 if (event.type === "PAYMENT_LINK_EVENT") {
-    const link = event.data.link;
+    // The link fields are FLAT under `data` — there is NO `data.link` wrapper.
+    const data = event.data;
     await db.paymentLinks.upsert({
-        cf_link_id: link.cf_link_id,
-        link_id: link.link_id,
-        link_status: link.link_status,
-        link_amount: link.link_amount,
-        link_amount_paid: link.link_amount_paid,
-        link_url: link.link_url,
+        cf_link_id: data.cf_link_id,
+        link_id: data.link_id,
+        link_status: data.link_status,
+        link_amount: data.link_amount,
+        link_amount_paid: data.link_amount_paid,
+        link_url: data.link_url,
     });
 
-    if (link.link_status === "PAID") {
-        await closeInvoice(link.link_notes?.invoice_id);
-    } else if (link.link_status === "PARTIALLY_PAID") {
-        await notifyFinance("Partial payment received on link " + link.link_id);
-    } else if (link.link_status === "EXPIRED" || link.link_status === "CANCELLED") {
-        await markInvoiceOpen(link.link_notes?.invoice_id);
+    // `data.order` is the order that triggered this event. It is NULL for
+    // CANCELLED / EXPIRED transitions, and it carries transaction_id /
+    // transaction_status — NOT cf_payment_id / payment_status.
+    if (data.link_status === "PAID") {
+        await closeInvoice(data.link_notes?.invoice_id);
+    } else if (data.link_status === "PARTIALLY_PAID") {
+        await notifyFinance("Partial payment received on link " + data.link_id);
+    } else if (data.link_status === "EXPIRED" || data.link_status === "CANCELLED") {
+        await markInvoiceOpen(data.link_notes?.invoice_id);
     }
 }
 ```
@@ -190,10 +194,13 @@ Only possible while `link_status` is `ACTIVE` or `PARTIALLY_PAID`. After cancell
 ### Step 5 — Inspect underlying orders (for reconciliation)
 
 ```
-GET /pg/links/{link_id}/orders
+GET /pg/links/{link_id}/orders?status=ALL
 ```
 
-Returns every PG order created by the link. Each order carries its own `order_id`, `cf_payment_id`, `order_status`, and `order_amount`. Use these to refund, fetch, or dispute individual payments — all the regular PG endpoints apply.
+Returns the PG orders created by the link as **order headers** — each carries `cf_order_id`, `order_id`, `order_status`, `order_amount`, `payment_session_id`, `customer_details`, etc. Two things to get right:
+
+- **The default `status` filter is `PAID`.** Without `?status=ALL`, only fully-paid orders are returned — active/attempted orders are excluded. For reconciliation (or to see partial / abandoned attempts), pass **`status=ALL`** (the only accepted values are `ALL` and `PAID`).
+- **The list returns headers only — it does NOT include `cf_payment_id` or payment details.** To get the payment id / instrument / charge details for an order, re-fetch it: `GET /pg/orders/{order_id}` then `GET /pg/orders/{order_id}/payments`. All the regular PG endpoints apply.
 
 ---
 

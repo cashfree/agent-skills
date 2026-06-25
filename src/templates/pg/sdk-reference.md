@@ -71,10 +71,10 @@ async function createRefund(orderId, refundAmount, refundId) {
 <summary>Python (v6+)</summary>
 
 ```python
-from cashfree_pg.models.create_refund_request import CreateRefundRequest
+from cashfree_pg.models.order_create_refund_request import OrderCreateRefundRequest
 
 def create_refund(order_id, refund_amount, refund_id):
-    request = CreateRefundRequest(
+    request = OrderCreateRefundRequest(
         refund_amount=refund_amount,
         refund_id=refund_id,
         refund_note="Customer requested refund",
@@ -90,14 +90,14 @@ def create_refund(order_id, refund_amount, refund_id):
 
 ```java
 public RefundEntity createRefund(String orderId, double amount, String refundId) throws Exception {
-    CreateRefundRequest request = new CreateRefundRequest();
+    OrderCreateRefundRequest request = new OrderCreateRefundRequest();
     request.setRefundAmount(amount);
     request.setRefundId(refundId);
     request.setRefundNote("Customer requested refund");
     request.setRefundSpeed("STANDARD");
 
-    Cashfree cashfree = new Cashfree();
-    var response = cashfree.PGOrderCreateRefund("2025-01-01", orderId, request, null, null, null);
+    Cashfree cashfree = new Cashfree(Cashfree.SANDBOX, "<app_id>", "<secret_key>", null, null, null);
+    var response = cashfree.PGOrderCreateRefund(orderId, request, null, null, null);
     return response.getData();
 }
 ```
@@ -350,7 +350,7 @@ Full semantics and header behaviour live in `pg/apis/references/REFERENCE.md` §
 | Mistake | Consequence | Fix |
 |---|---|---|
 | Random UUID per attempt | Each retry = new resource | Derive key from the business operation; persist before first call |
-| Reusing key with a different body | `400 idempotency_key_mismatch` | Lock the body together with the key in durable storage |
+| Reusing key with a different body | `422 idempotency_error` | Lock the body together with the key in durable storage |
 | Retrying on `4xx` (other than `429`) | Burns requests; no replay benefit | Only retry on `5xx` + network errors |
 | Not scoping keys per environment | Sandbox/prod collisions in your own store | Namespace by `${env}:${operation}:${id}` |
 
@@ -440,7 +440,7 @@ var client = new HttpClient(handler);
 | `order_not_found` | 404 | Order does not exist |
 | `payment_not_found` | 404 | Payment does not exist |
 | `version_missing` | 400 | API version header missing |
-| `order_amount_invalid` | 400 | Amount exceeds max (1,000,000) |
+| `order_amount_invalid` | 400 | Amount below minimum (`1.00`) or above your MID's configured per-transaction limit (no fixed `1,000,000` cap) |
 | `authentication_error` | 401 | Invalid credentials |
 | `bank_processing_failure` | 502 | Bank-side failure |
 
@@ -473,7 +473,7 @@ except Exception as e:
 ```java
 // Java
 try {
-    var response = cashfree.PGCreateOrder("2025-01-01", request, null, null, null);
+    var response = cashfree.PGCreateOrder(request, null, null, null);
     return response.getData();
 } catch (ApiException e) {
     System.err.println("Status: " + e.getCode());

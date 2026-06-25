@@ -330,7 +330,8 @@ app.post("/webhook",
             case "PAYMENT_FAILED_WEBHOOK":        handleFailure(event.data);  break;
             case "PAYMENT_USER_DROPPED_WEBHOOK": handleDropped(event.data);   break;
             case "REFUND_STATUS_WEBHOOK":         handleRefund(event.data);   break;
-            case "SETTLEMENT_WEBHOOK":            handleSettlement(event.data); break;
+            case "SETTLEMENT_SUCCESS":            handleSettlement(event.data); break;
+            // other settlement events: SETTLEMENT_INITIATED / SETTLEMENT_FAILED / SETTLEMENT_REVERSED
         }
         res.sendStatus(200); // always 200, always quickly; process async if slow
     });
@@ -345,7 +346,7 @@ app.post("/webhook",
 | `payment.captured` | → | `PAYMENT_SUCCESS_WEBHOOK` |
 | `payment.failed` | → | `PAYMENT_FAILED_WEBHOOK` or `PAYMENT_USER_DROPPED_WEBHOOK` |
 | `refund.created` / `refund.processed` / `refund.failed` | → | `REFUND_STATUS_WEBHOOK` (single event — check `data.refund.refund_status`) |
-| `settlement.processed` | → | `SETTLEMENT_WEBHOOK` |
+| `settlement.processed` | → | `SETTLEMENT_SUCCESS` (also `SETTLEMENT_INITIATED` / `SETTLEMENT_FAILED` / `SETTLEMENT_REVERSED`) |
 | `subscription.*` | → | See `subscriptions/SKILL.md` (different event names) |
 | `payout.*` (RazorpayX) | → | See `payouts/SKILL.md` |
 

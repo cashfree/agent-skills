@@ -211,9 +211,10 @@ Each mistake follows the format: **What goes wrong → Why it happens → How to
 | `PENDING` | Show "processing" message, poll or wait for webhook |
 | `NOT_ATTEMPTED` | User hasn't tried paying yet |
 | `USER_DROPPED` | User abandoned checkout — send a reminder or allow retry |
-| `FLAGGED` | Risk identified — hold fulfillment, review manually |
 | `CANCELLED` | Amount reversed — do not fulfill |
 | `VOID` | Pre-auth not captured — do not fulfill |
+
+> The full `payment_status` enum is `SUCCESS`, `NOT_ATTEMPTED`, `FAILED`, `USER_DROPPED`, `VOID`, `CANCELLED`, `PENDING`. There is no `FLAGGED` status.
 
 ---
 
@@ -722,7 +723,7 @@ Run through this checklist before switching from sandbox to production:
 ### Payment Verification
 - [ ] Backend calls `GET /orders/{order_id}` to verify `order_status: "PAID"` before fulfilling.
 - [ ] Frontend callbacks (`onVerify`, `onSuccess`, `return_url`) are NOT used as sole proof of payment.
-- [ ] All payment statuses are handled (`SUCCESS`, `FAILED`, `PENDING`, `USER_DROPPED`, `FLAGGED`, `CANCELLED`, `VOID`).
+- [ ] All payment statuses are handled (`SUCCESS`, `FAILED`, `PENDING`, `NOT_ATTEMPTED`, `USER_DROPPED`, `CANCELLED`, `VOID`).
 
 ### Webhooks
 - [ ] Webhook endpoint is configured in Dashboard > Developers > Webhooks.

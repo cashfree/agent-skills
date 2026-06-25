@@ -103,26 +103,24 @@ private static String generateEncryptedSignature(String clientIdWithEpochTimesta
 
 - **BAV Async (V2):** `POST /bank-account/async` — Async verification via webhook/polling
 - **Bulk BAV (V2):** `POST /bank-account/bulk` — Up to 10,000 records
-- **Get BAV Status (V2):** `GET /bank-account/status` — By `reference_id` or `user_id`
-- **Get Bulk BAV Status (V2):** `GET /bank-account/bulk/status`
+- **Get BAV Status (V2):** `GET /bank-account` — by `reference_id` or `user_id` (same endpoint returns single and bulk async results)
 - **IFSC Verification:** `POST /ifsc` — Verify IFSC and retrieve bank branch details
-- **Reverse Penny Drop (RPD):** `POST /reverse-penny-drop` — the account **holder** sends ₹1 **from** their own account via a UPI intent/QR/collect link (auto-refunded), and Cashfree returns the verified account details. This is the **opposite direction** to penny drop / BAV (where Cashfree deposits ₹1 *into* the account). Use RPD for **user self-verification during onboarding**, *not* for validating a beneficiary before payout — for that, use Bank Account Verification (`/bank-account/sync` or `/async`). Result is async (via `RPD_BANK_ACCOUNT_VERIFICATION_*` webhook / status poll). Link valid **10 minutes**
-- **Get RPD Status:** `GET /reverse-penny-drop/status`
-- **UPI Penny Drop:** `POST /upi-penny-drop` — Send ₹1 to VPA, retrieve bank account info
-- **Mobile Penny Drop:** `POST /mobile-penny-drop` — Send ₹1 to mobile, retrieve bank account info
+- **Reverse Penny Drop (RPD):** `POST /reverse-penny-drop` — the account **holder** sends ₹1 **from** their own account via a UPI intent/QR/collect link (auto-refunded), and Cashfree returns the verified account details. This is the **opposite direction** to penny drop / BAV (where Cashfree deposits ₹1 *into* the account). Use RPD for **user self-verification during onboarding**, *not* for validating a beneficiary before payout — for that, use Bank Account Verification (`/bank-account/sync` or `/async`). Result is async (via the `RPD_BANK_ACCOUNT_VERIFICATION_*` webhook). Link valid **10 minutes**. There is no separate RPD-status endpoint — use the webhook.
+- **UPI Penny Drop:** `POST /upi/penny-drop` — Send ₹1 to VPA, retrieve bank account info
+- **Mobile Penny Drop:** `POST /mobile/penny-drop` — Send ₹1 to mobile, retrieve bank account info
 
 ### Identity Verification
 
-- **PAN Lite:** `POST /pan/lite` — Validate PAN, returns unique identifier, name, DOB
-- **PAN 360:** `POST /pan/360` — Comprehensive PAN + masked Aadhaar/email/mobile (~45% fill rate)
+- **PAN Lite:** `POST /pan-lite` — Validate PAN, returns unique identifier, name, DOB
+- **PAN Advance (a.k.a. PAN 360):** `POST /pan/advance` — Comprehensive PAN + masked Aadhaar/email/mobile (~45% fill rate)
 - **Verify PAN in Bulk:** `POST /pan/bulk`
-- **Get PAN Status:** `GET /pan/status`
-- **Get Bulk PAN Status:** `GET /pan/bulk/status`
-- **Driving Licence:** `POST /driving-licence` — Validity, type, issue date, expiry date
+- **Get PAN Status (single & bulk):** `GET /pan/{reference_id}`
+- **Driving Licence:** `POST /driving-license` — Validity, type, issue date, expiry date
 
 ```bash
-curl -X POST 'https://sandbox.cashfree.com/verification/driving-licence' \
+curl -X POST 'https://sandbox.cashfree.com/verification/driving-license' \
   -H 'X-Client-Id: <CLIENT_ID>' -H 'X-Client-Secret: <CLIENT_SECRET>' \
+  -H 'x-api-version: 2024-12-01' \
   -H 'Content-Type: application/json' \
   -d '{ "dl_number": "KA0120198900984", "dob": "1994-08-05", "verification_id": "DL_001" }'
 ```
@@ -135,45 +133,42 @@ curl -X POST 'https://sandbox.cashfree.com/verification/driving-licence' \
 
 - **CIN Verification:** `POST /cin` — Incorporation date, director details, CIN status
 - **Udyam Verification:** `POST /udyam` — Udyam reference number
-- **Fetch GSTIN with PAN:** `POST /pan-to-gstin` — List of GSTINs for a PAN
-- **Fetch Udyam with PAN:** `POST /pan-to-udyam` — List of Udyam numbers for a PAN
+- **Fetch GSTIN with PAN:** `POST /pan-gstin` — List of GSTINs for a PAN
+- **Fetch Udyam with PAN:** `POST /pan-udyam` — List of Udyam numbers for a PAN
 
 ### OCR & Biometric
 
 - **Face Liveness:** `POST /face-liveness` (multipart/form-data) — Check real human face, prevent spoofing
 - **Face Match:** `POST /face-match` (multipart/form-data) — Compare two images or validate against ID
 - **Name Match:** `POST /name-match` — Compare two names (see score table above)
-- **Smart OCR:** `POST /ocr` (multipart/form-data) — Extract structured fields from PAN, Aadhaar, DL, Passport, Voter ID, Vehicle RC, Cancelled Cheque, Invoice. Includes fraud detection
+- **Smart OCR:** `POST /bharat-ocr` (multipart/form-data) — Extract structured fields from PAN, Aadhaar, DL, Passport, Voter ID, Vehicle RC, Cancelled Cheque, Invoice. Includes fraud detection
 - **Aadhaar Masking:** `POST /aadhaar-masking` (multipart/form-data) — Mask first 8 digits, disable QR
 
 ### Digital Onboarding
 
 - **KYC Links — Generate:** `POST /form`
-- **KYC Links — Static:** `POST /form/static`
-- **KYC Links — Status:** `GET /form/status`
-- **KYC Links — Deactivate Static:** `POST /form/static/deactivate`
-- **E-Sign — Upload Document:** `POST /esign/document`
-- **E-Sign — Create Request:** `POST /esign`
-- **E-Sign — Status:** `GET /esign/status`
-- **Video KYC — Create User:** `POST /vkyc/user`
-- **Video KYC — Initiate:** `POST /vkyc/initiate`
-- **Video KYC — Auth Token:** `POST /vkyc/token`
-- **Video KYC — Status:** `GET /vkyc/status`
-- **1-Click Onboarding — Data Availability:** `POST /onboarding/data-availability`
-- **1-Click Onboarding — OAuth:** `POST /onboarding/oauth`
-- **1-Click Onboarding — Access Token:** `POST /onboarding/token`
-- **1-Click Onboarding — Fetch User:** `GET /onboarding/user`
+- **KYC Links — Static:** `POST /form/static-link`
+- **KYC Links — Status:** via the `KYC_LINK_*` webhook (no dedicated status GET endpoint)
+- **E-Sign — Upload Document:** `POST /esignature/document`
+- **E-Sign — Create Request:** `POST /esignature`
+- **E-Sign — Status:** via the `E_SIGN_VERIFICATION_*` webhook
+- **Video KYC — Create User:** `POST /user`
+- **Video KYC — Initiate:** `POST /vkyc`
+- **Video KYC — Auth Token (to init the SDK):** `POST /oauth/token`
+- **Video KYC — Status:** via the `VKYC_*` webhook
+- **1-Click Onboarding — Data Availability:** `POST /user/data-availability`
+- **1-Click Onboarding — Initiate OAuth:** `POST /oauth2/session`
+- **1-Click Onboarding — Access Token:** `POST /oauth2/generate-token`
+- **1-Click Onboarding — Fetch User Details:** `GET /oauth2/user-details`
 
 ### Advanced Services
 
-- **Mobile 360 — Send OTP:** `POST /mobile-360/otp`
-- **Mobile 360 — Verify OTP:** `POST /mobile-360/verify` — Returns: personal details, bank account, UAN employment, PAN, credit score, risk intelligence, mobile intelligence
-- **Advanced Employment:** `POST /employment` — Employment details, joining/exit date, Aadhaar linkage
+- **Mobile 360 — Send OTP:** `POST /mobile360/otp/send`
+- **Mobile 360 — Verify OTP:** `POST /mobile360/otp/verify` — Returns: personal details, bank account, UAN employment, PAN, credit score, risk intelligence, mobile intelligence
+- **Advanced Employment:** `POST /advance-employment` — Employment details, joining/exit date, Aadhaar linkage
 - **Account Aggregator — Request Consent:** `POST /aa/consent`
-- **Account Aggregator — Consent Status:** `GET /aa/consent/status`
-- **Account Aggregator — Request Financial Info:** `POST /aa/fi/request`
-- **Account Aggregator — Fetch Financial Info:** `GET /aa/fi/fetch`
-- **Geocoding:** `POST /geocoding` — Address to coordinates
+- **Account Aggregator — Request Financial Info:** `POST /aa/fi`
+- **Account Aggregator — Consent / FI status:** via the `AA_CONSENT_VERIFICATION_*` webhook
 - **Reverse Geocoding:** `POST /reverse-geocoding` — Coordinates to readable location
 - **IP Verification:** `POST /ip` — IP address details for location-based authentication
 

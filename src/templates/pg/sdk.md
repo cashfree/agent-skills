@@ -54,27 +54,31 @@ description: >
 
 ### API Version
 
-Every current PG SDK supports **two call styles**, and the style decides whether you pass `x-api-version` per call:
+**The current SDK majors (Node, Python v5+, Java v5+/6.x, Go v6, PHP v6, .NET v5) all use the same call style: build a client instance with credentials, then call methods WITHOUT a version argument.** The instance carries the version; you do not pass `x-api-version` per call.
 
-- **Instance style (recommended)** — build a client with credentials, then call methods **without** a version argument; the SDK supplies its bundled default. Offered by **Node, Python, Java, Go, and .NET** — e.g. `new Cashfree(Cashfree.SANDBOX, id, secret)` → `cashfree.PGCreateOrder(request)` (Node); `Cashfree(XEnvironment=…, XClientId=…, XClientSecret=…)` → `cashfree.PGCreateOrder(request, None, None)` (Python).
-- **Static / legacy style** — set credentials on the class (`Cashfree.XClientId = …`) and pass the version as the **first positional argument of every method** (`cashfree.PGCreateOrder("2023-08-01", request, …)`). Still supported in the current majors, and it is the **only** style PHP documents (`$cashfree->PGCreateOrder($x_api_version, $request)`).
+- **Node:** `new Cashfree(CFEnvironment.SANDBOX, id, secret)` → `cashfree.PGCreateOrder(request)`
+- **Python:** `Cashfree(XEnvironment=Cashfree.SANDBOX, XClientId=id, XClientSecret=secret)` → `cashfree.PGCreateOrder(request, None, None)`
+- **Java:** `new Cashfree(Cashfree.SANDBOX, id, secret, null, null, null)` → `cashfree.PGCreateOrder(request, null, null, null)`
+- **PHP:** `new \Cashfree\Cashfree(\Cashfree\Cashfree::$SANDBOX, id, secret, "", "", "", true)` → `$cashfree->PGCreateOrder($request)`
+- **.NET:** `new Cashfree(Cashfree.SANDBOX, id, secret, null, null, null, null)` → `cashfree.PGCreateOrder(request, null, null, null)`
 
-**Bundled default vs published version — pin if it matters.** The current Node/Python/Go SDK source hardcodes `x-api-version = "2026-01-01"` as its internal default. But the latest **published** REST API version is **`2025-01-01` (v5)** — `2026-01-01` is not in Cashfree's public docs / OpenAPI / version switcher. If your code depends on the documented v5 response contract, pin the version explicitly (instance style: set `XApiVersion`, e.g. `cashfree.XApiVersion = "2025-01-01"` on Node; legacy style: pass `"2025-01-01"` as the first arg). See the `changelog` skill → `references/pg-api-versions.md` for the full reconciliation.
+> **Legacy (pre-v5) style — do not use on current SDKs.** Older SDK majors set credentials statically (`Cashfree.XClientId = …`) and passed the API version as the **first positional argument of every method** (`cashfree.PGCreateOrder("2023-08-01", request, …)` / `$cashfree->PGCreateOrder($x_api_version, $request)`). Current-major method signatures do **not** accept that leading version argument — calling it that way will not compile. If you see version-first examples, they target an SDK below v5.
 
-#### Pinning a specific API version (or using an older SDK that requires it)
+**Bundled default vs published version — pin if it matters.** The current SDK source hardcodes `x-api-version = "2026-01-01"` as its internal default. But the latest **published** REST API version is **`2025-01-01` (v5)** — `2026-01-01` is not in Cashfree's public docs / OpenAPI / version switcher. If your code depends on the documented v5 response contract, pin the version explicitly by setting the client's `XApiVersion` before making calls:
 
-In the static/legacy style, pass the version as the **first positional argument of every method** — not just `PGCreateOrder`. Be consistent across the whole file, or some calls will succeed and others will throw a missing-version error.
-
-```python
-# legacy / version-pinned style — version FIRST on every method
-cashfree_client.PGCreateOrder('2025-01-01', payload)
-cashfree_client.PGFetchOrder('2025-01-01', order_id)
-cashfree_client.PGOrderFetchPayments('2025-01-01', order_id)
-cashfree_client.PGOrderFetchRefund('2025-01-01', order_id, refund_id)
-cashfree_client.PGOrderFetchRefunds('2025-01-01', order_id)
+```javascript
+// Node
+const cashfree = new Cashfree(CFEnvironment.SANDBOX, id, secret);
+cashfree.XApiVersion = "2025-01-01";   // pin to the published v5 contract
 ```
 
-Mixing styles in the same file (some calls with `'2025-01-01'`, others without) is a common bug. Pick **one** style per client: either pass the version to every method, or use the instance style and omit it everywhere.
+```java
+// Java
+Cashfree cashfree = new Cashfree(Cashfree.SANDBOX, id, secret, null, null, null);
+cashfree.XApiVersion = "2025-01-01";   // public field, default "2026-01-01"
+```
+
+See the `changelog` skill → `references/pg-api-versions.md` for the full reconciliation.
 
 ---
 
@@ -115,11 +119,15 @@ cashfree = Cashfree(
 </dependency>
 ```
 ```java
-import com.cashfree.*;
+import com.cashfree.pg.*;
 
-Cashfree.XClientId = "<app_id>";
-Cashfree.XClientSecret = "<secret_key>";
-Cashfree.XEnvironment = Cashfree.SANDBOX; // or Cashfree.PRODUCTION
+Cashfree cashfree = new Cashfree(
+    Cashfree.SANDBOX,            // or Cashfree.PRODUCTION
+    "<app_id>",
+    "<secret_key>",
+    null, null, null             // partner api key, partner merchant id, client signature
+);
+// cashfree.XApiVersion defaults to "2026-01-01" — set to "2025-01-01" to pin the published v5 contract.
 ```
 
 **Go (v6+):**
@@ -138,11 +146,13 @@ cashfree := cashfreepg.Cashfree{
 
 **PHP:**
 ```php
-use Cashfree\Cashfree;
-
-Cashfree::$XClientId = "<app_id>";
-Cashfree::$XClientSecret = "<secret_key>";
-Cashfree::$XEnvironment = Cashfree::$SANDBOX; // or Cashfree::$PRODUCTION
+$cashfree = new \Cashfree\Cashfree(
+    \Cashfree\Cashfree::$SANDBOX,   // or \Cashfree\Cashfree::$PRODUCTION
+    "<app_id>",
+    "<secret_key>",
+    "", "", "",                     // partner api key, partner merchant id, client signature
+    true                            // enable error analytics
+);
 ```
 
 **.NET:**
@@ -150,9 +160,12 @@ Cashfree::$XEnvironment = Cashfree::$SANDBOX; // or Cashfree::$PRODUCTION
 using cashfree_pg.Client;
 using cashfree_pg.Model;
 
-Cashfree.XClientId = "<app_id>";
-Cashfree.XClientSecret = "<secret_key>";
-Cashfree.XEnvironment = Cashfree.SANDBOX; // or Cashfree.PRODUCTION
+var cashfree = new Cashfree(
+    Cashfree.SANDBOX,               // or Cashfree.PRODUCTION
+    "<app_id>",
+    "<secret_key>",
+    null, null, null, null          // partner api key, partner merchant id, client signature, OAuth token
+);
 ```
 
 ---
@@ -259,8 +272,8 @@ public OrderEntity createOrder() throws Exception {
     request.setCustomerDetails(customerDetails);
     request.setOrderMeta(orderMeta);
 
-    Cashfree cashfree = new Cashfree();
-    ApiResponse<OrderEntity> response = cashfree.PGCreateOrder("2025-01-01", request, null, null, null);
+    Cashfree cashfree = new Cashfree(Cashfree.SANDBOX, "<app_id>", "<secret_key>", null, null, null);
+    ApiResponse<OrderEntity> response = cashfree.PGCreateOrder(request, null, null, null);
     return response.getData();
 }
 ```
@@ -306,8 +319,8 @@ function createOrder() {
     $request->setOrderCurrency("INR");
     $request->setCustomerDetails($customerDetails);
 
-    $cashfree = new Cashfree();
-    return $cashfree->PGCreateOrder("2025-01-01", $request);
+    $cashfree = new \Cashfree\Cashfree(\Cashfree\Cashfree::$SANDBOX, "<app_id>", "<secret_key>", "", "", "", true);
+    return $cashfree->PGCreateOrder($request);
 }
 ```
 </details>
@@ -316,7 +329,7 @@ function createOrder() {
 <summary>.NET</summary>
 
 ```csharp
-public async Task<OrderEntity> CreateOrder() {
+public OrderEntity CreateOrder() {
     var customerDetails = new CustomerDetails(
         customerId: "customer_123",
         customerPhone: "9999999999"
@@ -326,7 +339,8 @@ public async Task<OrderEntity> CreateOrder() {
         orderCurrency: "INR",
         customerDetails: customerDetails
     );
-    var response = await Cashfree.PGCreateOrder("2025-01-01", request);
+    var cashfree = new Cashfree(Cashfree.SANDBOX, "<app_id>", "<secret_key>", null, null, null, null);
+    var response = cashfree.PGCreateOrder(request, null, null, null);
     return response.Data;
 }
 ```
@@ -362,8 +376,8 @@ print(response.data.order_status)
 
 ```java
 // Java
-Cashfree cashfree = new Cashfree();
-ApiResponse<OrderEntity> response = cashfree.PGFetchOrder("2025-01-01", orderId, null, null, null);
+Cashfree cashfree = new Cashfree(Cashfree.SANDBOX, "<app_id>", "<secret_key>", null, null, null);
+ApiResponse<OrderEntity> response = cashfree.PGFetchOrder(orderId, null, null, null);
 System.out.println(response.getData().getOrderStatus());
 ```
 

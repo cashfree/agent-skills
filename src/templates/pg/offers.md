@@ -57,7 +57,7 @@ Same PG base URLs, same headers: `x-client-id`, `x-client-secret`, `x-api-versio
 |---|---|
 | Create offer | `POST /pg/offers` |
 | Fetch offer | `GET /pg/offers/{offer_id}` |
-| List offers | `GET /pg/offers` |
+| Check offers eligible for an order | `POST /pg/eligibility/offers` |
 | Attach to payment | Include `offer_id` on `POST /pg/orders/sessions` (Order Pay) |
 | Webhook — applied offer | `PAYMENT_SUCCESS_WEBHOOK` with `data.payment.payment_offers[]` |
 
@@ -97,21 +97,23 @@ POST /pg/offers
         "max_allowed": 1000,
         "payment_method": {
             "card": {
-                "type": "cc",
-                "bank_name": "hdfc",
-                "scheme_name": "visa"
+                "type": ["cc"],
+                "bank_name": "hdfc bank",
+                "scheme_name": ["visa"]
             }
         }
     }
 }
 ```
 
+> `card.type` and `card.scheme_name` are **arrays**, and `type` / `bank_name` / `scheme_name` are **all required** when you use a `card` filter.
+
 **Required:**
 
 - `offer_meta.offer_title` (3–50 chars), `offer_description` (3–100), `offer_code` (1–45, unique), `offer_start_time`, `offer_end_time` (ISO-8601).
 - `offer_tnc.offer_tnc_type` (`text` or `link`) + `offer_tnc_value` (≤ 100 chars — link to full T&Cs if `link`).
 - `offer_details.offer_type` and the matching `discount_details` / `cashback_details`.
-- `offer_validations.min_amount`, `max_allowed` (per-transaction cap), `payment_method` (exactly one filter; use `{"all":{}}` to match everything).
+- `offer_validations.max_allowed` (per-transaction cap) and `payment_method` (exactly one filter; use `{"all":{}}` to match everything). `min_amount` is optional.
 
 **Response:** returns the `offer_id` (UUID). Store it; you'll reference it at checkout.
 
@@ -128,18 +130,12 @@ POST /pg/offers
 
 ### Step 2 — Surface eligible offers to the customer (optional)
 
-Fetch `GET /pg/offers` and render the active ones on your checkout:
+There is **no "list all offers" endpoint** (and no `PGFetchOffers()` SDK method). Two options:
 
-```javascript
-const offers = await cashfree.PGFetchOffers();
-const eligible = offers.data.filter(o =>
-    o.offer_status === "active" &&
-    order.order_amount >= o.offer_validations.min_amount &&
-    matchesPaymentMethod(o, customer.selectedMethod)
-);
-```
+1. **Track the `offer_id`s you create** (store each when you `POST /pg/offers`) and read current state with `GET /pg/offers/{offer_id}` — that's the source of truth for an offer.
+2. **Surface offers eligible for a specific order** via the eligibility API — `POST /pg/eligibility/offers` (order amount + payment context in the body); it returns the offers that apply, ready to render.
 
-Show the offer's `offer_title` and `offer_description` and let the customer "apply" the offer (or auto-pick the best).
+Show each offer's `offer_title` / `offer_description` and let the customer "apply" one (or auto-pick the best).
 
 ### Step 3 — Attach the offer at payment
 
@@ -210,7 +206,7 @@ No-cost EMI is **not** a separate payment method. It is the combination of:
         "payment_method": {
             "emi": {
                 "type": "credit_card_emi",
-                "issuer": "hdfc",
+                "issuer": "hdfc bank",
                 "tenures": [3, 6]
             }
         }
@@ -264,7 +260,7 @@ If you don't surface the distinction, customers often blame you later for being 
 | `offer_applied: FAILED` in webhook | Eligibility check failed at payment time | Inspect `offer_ineligibility_reason`; tighten UI to only show eligible offers |
 | Customer picks no-cost EMI tenure but still charged interest | Offer not attached at payment | Attach `offer_id` at EMI checkout step, not just at offer-selection step |
 | Discount missing from settlement | Offer attached but webhook showed FAILED | Refund customer the expected discount as goodwill; investigate eligibility |
-| Offer visible in API list but not in Dashboard | Offer in different state or merchant view cache | `GET /pg/offers/{id}` is source of truth; refresh Dashboard |
+| Offer state stale vs Dashboard | Merchant view cache | `GET /pg/offers/{id}` is the source of truth; refresh Dashboard |
 | Multiple offers applying simultaneously | Passing multiple `offer_id`s | Only one offer per payment (unless stackable — confirm with Cashfree) |
 | No-cost EMI shows interest on customer statement | Bank-side delay in interest reversal | Normal — bank charges interest upfront, Cashfree settles the reversal next cycle; disclose to customer |
 

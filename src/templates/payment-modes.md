@@ -34,32 +34,35 @@ For **production**, replace the host with `https://api.cashfree.com`. Everything
 
 ### What the response looks like
 
+The response is a **top-level JSON array** (there is no `{ "entity": ..., "data": [...] }` wrapper):
+
 ```json
-{
-  "entity": "eligibility",
-  "data": [
-    {
-      "entity_type": "payment_methods",
-      "entity_value": "upi",
-      "eligibility": true,
-      "entity_details": { "display_name": "UPI" }
-    },
-    {
-      "entity_type": "payment_methods",
-      "entity_value": "card",
-      "eligibility": true,
-      "entity_details": { "display_name": "Cards" }
-    },
-    {
-      "entity_type": "payment_methods",
-      "entity_value": "paylater",
-      "eligibility": false
+[
+  {
+    "eligibility": true,
+    "entity_type": "payment_methods",
+    "entity_value": "upi"
+  },
+  {
+    "eligibility": true,
+    "entity_type": "payment_methods",
+    "entity_value": "netbanking",
+    "entity_details": {
+      "payment_method_details": [
+        { "nick": "hdfc_bank", "display": "HDFC Bank", "eligibility": true, "code": 3021 },
+        { "nick": "sbi", "display": "State Bank of India", "eligibility": true, "code": 3044 }
+      ]
     }
-  ]
-}
+  },
+  {
+    "eligibility": false,
+    "entity_type": "payment_methods",
+    "entity_value": "paylater"
+  }
+]
 ```
 
-Each row's `eligibility: true|false` tells you whether that method is enabled on the merchant account for the supplied `amount`. Filter `data[]` where `eligibility === true` to get the enabled list.
+Each element's `eligibility: true|false` tells you whether that method is enabled on the merchant account for the supplied `amount`. Iterate the **response array** and keep elements where `eligibility === true`. Where present, `entity_details.payment_method_details[]` enumerates the sub-options (e.g. banks for `netbanking`), each with `nick`, `display`, `eligibility`, and `code` — there is no `entity_details.display_name` field.
 
 ### Common variants
 

@@ -343,7 +343,8 @@ app.post("/webhook",
             case "PAYMENT_FAILED_WEBHOOK":        handleFailure(event.data);    break;
             case "PAYMENT_USER_DROPPED_WEBHOOK":  handleDropped(event.data);    break;
             case "REFUND_STATUS_WEBHOOK":         handleRefund(event.data);     break;
-            case "SETTLEMENT_WEBHOOK":            handleSettlement(event.data); break;
+            case "SETTLEMENT_SUCCESS":            handleSettlement(event.data); break;
+            // other settlement events: SETTLEMENT_INITIATED / SETTLEMENT_FAILED / SETTLEMENT_REVERSED
         }
         res.sendStatus(200); // always 200, always quickly; process async if slow
     });
@@ -359,7 +360,7 @@ app.post("/webhook",
 | callback `status = failure` | → | `PAYMENT_FAILED_WEBHOOK` |
 | `unmappedstatus = userCancelled` / abandonment | → | `PAYMENT_USER_DROPPED_WEBHOOK` |
 | refund S2S / `cancel_refund_transaction` result | → | `REFUND_STATUS_WEBHOOK` (check `data.refund.refund_status`) |
-| settlement report | → | `SETTLEMENT_WEBHOOK` |
+| settlement report | → | `SETTLEMENT_SUCCESS` (also `SETTLEMENT_INITIATED` / `SETTLEMENT_FAILED` / `SETTLEMENT_REVERSED`) |
 | dispute / chargeback notification | → | `DISPUTE_*` events (see `pg/disputes/SKILL.md`) |
 | SI / mandate events | → | See `subscriptions/SKILL.md` (different event names) |
 

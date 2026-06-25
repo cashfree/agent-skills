@@ -178,7 +178,7 @@ status = response.data.order_status
 
 ```java
 // Java backend
-ApiResponse<OrderEntity> response = cashfree.PGFetchOrder("2025-01-01", orderId, null, null, null);
+ApiResponse<OrderEntity> response = cashfree.PGFetchOrder(orderId, null, null, null);
 String status = response.getData().getOrderStatus(); // "PAID"
 ```
 

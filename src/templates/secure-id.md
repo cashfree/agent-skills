@@ -47,8 +47,11 @@ Cashfree Secure ID is a comprehensive identity verification and fraud prevention
 ```
 X-Client-Id: <YOUR_CLIENT_ID>
 X-Client-Secret: <YOUR_CLIENT_SECRET>
+x-api-version: 2024-12-01
 Content-Type: application/json
 ```
+
+> **`x-api-version: 2024-12-01` is required on every current (v2) Secure ID call.** A few legacy PAN-era endpoints also accept `2022-10-26`. Send it on every request — the examples below include it.
 
 ### Optional Headers
 
@@ -68,6 +71,7 @@ Use `X-Client-Id` and `X-Client-Secret` headers directly with every API request.
 curl -X POST 'https://sandbox.cashfree.com/verification/pan' \
   -H 'X-Client-Id: <CLIENT_ID>' \
   -H 'X-Client-Secret: <CLIENT_SECRET>' \
+  -H 'x-api-version: 2024-12-01' \
   -H 'Content-Type: application/json' \
   -d '{ "pan": "ABCPV1234D" }'
 ```
@@ -129,6 +133,7 @@ public static function getSignature() {
 curl -X POST 'https://sandbox.cashfree.com/verification/bank-account/sync' \
   -H 'X-Client-Id: <CLIENT_ID>' \
   -H 'X-Client-Secret: <CLIENT_SECRET>' \
+  -H 'x-api-version: 2024-12-01' \
   -H 'Content-Type: application/json' \
   -d '{
     "bank_account": "026291800001191",
@@ -138,7 +143,7 @@ curl -X POST 'https://sandbox.cashfree.com/verification/bank-account/sync' \
   }'
 ```
 
-**Async — `POST /bank-account/async`** (use for bulk / high volume) — the POST returns only an **acknowledgement** with a `reference_id`, **not** the verification outcome. The final result arrives via webhook (`BANK_ACCOUNT_VERIFICATION_SUCCESS` / `_REJECTED` / `_FAILED`) or by polling `GET /bank-account/status?reference_id=...`.
+**Async — `POST /bank-account/async`** (use for bulk / high volume) — the POST returns only an **acknowledgement** with a `reference_id`, **not** the verification outcome. The final result arrives via webhook (`BANK_ACCOUNT_VERIFICATION_SUCCESS` / `_REJECTED` / `_FAILED`) or by polling `GET /bank-account?reference_id=...`.
 
 > ⚠️ **Async result trap:** never treat the async submission response as the final verification result — it only confirms the request was accepted. You **must** implement a webhook handler (or poll the status endpoint) to capture the actual `account_status`. The sync endpoint above does return the result inline; the async/bulk and RPD flows do not.
 
@@ -154,6 +159,7 @@ Check PAN existence. Returns registered name and PAN type.
 curl -X POST 'https://sandbox.cashfree.com/verification/pan' \
   -H 'X-Client-Id: <CLIENT_ID>' \
   -H 'X-Client-Secret: <CLIENT_SECRET>' \
+  -H 'x-api-version: 2024-12-01' \
   -H 'Content-Type: application/json' \
   -d '{
     "pan": "ABCPV1234D",
@@ -174,6 +180,7 @@ Verify GSTIN and retrieve business registration details.
 curl -X POST 'https://sandbox.cashfree.com/verification/gstin' \
   -H 'X-Client-Id: <CLIENT_ID>' \
   -H 'X-Client-Secret: <CLIENT_SECRET>' \
+  -H 'x-api-version: 2024-12-01' \
   -H 'Content-Type: application/json' \
   -d '{
     "GSTIN": "29AAICP2912R1ZR",
@@ -187,10 +194,10 @@ curl -X POST 'https://sandbox.cashfree.com/verification/gstin' \
 ## 6. DigiLocker Integration Flow
 
 1. **Verify Account** (`POST /digilocker/verify-account`) — Check if Aadhaar/mobile is linked with DigiLocker
-2. **Create URL** (`POST /digilocker/url`) — Generate time-sensitive consent URL (valid **10 minutes**)
+2. **Create URL** (`POST /digilocker`) — Generate time-sensitive consent URL (valid **10 minutes**)
 3. **Redirect** — User logs in with Aadhaar/mobile, enters OTP, approves consent
-4. **Get Status** (`GET /digilocker/status`) — Check verification status
-5. **Get Document** (`GET /digilocker/document`) — Fetch verified documents (Aadhaar, PAN, DL)
+4. **Get Document** (`GET /digilocker/document/{document_type}`) — Fetch a verified document (Aadhaar, PAN, DL)
+5. **Status** — delivered via the `DIGILOCKER_VERIFICATION_*` webhook (there is no `GET /digilocker/status` endpoint)
 
 > DigiLocker flow in Sandbox requires **real Aadhaar numbers** — mock details are not supported.
 

@@ -4,7 +4,7 @@ description: >
   Deep reference for Cashfree settlements and reconciliation. Full field-level schema for the
   Settlement Reconciliation API, every event_type / sale_type / event_status value, endpoint rate
   limits, per-language SDK code for PGFetchSettlements / PGOrderFetchSettlement /
-  PGSettlementReconciliation / PGPaymentReconciliation, a sample idempotent reconciler,
+  PGSettlementFetchRecon / PGFetchRecon, a sample idempotent reconciler,
   and troubleshooting for fees, TDS, and fund-sweep adjustments. Read after SKILL.md.
 ---
 
@@ -18,10 +18,10 @@ description: >
 
 | Method | Path | Purpose | SDK method |
 |---|---|---|---|
-| GET | `/pg/settlements` | List settlements with filters | `PGFetchSettlements` |
+| POST | `/pg/settlements` | List settlements with filters (body = `FetchSettlementsRequest`) | `PGFetchSettlements` |
 | GET | `/pg/orders/{order_id}/settlements` | Settlements for one order | `PGOrderFetchSettlement` |
-| POST | `/pg/settlement/recon` | Event-level breakdown of one or more settlements | `PGSettlementReconciliation` |
-| POST | `/pg/recon` | Transaction-level recon by date range | `PGPaymentReconciliation` |
+| POST | `/pg/settlement/recon` | Event-level breakdown of one or more settlements | `PGSettlementFetchRecon` |
+| POST | `/pg/recon` | Transaction-level recon by date range | `PGFetchRecon` |
 
 All endpoints: `x-client-id`, `x-client-secret`, `x-api-version: 2025-01-01`, `Content-Type: application/json`.
 
@@ -31,7 +31,7 @@ Settlements endpoints are rate-limited **per account**. See `pg/apis/references/
 
 | Endpoint | Limit / min |
 |---|---|
-| `GET /pg/settlements` | 30 |
+| `POST /pg/settlements` | 30 |
 | `GET /pg/orders/{id}/settlements` | 30 |
 | `POST /pg/settlement/recon` | 30 |
 | `POST /pg/recon` | 30 |
@@ -175,7 +175,7 @@ Sandbox limits are ~20/min. Respect `x-ratelimit-retry` on 429 responses; back o
 
 ## 3. List Settlements — Response Fields
 
-`GET /pg/settlements` returns an array of settlement objects (not recon rows). Each settlement:
+`POST /pg/settlements` returns an array of settlement objects (not recon rows). Each settlement:
 
 | Field | Type | Notes |
 |---|---|---|
@@ -216,9 +216,9 @@ const res = await cashfree.PGFetchSettlements({
 });
 
 // Recon events for one settlement
-const recon = await cashfree.PGSettlementReconciliation({
+const recon = await cashfree.PGSettlementFetchRecon({
     pagination: { limit: 1000, cursor: null },
-    filters: { cf_settlement_ids: [12345] },
+    filters: { cf_settlement_ids: ["12345"] },
 });
 
 // Order-scoped settlements
@@ -229,7 +229,7 @@ const orderSettles = await cashfree.PGOrderFetchSettlement(orderId);
 
 ```python
 from cashfree_pg.api_client import Cashfree
-from cashfree_pg.models.settlement_fetch_request import SettlementFetchRequest
+from cashfree_pg.models.settlement_fetch_recon_request import SettlementFetchReconRequest
 from cashfree_pg.models.fetch_settlements_request import FetchSettlementsRequest
 
 cashfree = Cashfree(
@@ -243,22 +243,23 @@ res = cashfree.PGFetchSettlements(FetchSettlementsRequest(
     filters={"start_date": "2026-04-01T00:00:00+05:30", "end_date": "2026-04-30T23:59:59+05:30"},
 ), None, None)
 
-recon = cashfree.PGSettlementReconciliation(SettlementFetchRequest(
+recon = cashfree.PGSettlementFetchRecon(SettlementFetchReconRequest(
     pagination={"limit": 1000, "cursor": None},
-    filters={"cf_settlement_ids": [12345]},
+    filters={"cf_settlement_ids": ["12345"]},
 ), None, None)
 ```
 
 ### Java
 
 ```java
-Cashfree cashfree = new Cashfree();
+Cashfree cashfree = new Cashfree(Cashfree.SANDBOX, "<app_id>", "<secret_key>", null, null, null);
 FetchSettlementsRequest req = new FetchSettlementsRequest();
 req.setPagination(new PaginationForSettlements().limit(100).cursor(null));
 req.setFilters(new FetchSettlementsFilters()
         .startDate("2026-04-01T00:00:00+05:30")
         .endDate("2026-04-30T23:59:59+05:30"));
-var res = cashfree.PGFetchSettlements("2025-01-01", req, null, null, null);
+// signature: PGFetchSettlements(request, contentType, xRequestId, xIdempotencyKey, accept, httpClient)
+var res = cashfree.PGFetchSettlements(req, null, null, null, null, null);
 ```
 
 ### Go (v6+)
@@ -315,7 +316,7 @@ def pull_settlements_since(iso_from, iso_to):
 def pull_recon_for(cf_settlement_id):
     cursor = None
     while True:
-        res = cashfree.PGSettlementReconciliation({
+        res = cashfree.PGSettlementFetchRecon({
             "pagination": {"limit": 1000, "cursor": cursor},
             "filters": {"cf_settlement_ids": [cf_settlement_id]},
         }, None, None)
@@ -366,7 +367,7 @@ Pagination identical to settlement recon.
 |---|---|
 | "Show me every payment captured yesterday, even if unsettled" | `POST /pg/recon` |
 | "Show me every rupee in each settlement line-by-line" | `POST /pg/settlement/recon` |
-| "What's the net payout in my bank this week?" | `GET /pg/settlements` |
+| "What's the net payout in my bank this week?" | `POST /pg/settlements` (date filters in the body) |
 | "Why was this specific order's net different from gross?" | `GET /pg/orders/{id}/settlements` + recon filtered by that `cf_settlement_id` |
 
 ---
@@ -378,7 +379,7 @@ Programmatic APIs cover most needs; for accountants who want scheduled CSV/XLSX 
 | Report | What it contains |
 |---|---|
 | Transactions | Every order + payment attempt in the period |
-| Settlements | Same as `GET /pg/settlements` output |
+| Settlements | Same as `POST /pg/settlements` output |
 | Settlement Recon | Same as `POST /pg/settlement/recon` output |
 | Ledger | Running balance view (for partner/platform accounts) |
 | Refunds | Every refund with processed speed + status |
@@ -395,7 +396,7 @@ Each report supports: one-off download, daily/weekly schedule to email, or SFTP 
 
 - Check **Dashboard → PG → Developers → Webhooks → Logs**; the delivery may have failed (non-200 or timeout) and be in retry.
 - Use **Batch Resend** to replay from the Dashboard. Your handler must be idempotent — see §5.
-- Fall back to `GET /pg/settlements?settlement_utrs=<UTR_FROM_BANK>` to fetch by UTR directly.
+- Fall back to `POST /pg/settlements` with `filters.settlement_utrs: ["<UTR_FROM_BANK>"]` in the body to fetch by UTR directly.
 
 ### "A payment captured last week isn't in any settlement yet"
 

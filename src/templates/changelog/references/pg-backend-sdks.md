@@ -26,23 +26,22 @@ description: >
 | PHP | Packagist `cashfree/cashfree-pg` | **6.0.5** | 6.0.5 | No (caveat: 6.0.1 published *later* with a broader PHP range — see PHP §) |
 | .NET | NuGet `cashfree_pg` | **5.0.6** | 6.0.7 | **Yes (major)** — no 6.x on NuGet at all |
 
-### The `x-api-version` argument — per *call style*, not per language
+### The `x-api-version` argument — version-less on every current major
 
-Every current SDK documents **two call styles** (verified from each repo's README at its current published tag):
+**The current SDK majors (v5+/v6) all use the instance / version-less call style:** construct a client with credentials, then call methods **without** a leading version argument (the client carries the version; pin it via the `XApiVersion` field). This holds for **Node, Python, Java, Go, .NET, and PHP** — verified against each repo's source/README at its current published tag.
 
-- **Static / legacy style** — set credentials on the class, pass the version as the **first positional argument** of every method (`PGCreateOrder("2023-08-01", request, …)`). Available in **all** SDKs.
-- **Instance style** — construct a client with credentials, then call methods **without** the version arg (the SDK uses its bundled default). Available in **Node, Python, Java, Go, .NET** (introduced in the 5.0 line). **PHP does not document an instance-credential constructor — version-first is its only style.**
+The **version-first** style (`PGCreateOrder("2023-08-01", request, …)` — credentials set statically) is the **pre-v5 legacy** style. Each README still documents it, but under a "**Version < 5**" section for users on old majors; the current majors' method signatures do **not** accept the leading version argument (e.g. Java 6.0.2's `Cashfree.java` exposes only `PGCreateOrder(request, …)`).
 
-| Lang | Instance style (omits version)? | Since | Static/legacy (version-first) still available? |
+| Lang | Current-major call style | Pin the version via | Version-first (pre-v5) |
 |---|---|---|---|
-| Node | Yes — `new Cashfree(env,id,secret)` → `PGCreateOrder(request)` | 5.0.0 | Yes |
-| Python | Yes — `Cashfree(XClientId=…)` → `PGCreateOrder(req, None, None)` | 5.0.x | Yes |
-| Java | Yes — `new Cashfree(id,secret,…)` → `PGCreateOrder(request, …)` | 5.0.0 | Yes |
-| Go | Yes — `PGCreateOrder(&request, …)` | v5.0.0 | Yes |
-| .NET | Yes — `new Cashfree(env,id,secret,…)` → `PGCreateOrder(req, …)` | 5.0.0 | Yes |
-| **PHP** | **No** — only `$cashfree->PGCreateOrder($x_api_version, $request)` | — | Yes (it's the only style) |
+| Node | `new Cashfree(env,id,secret)` → `PGCreateOrder(request)` | `cashfree.XApiVersion = "…"` | < 5 only |
+| Python | `Cashfree(XClientId=…)` → `PGCreateOrder(req, None, None)` | `XApiVersion` | < 5 only |
+| Java | `new Cashfree(env,id,secret,null,null,null)` → `PGCreateOrder(request, …)` | `cashfree.XApiVersion = "…"` | < 5 only |
+| Go | `PGCreateOrder(&request, …)` | client config | < v5 only |
+| .NET | `new Cashfree(env,id,secret,null,null,null,null)` → `PGCreateOrder(req, …)` | client field | < 5 only |
+| PHP | `new \Cashfree\Cashfree($SANDBOX,id,secret,"","","",true)` → `$cashfree->PGCreateOrder($request)` | — | < 5 only |
 
-> ✅ Verified against live READMEs (2026-06-23). The instance style omits the version, so a no-version Python call is correct; **PHP documents only the version-first style.**
+> ✅ Verified against live SDK source + READMEs (as-of 2026-06-25). All current majors are version-less; **PHP v6 also exposes the instance constructor**, so a no-version call is correct on every current major.
 
 ### Minimum runtime
 
@@ -121,19 +120,19 @@ Every language's 4.0.0 carries the identical note *"SDK now supports our new ver
 | 3.2.12 | 2024-01-29 | No | Last 3.x (legacy) |
 
 ### Python `cashfree-pg` 5.0.x — 2026-01-21 (PyPI 5.0.5)
-- **Type:** Breaking (additive — new call style)
-- **Breaking?:** Yes — adds the instance-constructor style.
-- **What changed:** v4 used static class config (`Cashfree.XClientId=…`) + `Cashfree().PGCreateOrder(x_api_version, req, None, None)`. v5+ adds a configured instance: `cashfree = Cashfree(XEnvironment=…, XClientId=…, XClientSecret=…)` then `cashfree.PGCreateOrder(req, None, None)` — **instance-style calls omit the version**. The legacy static style (version as the first arg) still works at 6.x.
-- **What to fix (your code):** pick one style. Modern: build a `Cashfree(...)` instance and drop the version arg. Legacy: keep static config and pass `x_api_version` first on **every** method. Don't mix the two.
+- **Type:** Breaking (call-style change)
+- **Breaking?:** Yes — the call style changed.
+- **What changed:** v4 used static class config (`Cashfree.XClientId=…`) + `Cashfree().PGCreateOrder(x_api_version, req, None, None)` (version first). v5+ switches to a configured instance: `cashfree = Cashfree(XEnvironment=…, XClientId=…, XClientSecret=…)` then `cashfree.PGCreateOrder(req, None, None)` — **version-less** (verified against `cashfree_pg/api_client.py`: `def PGCreateOrder(self, create_order_request=None, …)`, version taken from `self.XApiVersion`). The v5+ method signature has **no leading version argument**; the README shows the version-first call only under its "Version < 5" section for users still on v4.
+- **What to fix (your code):** migrate to the instance constructor and **drop the version first-arg** from every method. To pin the published v5 contract, set `cashfree.XApiVersion = "2025-01-01"`.
 - **What to test:** order create/fetch; that the instance carries credentials; webhook verification.
-- **Backward compat:** Python ≥ 3.9; min API version `2023-08-01`; legacy static calls remain source-compatible (the instance constructor is additive).
+- **Backward compat:** Python ≥ 3.9; min API version `2023-08-01`; **not source-compatible with v4 version-first calls** — the version-first signature is gone in v5+.
 - **Source:** https://github.com/cashfree/cashfree-pg-sdk-python (README @ 6.0.1 — both styles shown) · https://pypi.org/project/cashfree-pg/ — as-of 2026-06-23
 
 ### Python `cashfree-pg` 6.0.x — 2026-05-18 (PyPI 6.0.1)
 - **Type:** Breaking (major)
 - **Breaking?:** Yes — regenerated against the `2026-01-01` spec.
-- **What changed:** new spec models; SDK default `x-api-version` = `2026-01-01`. `x_api_version` first-arg convention unchanged.
-- **What to fix (your code):** bump to `cashfree-pg>=6,<7`; keep the `x_api_version` first arg; re-run tests; decide pin `2025-01-01` vs SDK default `2026-01-01`.
+- **What changed:** new spec models; SDK default `x-api-version` = `2026-01-01`. Call style is unchanged from 5.x — still the **version-less instance** style.
+- **What to fix (your code):** bump to `cashfree-pg>=6,<7`; re-run tests; decide pin `2025-01-01` (set `cashfree.XApiVersion`) vs the SDK default `2026-01-01`.
 - **What to test:** model (de)serialization for every method you use; webhook verification.
 - **Backward compat:** Python ≥ 3.9; call convention unchanged from 5.x. **PyPI tops at 6.0.1** — 6.0.2–6.0.5 are tagged but unpublished.
 - **Source:** https://pypi.org/project/cashfree-pg/ (6.0.1) — as-of 2026-06-23 *(field-level delta unverified — notes sparse)*
@@ -162,7 +161,7 @@ Every language's 4.0.0 carries the identical note *"SDK now supports our new ver
 ### Java 5.0.0 — ~2025-04-01
 - **Type:** Breaking
 - **Breaking?:** Yes — credential setup + call signature change.
-- **What changed:** v4: `Cashfree.XClientId=…; Cashfree cashfree = new Cashfree(); cashfree.PGCreateOrder(xApiVersion, request, …)` (version 1st arg). v5: `Cashfree cashfree = new Cashfree("<id>", "<secret>", null,null,null); cashfree.PGCreateOrder(request, null,null,null)` — **version removed**. (Legacy static style still documented as a fallback.)
+- **What changed:** v4: `Cashfree.XClientId=…; Cashfree cashfree = new Cashfree(); cashfree.PGCreateOrder(xApiVersion, request, …)` (version 1st arg). v5+: `Cashfree cashfree = new Cashfree(Cashfree.SANDBOX, "<id>", "<secret>", null,null,null); cashfree.PGCreateOrder(request, null,null,null)` — **version removed** (verified against `Cashfree.java`: only the version-less signature exists; pin via the `XApiVersion` field). The version-first call is the **pre-v5** style — the README shows it only under "Version < 5"; it will not compile against the v5+ method signatures.
 - **What to fix (your code):** pass credentials into `new Cashfree(id, secret, …)`; remove the `xApiVersion` first argument from every call.
 - **What to test:** `ApiResponse<OrderEntity>` order create/fetch; `ApiException` handling; default api-version behavior.
 - **Backward compat:** Java 8 (unchanged); min API version `2023-08-01`; not drop-in.
@@ -234,13 +233,13 @@ Module-path note: v6 requires importing `github.com/cashfree/cashfree-pg/v6` (Go
 | 4.0.0 | 2024-01-22 | **Yes** | Cut-over to new PG APIs (boundary) |
 | 3.2.12 | 2024-01-29 | No | Last 3.x (legacy) |
 
-### PHP 6.0.x — 2026-05 (major, but NOT a call-signature change)
+### PHP 6.0.x — 2026-05 (major, runtime requirement + version-less call style)
 - **Type:** Breaking (runtime requirement)
-- **Breaking?:** Yes — minimum PHP raised; **but the call signature is stable.**
-- **What changed:** PHP **never adopted the `new Cashfree(env,id,secret)` instance pattern and never dropped `x_api_version`**. Across 4.x/5.x/6.x the usage is static config `\Cashfree\Cashfree::$XClientId = …` + `$cashfree->PGCreateOrder($x_api_version, $request)` — version stays the first positional arg. The 6.0.0/6.0.5 bump mainly **raises min PHP to ^8.1** and targets a new spec.
-- **What to fix (your code):** bump your PHP runtime to 8.1+ for 6.0.0/6.0.5; **or** pin `6.0.1` to stay on PHP 7.2–8.0. Keep the `$x_api_version` first arg; update the version string as needed (`2022-09-01` → `2023-08-01`/`2025-01-01`).
+- **Breaking?:** Yes — minimum PHP raised.
+- **What changed:** Like the other v5+ SDKs, current PHP uses the **instance / version-less** style — verified against `lib/Cashfree.php` source: constructor `new \Cashfree\Cashfree($XEnvironment, $XClientId, $XClientSecret, $XPartnerApiKey, $XPartnerMerchantId, $XClientSignature, $XEnableErrorAnalytics)`, an instance field `public $XApiVersion = "2026-01-01"` for pinning, and `PGCreateOrder($create_order_request, $x_request_id = null, $x_idempotency_key = null, $http_client = null)` — **no leading `$x_api_version` argument**. The README still documents the static `\Cashfree\Cashfree::$XClientId = …` + version-first call under its "Version < 5" section for users on old majors. The 6.0.0/6.0.5 bump also **raises min PHP to ^8.1** and targets a new spec.
+- **What to fix (your code):** bump your PHP runtime to 8.1+ for 6.0.0/6.0.5 (**or** pin `6.0.1` to stay on PHP 7.2–8.0). If migrating off a pre-v5 SDK, switch to the instance constructor and **drop the `$x_api_version` first argument** from every call; pin via `$cashfree->XApiVersion = "2025-01-01"` if you need the published v5 contract.
 - **What to test:** order create/fetch; `guzzlehttp/guzzle ^7.3` satisfied; webhook handling.
-- **Backward compat:** PHP ^8.1 (6.0.0/6.0.5) or ^7.2‖^8.0 (6.0.1, ≤5.x); largely **drop-in at the call level** (signature stable); breaking only via PHP version.
+- **Backward compat:** PHP ^8.1 (6.0.0/6.0.5) or ^7.2‖^8.0 (6.0.1, ≤5.x). Within the v5+ line the call signature is stable; the version-first→version-less change is only a concern when migrating up from a pre-v5 SDK.
 - **Source:** https://github.com/cashfree/cashfree-pg-sdk-php (composer.json @ 6.0.5 vs 6.0.1) · https://packagist.org/packages/cashfree/cashfree-pg — as-of 2026-06-23
 - **Docs bug:** the README at tag 6.0.5 contains copy-pasted *JavaScript* example syntax (`Cashfree.PGCreateOrder(request).then(...)`) — a documentation error, not the actual PHP API. The 6.0.1 and 5.0.3 READMEs show the correct PHP.
 
@@ -269,7 +268,7 @@ Module-path note: v6 requires importing `github.com/cashfree/cashfree-pg/v6` (Go
 ### .NET 5.0.0 — 2025
 - **Type:** Breaking
 - **Breaking?:** Yes — credential setup + call signature change.
-- **What changed:** v4 `var cashfree = new Cashfree(); cashfree.PGCreateOrder("2022-09-01", request, null,null,null)` (version 1st arg, static creds). v5 `var cashfree = new Cashfree(Cashfree.SANDBOX, "<id>", "<secret>", null,null,null,null); cashfree.PGCreateOrder(request, null,null,null)` — **version removed**. Legacy static style still documented.
+- **What changed:** v4 `var cashfree = new Cashfree(); cashfree.PGCreateOrder("2022-09-01", request, null,null,null)` (version 1st arg, static creds). v5+ `var cashfree = new Cashfree(Cashfree.SANDBOX, "<id>", "<secret>", null,null,null,null); cashfree.PGCreateOrder(request, null,null,null)` — **version removed** (version-less instance methods; README shows version-first only under its "Version < 5" section).
 - **What to fix (your code):** use the `new Cashfree(env, id, secret, …)` constructor; remove the version first arg.
 - **What to test:** order create/fetch; exception handling; default api-version; target-framework compatibility; **TLS 1.2+ on old .NET Framework** (see `pg/backend-sdks` skill).
 - **Backward compat:** netstandard2.0/2.1, .NET FW 4.7+, .NET 6.0; min API version `2023-08-01`; not drop-in.

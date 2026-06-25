@@ -153,14 +153,12 @@ cashfree = Cashfree(
 
 ```java
 // BEFORE (Sandbox)
-Cashfree.XClientId = "TEST_xxxxxxxxxxxxx";
-Cashfree.XClientSecret = "TEST_xxxxxxxxxxxxx";
-Cashfree.XEnvironment = Cashfree.SANDBOX;
+Cashfree cashfree = new Cashfree(Cashfree.SANDBOX,
+    "TEST_xxxxxxxxxxxxx", "TEST_xxxxxxxxxxxxx", null, null, null);
 
 // AFTER (Production)
-Cashfree.XClientId = System.getenv("CASHFREE_APP_ID");
-Cashfree.XClientSecret = System.getenv("CASHFREE_SECRET_KEY");
-Cashfree.XEnvironment = Cashfree.PRODUCTION;
+Cashfree cashfree = new Cashfree(Cashfree.PRODUCTION,
+    System.getenv("CASHFREE_APP_ID"), System.getenv("CASHFREE_SECRET_KEY"), null, null, null);
 ```
 </details>
 
@@ -195,14 +193,12 @@ cashfree = cashfreepg.Cashfree{
 
 ```php
 // BEFORE (Sandbox)
-Cashfree::$XClientId = "TEST_xxxxxxxxxxxxx";
-Cashfree::$XClientSecret = "TEST_xxxxxxxxxxxxx";
-Cashfree::$XEnvironment = Cashfree::$SANDBOX;
+$cashfree = new \Cashfree\Cashfree(\Cashfree\Cashfree::$SANDBOX,
+    "TEST_xxxxxxxxxxxxx", "TEST_xxxxxxxxxxxxx", "", "", "", true);
 
 // AFTER (Production)
-Cashfree::$XClientId = $_ENV["CASHFREE_APP_ID"];
-Cashfree::$XClientSecret = $_ENV["CASHFREE_SECRET_KEY"];
-Cashfree::$XEnvironment = Cashfree::$PRODUCTION;
+$cashfree = new \Cashfree\Cashfree(\Cashfree\Cashfree::$PRODUCTION,
+    $_ENV["CASHFREE_APP_ID"], $_ENV["CASHFREE_SECRET_KEY"], "", "", "", true);
 ```
 </details>
 
@@ -211,14 +207,12 @@ Cashfree::$XEnvironment = Cashfree::$PRODUCTION;
 
 ```csharp
 // BEFORE (Sandbox)
-Cashfree.XClientId = "TEST_xxxxxxxxxxxxx";
-Cashfree.XClientSecret = "TEST_xxxxxxxxxxxxx";
-Cashfree.XEnvironment = Cashfree.SANDBOX;
+var cashfree = new Cashfree(Cashfree.SANDBOX,
+    "TEST_xxxxxxxxxxxxx", "TEST_xxxxxxxxxxxxx", null, null, null, null);
 
 // AFTER (Production)
-Cashfree.XClientId = Environment.GetEnvironmentVariable("CASHFREE_APP_ID");
-Cashfree.XClientSecret = Environment.GetEnvironmentVariable("CASHFREE_SECRET_KEY");
-Cashfree.XEnvironment = Cashfree.PRODUCTION;
+var cashfree = new Cashfree(Cashfree.PRODUCTION,
+    Environment.GetEnvironmentVariable("CASHFREE_APP_ID"), Environment.GetEnvironmentVariable("CASHFREE_SECRET_KEY"), null, null, null, null);
 ```
 </details>
 

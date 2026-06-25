@@ -105,23 +105,31 @@ Headers: x-client-id, x-client-secret, x-api-version: 2025-01-01, Content-Type: 
 
 ```json
 {
-    "cf_refund_id": 11325632,
+    "cf_refund_id": "11325632",
+    "cf_payment_id": "789727431",
     "refund_id": "refund_order42_001",
     "order_id": "order42",
+    "entity": "refund",
     "refund_amount": 50.00,
     "refund_currency": "INR",
     "refund_status": "PENDING",
+    "refund_type": "MERCHANT_INITIATED",
     "refund_note": "Customer requested partial refund",
     "refund_arn": null,
-    "refund_type": "MERCHANT_INITIATED",
+    "refund_charge": 0,
+    "refund_mode": "STANDARD",
+    "refund_speed": {
+        "requested": "STANDARD",
+        "accepted": "STANDARD",
+        "processed": null,
+        "message": null
+    },
     "created_at": "2026-04-18T12:20:29+05:30",
-    "processed_at": null,
-    "requested_speed": "STANDARD",
-    "processed_speed": null
+    "processed_at": null
 }
 ```
 
-`refund_arn` is always `null` on creation; it populates when the acquiring bank assigns it.
+`refund_arn` is always `null` on creation; it populates when the acquiring bank assigns it. **On the REST response, `cf_refund_id` and `cf_payment_id` are strings, and `refund_speed` is an object** (`requested`/`accepted`/`processed`/`message`). The webhook payload differs — see §3.
 
 ### Step 2 — Poll (or, better, wait for the webhook)
 
@@ -143,7 +151,7 @@ Terminal states: `SUCCESS`, `CANCELLED`, `FAILED`.
 
 ### Step 3 — Handle `REFUND_STATUS_WEBHOOK`
 
-Subscribe in Dashboard → Payment Gateway → Developers → Webhooks. Payload envelope matches all Cashfree webhooks; `type` is `REFUND_STATUS_WEBHOOK` and `data.refund` contains the fields listed above (plus `service_charge`, `service_tax`, `refund_splits`, `status_description`).
+Subscribe in Dashboard → Payment Gateway → Developers → Webhooks. Payload envelope matches all Cashfree webhooks; `type` is `REFUND_STATUS_WEBHOOK` and `data.refund` carries the refund object. **The webhook shape differs from the REST response:** it uses flat `requested_speed` / `processed_speed` (not a `refund_speed` object), `service_charge` / `service_tax` (not `refund_charge` / `refund_mode`), `refund_splits` items keyed by `merchantVendorId` (REST uses `vendor_id`), and `cf_refund_id` / `cf_payment_id` arrive as **numbers** (REST returns them as strings). See `references/REFERENCE.md` §5 for the full webhook payload.
 
 ```javascript
 // Node.js handler (raw body + timestamp + HMAC-base64 verification — see pg/webhooks/SKILL.md)

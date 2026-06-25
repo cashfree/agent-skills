@@ -209,9 +209,8 @@ def webhook():
 ```java
 @PostMapping("/webhook")
 public String handlePost(HttpServletRequest request) throws IOException {
-    Cashfree.XClientId = "<x-client-id>";
-    Cashfree.XClientSecret = "<x-client-secret>";
-    Cashfree.XEnvironment = Cashfree.SANDBOX;
+    Cashfree cashfree = new Cashfree(Cashfree.SANDBOX,
+        "<x-client-id>", "<x-client-secret>", null, null, null);
 
     StringBuilder sb = new StringBuilder();
     BufferedReader reader = request.getReader();
@@ -219,7 +218,7 @@ public String handlePost(HttpServletRequest request) throws IOException {
     while ((line = reader.readLine()) != null) { sb.append(line).append('\n'); }
 
     try {
-        new Cashfree().PGVerifyWebhookSignature(
+        cashfree.PGVerifyWebhookSignature(
             request.getHeader("x-webhook-signature"),
             sb.toString(),
             request.getHeader("x-webhook-timestamp")
@@ -269,11 +268,11 @@ $inputJSON = file_get_contents('php://input');
 $expectedSig = getallheaders()['x-webhook-signature'];
 $ts = getallheaders()['x-webhook-timestamp'];
 
-\Cashfree\Cashfree::$XClientId = "<x-client-id>";
-\Cashfree\Cashfree::$XClientSecret = "<x-client-secret>";
+$cashfree = new \Cashfree\Cashfree(\Cashfree\Cashfree::$SANDBOX,
+    "<x-client-id>", "<x-client-secret>", "", "", "", true);
 
 try {
-    (new \Cashfree\Cashfree())->PGVerifyWebhookSignature($expectedSig, $inputJSON, $ts);
+    $cashfree->PGVerifyWebhookSignature($expectedSig, $inputJSON, $ts);
     http_response_code(200);
     echo "OK";
 } catch (Exception $e) {

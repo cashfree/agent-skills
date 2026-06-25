@@ -2,8 +2,8 @@
 name: Cashfree Disputes — Reference
 description: >
   Deep reference for Cashfree Payment Gateway disputes. Full endpoint map, complete dispute
-  object schema, all 24 dispute_status values, reason-code interpretation, evidence document
-  format/size/count limits, per-language SDK code for Get / List / Accept / Contest, dispute
+  object schema, all 35 dispute_status values, reason-code interpretation, evidence document
+  format/size limits, per-language SDK code for Get / List / Accept / Contest (document upload), dispute
   webhook payload (all three event types), and a troubleshooting table for evidence rejection,
   SLA breaches, and cross-dispute escalations. Read after the Disputes SKILL.md.
 ---
@@ -16,13 +16,15 @@ description: >
 
 ## 1. Endpoint Map
 
-| Method | Path | Purpose |
-|---|---|---|
-| GET  | `/pg/disputes/{dispute_id}` | Fetch one dispute with full evidence context |
-| GET  | `/pg/orders/{order_id}/disputes` | List disputes on an order |
-| GET  | `/pg/payments/{cf_payment_id}/disputes` | List disputes on a specific payment attempt |
-| POST | `/pg/disputes/{dispute_id}/accept` | Accept liability (terminal) |
-| POST | `/pg/disputes/{dispute_id}/contest` | Submit evidence to contest |
+| Method | Path | Purpose | SDK method |
+|---|---|---|---|
+| GET  | `/pg/disputes/{dispute_id}` | Fetch one dispute with full evidence context | `PGFetchDisputeByID` |
+| GET  | `/pg/orders/{order_id}/disputes` | List disputes on an order | `PGFetchOrderDisputes` |
+| GET  | `/pg/payments/{cf_payment_id}/disputes` | List disputes on a specific payment attempt | `PGFetchPaymentDisputes` |
+| PUT  | `/pg/disputes/{dispute_id}/accept` | Accept liability (terminal) | `PGAcceptDisputeByID` |
+| POST | `/pg/disputes/{dispute_id}/documents` | Contest = upload evidence (`multipart/form-data`) | `PGUploadDisputesDocuments` |
+
+> The methods `PGFetchDispute` / `PGContestDispute` do **not** exist — use the names above.
 
 All endpoints require `x-client-id`, `x-client-secret`, `x-api-version: 2025-01-01`, `Content-Type: application/json`. Partner / signature auth variants also supported (`x-partner-apikey`, `x-client-signature`) — see `pg/apis/references/REFERENCE.md`.
 
@@ -36,9 +38,10 @@ All endpoints require `x-client-id`, `x-client-secret`, `x-api-version: 2025-01-
 
 ```jsonc
 {
-    "dispute_id": 1234567,                    // int — Cashfree primary key
+    "dispute_id": "1234567",                  // string — the id used in API paths (quoted on the wire; don't parse as int)
+    "cf_dispute_id": 422427,                  // Cashfree's numeric id for the dispute
     "dispute_type": "CHARGEBACK",             // enum — see §3
-    "dispute_status": "CHARGEBACK_CREATED",   // enum — 24 values, see §4
+    "dispute_status": "CHARGEBACK_CREATED",   // enum — 35 values, see §4
     "dispute_amount": 500.00,                 // number — may be less than payment_amount for partials
     "dispute_amount_currency": "INR",         // v2025-01-01+; v2023-08-01 omits
 
@@ -51,21 +54,18 @@ All endpoints require `x-client-id`, `x-client-secret`, `x-api-version: 2025-01-
     "resolved_at": null,                      // ISO-8601 on terminal status
 
     "cf_dispute_remarks": null,               // Cashfree/bank-side notes, often populated at UPDATE
-    "dispute_action_on": "MERCHANT",          // MERCHANT | CASHFREE | BANK — who is expected to act next
+    "dispute_action_on": "MERCHANT",          // MERCHANT | CASHFREE — who is expected to act next
 
-    "preferred_evidence": [                   // what the bank wants
-        { "type": "INVOICE",            "mandatory": true  },
-        { "type": "PROOF_OF_DELIVERY",  "mandatory": true  },
-        { "type": "CUSTOMER_COMMUNICATION", "mandatory": false },
-        { "type": "REFUND_PROOF",       "mandatory": false }
+    "preferred_evidence": [                   // what the bank wants — each item is a document you upload
+        { "document_type": "Delivery/Service Proof", "document_description": "Proof the customer received the goods/services." },
+        { "document_type": "Statement of Service",   "document_description": "Account statement / order context." }
     ],
 
-    "dispute_evidence": [                     // what you've already submitted
+    "dispute_evidence": [                     // what you've already uploaded
         {
-            "evidence_id": "ev_abcd1234",
-            "type": "INVOICE",
-            "url": "https://cdn.example.com/evidence/order_42_invoice.pdf",
-            "uploaded_at": "2026-04-19T08:00:00+05:30"
+            "document_id": 18150,
+            "document_name": "disputeSampleFile.pdf",
+            "document_type": "DeliveryProof"
         }
     ],
 
@@ -100,9 +100,9 @@ All endpoints require `x-client-id`, `x-client-secret`, `x-api-version: 2025-01-
 
 ---
 
-## 4. `dispute_status` — All 24 Values
+## 4. `dispute_status` — All 35 Values
 
-Pattern: `{TYPE}_{SUB_STATUS}`. The 7 sub-statuses below combine with the 5 types (not every pair exists; rare combinations are simply never emitted):
+Pattern: `{TYPE}_{SUB_STATUS}`. All **5 types × 7 sub-statuses = 35** values exist (every pair is valid):
 
 ### Sub-statuses
 
@@ -136,7 +136,8 @@ PRE_ARBITRATION_MERCHANT_WON, PRE_ARBITRATION_MERCHANT_LOST,
 PRE_ARBITRATION_MERCHANT_ACCEPTED, PRE_ARBITRATION_INSUFFICIENT_EVIDENCE,
 
 ARBITRATION_CREATED, ARBITRATION_DOCS_RECEIVED, ARBITRATION_UNDER_REVIEW,
-ARBITRATION_MERCHANT_WON, ARBITRATION_MERCHANT_LOST
+ARBITRATION_MERCHANT_WON, ARBITRATION_MERCHANT_LOST,
+ARBITRATION_MERCHANT_ACCEPTED, ARBITRATION_INSUFFICIENT_EVIDENCE
 ```
 
 ---
@@ -159,65 +160,48 @@ Networks change reason-code semantics periodically. Always let `preferred_eviden
 
 ---
 
-## 6. Accept & Contest — Request Schemas
+## 6. Accept & Contest
 
-### `POST /pg/disputes/{dispute_id}/accept`
+### Accept — `PUT /pg/disputes/{dispute_id}/accept`
 
-```json
-{}
-```
+No body required. Response is the current dispute object with `dispute_status: "{TYPE}_MERCHANT_ACCEPTED"`. SDK: `PGAcceptDisputeByID`.
 
-No body required. Response is the current dispute object with `dispute_status: "{TYPE}_MERCHANT_ACCEPTED"`.
+### Contest — `POST /pg/disputes/{dispute_id}/documents`
 
-### `POST /pg/disputes/{dispute_id}/contest`
+There is **no JSON "contest" call**. You contest by **uploading evidence documents** as `multipart/form-data`, one document per request. SDK: `PGUploadDisputesDocuments`.
 
-```json
-{
-    "evidence_document_urls": [
-        "https://cdn.example.com/evidence/order_42_invoice.pdf",
-        "https://cdn.example.com/evidence/order_42_delivery_proof.pdf"
-    ],
-    "evidence_text": "Free-form narrative, up to 2000 chars.",
-    "contact_name":  "Ops Team",
-    "contact_email": "disputes@example.com",
-    "contact_phone": "9988776655"
-}
-```
+| Form field | Required | Notes |
+|---|---|---|
+| `file` | Yes | The document (PDF/JPG/PNG). **Max 20 MB.** |
+| `doc_type` | Yes | Evidence category — match a `document_type` from the dispute's `preferred_evidence` |
+| `note` | No | Free-text note for the bank |
 
 ### Evidence document limits
 
 | Limit | Value |
 |---|---|
-| Max documents per contest | 10 (often 5 per category) |
-| Max file size per document | ~5 MB |
+| Max file size per document | **20 MB** |
 | Supported formats | PDF, JPG, JPEG, PNG |
-| URL requirement | HTTPS, publicly reachable at time of submission |
-| URL TTL recommendation | ≥24h (Cashfree fetches within minutes; longer is safer for reviews) |
+| Submission | Direct file upload (`multipart/form-data`) — Cashfree does **not** fetch from a URL |
 
 ### When you can contest
 
-Only while `dispute_status` ends in `CREATED` or `DOCS_RECEIVED`. Once `UNDER_REVIEW` or terminal, a contest POST returns `409 dispute_already_closed` or `409 contest_locked`. If the bank reopens (rare), a `DISPUTE_UPDATED` webhook reverts to `DOCS_RECEIVED` and you may re-submit.
+Only while `dispute_status` ends in `CREATED` or `DOCS_RECEIVED`. Once `UNDER_REVIEW` or terminal, an upload returns `409`. If the bank reopens (rare), a `DISPUTE_UPDATED` webhook reverts to `DOCS_RECEIVED` and you may re-submit.
 
-### Best practice: cover every `mandatory` preferred_evidence item
+### Best practice: upload one document per `preferred_evidence` item
 
 ```javascript
-const dispute = await cashfree.PGFetchDispute(disputeId);
-const required = dispute.data.preferred_evidence
-    .filter(e => e.mandatory)
-    .map(e => e.type);
-
-const uploadedTypes = await uploadEvidenceToCdn(disputeId, required);
-// uploadedTypes = { INVOICE: "https://...", PROOF_OF_DELIVERY: "https://..." }
-const missing = required.filter(t => !uploadedTypes[t]);
-if (missing.length) throw new Error(`Missing mandatory evidence: ${missing.join(", ")}`);
-
-await cashfree.PGContestDispute(disputeId, {
-    evidence_document_urls: Object.values(uploadedTypes),
-    evidence_text: buildNarrative(dispute.data, uploadedTypes),
-    contact_name: "Ops Team",
-    contact_email: "disputes@example.com",
-    contact_phone: "9988776655",
-});
+const dispute = await cashfree.PGFetchDisputeByID(disputeId);
+// preferred_evidence items carry { document_type, document_description }
+for (const ev of dispute.data.preferred_evidence) {
+    const filePath = await gatherDocumentFor(ev.document_type);   // your code
+    await cashfree.PGUploadDisputesDocuments(
+        disputeId,
+        fs.createReadStream(filePath),       // file
+        ev.document_type,                    // doc_type
+        `Evidence for ${ev.document_type}`,  // note
+    );
+}
 ```
 
 ---
@@ -249,7 +233,7 @@ Same envelope; fires on any of:
 {
     "data": {
         "dispute": {
-            "dispute_id": 1234567,
+            "dispute_id": "1234567",
             "dispute_type": "CHARGEBACK",
             "dispute_status": "CHARGEBACK_UNDER_REVIEW",
             "dispute_update": "Evidence received; under bank review.",
@@ -273,7 +257,7 @@ Terminal. `resolved_at` is populated; `dispute_status` is one of the `MERCHANT_W
 {
     "data": {
         "dispute": {
-            "dispute_id": 1234567,
+            "dispute_id": "1234567",
             "dispute_type": "CHARGEBACK",
             "dispute_status": "CHARGEBACK_MERCHANT_WON",
             "resolved_at": "2026-05-10T12:00:00+05:30",
@@ -293,89 +277,54 @@ Note: resolution may result in escalation — a `MERCHANT_WON` at `CHARGEBACK` c
 
 ## 8. Per-Language SDK Usage
 
-Where the SDK doesn't yet expose named methods for disputes (older SDK versions), fall back to raw REST.
+Use the SDK methods (`PGFetchDisputeByID`, `PGAcceptDisputeByID`, `PGUploadDisputesDocuments`) or raw REST. Accept is a **PUT**; contesting = uploading each document as `multipart/form-data` to `/documents`. (Other languages follow the same pattern.)
 
-### Node.js
+### Node.js (raw REST)
 
 ```javascript
-// Fetch
-const res = await fetch(`https://api.cashfree.com/pg/disputes/${disputeId}`, {
-    headers: {
-        "x-client-id": process.env.CASHFREE_APP_ID,
-        "x-client-secret": process.env.CASHFREE_SECRET_KEY,
-        "x-api-version": "2025-01-01",
-    },
-});
-const dispute = await res.json();
+const H = {
+    "x-client-id": process.env.CASHFREE_APP_ID,
+    "x-client-secret": process.env.CASHFREE_SECRET_KEY,
+    "x-api-version": "2025-01-01",
+};
 
-// Contest
-const contest = await fetch(`https://api.cashfree.com/pg/disputes/${disputeId}/contest`, {
-    method: "POST",
-    headers: {
-        "x-client-id": process.env.CASHFREE_APP_ID,
-        "x-client-secret": process.env.CASHFREE_SECRET_KEY,
-        "x-api-version": "2025-01-01",
-        "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-        evidence_document_urls: evidenceUrls,
-        evidence_text: narrative,
-        contact_name: "Ops Team",
-        contact_email: "disputes@example.com",
-        contact_phone: "9988776655",
-    }),
-});
+// Fetch
+const dispute = await fetch(`https://api.cashfree.com/pg/disputes/${disputeId}`, { headers: H }).then(r => r.json());
+
+// Accept (PUT)
+await fetch(`https://api.cashfree.com/pg/disputes/${disputeId}/accept`, { method: "PUT", headers: H });
+
+// Contest = upload a document (multipart/form-data)
+const form = new FormData();
+form.append("file", fs.createReadStream("delivery_proof.pdf"));
+form.append("doc_type", "DeliveryProof");
+form.append("note", "Delivered 2026-04-01, AWB123456");
+await fetch(`https://api.cashfree.com/pg/disputes/${disputeId}/documents`, { method: "POST", headers: H, body: form });
 ```
 
-### Python
+### Python (raw REST)
 
 ```python
 import os, requests
-HEADERS = {
+H = {
     "x-client-id": os.environ["CASHFREE_APP_ID"],
     "x-client-secret": os.environ["CASHFREE_SECRET_KEY"],
     "x-api-version": "2025-01-01",
-    "Content-Type": "application/json",
 }
 BASE = "https://api.cashfree.com/pg"
 
-def fetch_dispute(dispute_id):
-    return requests.get(f"{BASE}/disputes/{dispute_id}", headers=HEADERS, timeout=10).json()
+def fetch_dispute(did):
+    return requests.get(f"{BASE}/disputes/{did}", headers=H, timeout=10).json()
 
-def accept_dispute(dispute_id):
-    return requests.post(f"{BASE}/disputes/{dispute_id}/accept", headers=HEADERS, timeout=10).json()
+def accept_dispute(did):
+    return requests.put(f"{BASE}/disputes/{did}/accept", headers=H, timeout=10).json()
 
-def contest_dispute(dispute_id, evidence_urls, narrative, contact):
-    body = {
-        "evidence_document_urls": evidence_urls,
-        "evidence_text": narrative,
-        **contact,
-    }
-    return requests.post(f"{BASE}/disputes/{dispute_id}/contest", headers=HEADERS, json=body, timeout=10).json()
-```
-
-### Go
-
-```go
-type DisputeContest struct {
-    EvidenceDocumentURLs []string `json:"evidence_document_urls"`
-    EvidenceText         string   `json:"evidence_text"`
-    ContactName          string   `json:"contact_name"`
-    ContactEmail         string   `json:"contact_email"`
-    ContactPhone         string   `json:"contact_phone"`
-}
-
-func contestDispute(disputeID int64, body DisputeContest) (*http.Response, error) {
-    data, _ := json.Marshal(body)
-    req, _ := http.NewRequest("POST",
-        fmt.Sprintf("https://api.cashfree.com/pg/disputes/%d/contest", disputeID),
-        bytes.NewReader(data))
-    req.Header.Set("x-client-id", os.Getenv("CASHFREE_APP_ID"))
-    req.Header.Set("x-client-secret", os.Getenv("CASHFREE_SECRET_KEY"))
-    req.Header.Set("x-api-version", "2025-01-01")
-    req.Header.Set("Content-Type", "application/json")
-    return http.DefaultClient.Do(req)
-}
+def upload_evidence(did, file_path, doc_type, note=""):
+    with open(file_path, "rb") as f:
+        return requests.post(
+            f"{BASE}/disputes/{did}/documents", headers=H,
+            files={"file": f}, data={"doc_type": doc_type, "note": note}, timeout=30,
+        ).json()
 ```
 
 ### cURL
@@ -383,27 +332,16 @@ func contestDispute(disputeID int64, body DisputeContest) (*http.Response, error
 ```bash
 # Fetch
 curl "https://api.cashfree.com/pg/disputes/1234567" \
-    -H "x-client-id: $CASHFREE_APP_ID" \
-    -H "x-client-secret: $CASHFREE_SECRET_KEY" \
-    -H "x-api-version: 2025-01-01"
+    -H "x-client-id: $CASHFREE_APP_ID" -H "x-client-secret: $CASHFREE_SECRET_KEY" -H "x-api-version: 2025-01-01"
 
-# Accept
-curl -X POST "https://api.cashfree.com/pg/disputes/1234567/accept" \
-    -H "x-client-id: $CASHFREE_APP_ID" \
-    -H "x-client-secret: $CASHFREE_SECRET_KEY" \
-    -H "x-api-version: 2025-01-01"
+# Accept (PUT)
+curl -X PUT "https://api.cashfree.com/pg/disputes/1234567/accept" \
+    -H "x-client-id: $CASHFREE_APP_ID" -H "x-client-secret: $CASHFREE_SECRET_KEY" -H "x-api-version: 2025-01-01"
 
-# Contest
-curl -X POST "https://api.cashfree.com/pg/disputes/1234567/contest" \
-    -H "x-client-id: $CASHFREE_APP_ID" \
-    -H "x-client-secret: $CASHFREE_SECRET_KEY" \
-    -H "x-api-version: 2025-01-01" \
-    -H "Content-Type: application/json" \
-    -d '{
-        "evidence_document_urls": ["https://cdn.example.com/ev1.pdf"],
-        "evidence_text": "See attached invoice, delivery proof, customer comms.",
-        "contact_name": "Ops", "contact_email": "d@ex.com", "contact_phone": "9988776655"
-    }'
+# Contest = upload each evidence document
+curl -X POST "https://api.cashfree.com/pg/disputes/1234567/documents" \
+    -H "x-client-id: $CASHFREE_APP_ID" -H "x-client-secret: $CASHFREE_SECRET_KEY" -H "x-api-version: 2025-01-01" \
+    -F "file=@delivery_proof.pdf" -F "doc_type=DeliveryProof" -F "note=Delivered 2026-04-01"
 ```
 
 ---
@@ -435,8 +373,8 @@ All fees surface in settlement recon as `OTHER_ADJUSTMENT` DEBIT events tied to 
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | Contest returns `409 dispute_already_closed` | Status moved to UNDER_REVIEW or terminal | Fetch first, check status, contest only on `CREATED`/`DOCS_RECEIVED` |
-| Contest returns `400 evidence_url_unreachable` | URL 404, non-HTTPS, or expired presign | Re-issue presigned URL with ≥24h TTL; confirm curl from your server works |
-| Lost despite contesting | Missing mandatory items in `preferred_evidence` | Always cover every mandatory item; narrative alone is insufficient |
+| Evidence upload returns `400` | File > 20 MB or unsupported format | Keep each file ≤ 20 MB; use PDF/JPG/PNG; upload one doc per `preferred_evidence` item |
+| Lost despite contesting | Didn't upload a document for every `preferred_evidence` item | Cover each `preferred_evidence.document_type`; one upload per item |
 | Cross-dispute escalation lost by default | Treated `PRE_ARBITRATION_CREATED` as a duplicate of the won chargeback | Treat every `*_CREATED` webhook as a fresh case; new SLA applies |
 | `DISPUTE_CLOSED` came without `DISPUTE_UPDATED` | Auto-accept via inaction (`INSUFFICIENT_EVIDENCE`) | You missed the SLA; wire a reminder |
 | `respond_by` is in the past on `DISPUTE_CREATED` | Backdated dispute from a retry | Contest immediately — Cashfree usually accepts late submissions within hours of `respond_by` if the delay is its own |
