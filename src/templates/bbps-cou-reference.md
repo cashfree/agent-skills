@@ -19,33 +19,57 @@ description: >
 |---|---|---|---|
 | GET  | `/v1/billers/categories` | 200 | No request body |
 | POST | `/v1/billers/info` | 200 | Filter by biller_id, category |
-| POST | `/v1/billers/request/bill-fetch` | **202** | Async — returns ref_id |
+| POST | `/v1/billers/request/bill-fetch` | **202** | Async — returns ref_id; skip for DIRECT_PAY billers |
 | POST | `/v1/billers/response/bill-fetch` | 200 | Poll with ref_id |
 | POST | `/v1/billers/request/bill-payment` | **202** | Async — returns transaction_ref_id |
 | POST | `/v1/billers/response/bill-payment` | 200 | Poll with bill_fetch_ref_id + transaction_ref_id |
 | POST | `/v1/billers/request/ticket` | **202** | Async — returns ref_id |
 | POST | `/v1/billers/response/ticket-status` | 200 | Poll with ref_id |
+| GET  | `/agent/{agentId}/wallet/balance` | 200 | Returns current balance in INR |
+| POST | `/agent/{agentId}/wallet/ledger` | 200 | Paginated ledger; all body fields optional |
 
 ---
 
 ## 2. Standard Response Envelope
 
-Every response is wrapped in:
+Success responses are wrapped in:
 
 ```jsonc
 {
   "status": "OK",          // string — see status values per endpoint below
   "message": "...",        // human-readable description
-  "data": { ... }          // payload — null on error
+  "data": { ... }          // payload
 }
 ```
 
-Error response (4xx / 5xx):
-```json
+Error response (4xx / 5xx) — uses `message`, `code`, and `type` fields (no `status` or `data`):
+```jsonc
+// 400 Bad Request
 {
-  "status": "FAILURE",
-  "message": "internal server error",
-  "data": null
+  "message": "bill_fetch_request.agent_id : is missing in the request.",
+  "code": "bill_fetch_request.agent_id_missing",
+  "type": "invalid_request_error"
+}
+
+// 401 Unauthorized
+{
+  "message": "authentication Failed",
+  "code": "request_failed",
+  "type": "authentication_error"
+}
+
+// 429 Rate Limit
+{
+  "message": "Too many requests from IP. Check headers",
+  "code": "request_failed",
+  "type": "rate_limit_error"
+}
+
+// 500 Internal Server Error
+{
+  "message": "internal Server Error",
+  "code": "internal_error",
+  "type": "api_error"
 }
 ```
 
@@ -131,10 +155,17 @@ Error response (4xx / 5xx):
 ]
 ```
 
-**`fetch_requirement` values:**
-- `MANDATORY` — must complete bill fetch before payment
-- `OPTIONAL` — bill fetch recommended but payment can proceed without it
-- `NOT_SUPPORTED` — biller supports direct payment only; skip to bill payment
+**Flow determination (priority order using `fetch_requirement` + `support_bill_validation`):**
+
+| Priority | `fetch_requirement` | `support_bill_validation` | Flow |
+|---|---|---|---|
+| 1 | `MANDATORY` | Any | `FETCH_AND_PAY` |
+| 2 | `NOT_SUPPORTED` | `MANDATORY` or `OPTIONAL` | `VALIDATE_AND_PAY` |
+| 3 | `NOT_SUPPORTED` | `NOT_SUPPORTED` | `DIRECT_PAY` |
+| 4 | `OPTIONAL` | `MANDATORY` | `VALIDATE_AND_PAY` |
+| 5 | `OPTIONAL` | Any other | `FETCH_AND_PAY` |
+
+For `DIRECT_PAY` billers, the Bill Fetch Request API will return a validation error — skip to Bill Payment directly.
 
 ---
 
@@ -182,7 +213,7 @@ Error response (4xx / 5xx):
 {
   "ref_id": "REF20241201001",   // store this — used in poll and payment
   "status": "PROCESSING",
-  "flow": "OFFLINE"             // OFFLINE | ONLINE
+  "flow": "FETCH_AND_PAY"       // FETCH_AND_PAY | VALIDATE_AND_PAY | DIRECT_PAY
 }
 ```
 
@@ -219,7 +250,7 @@ Error response (4xx / 5xx):
 }
 ```
 
-**Polling:** When still processing, `bill_fetch_response` will have `response_reason: "Processing"` and `bill_details` / `biller_response` will be absent.
+**Polling:** Continue polling while `message` is `"Request is still being processed"`. Terminal messages: `"Bill details fetched successfully"` (success) or `"Bill request failed"` (failure). Poll at increasing intervals: 5s → 15s → 30s → 1 min → 3 min. If still processing after retry limit, treat as timeout and raise a support ticket.
 
 ---
 
@@ -321,6 +352,19 @@ Error response (4xx / 5xx):
 
 ## 7. Ticket Raise — Full Schema
 
+**Disposition codes** (required; use code string, not free-text):
+
+| Code | Description | Type |
+|---|---|---|
+| `D11` | Transaction successful, amount debited but service not received | Dispute |
+| `D12` | Transaction successful, amount debited but service disconnected/stopped | Dispute |
+| `D13` | Transaction successful, amount debited but LPSC charges added in next bill | Dispute |
+| `D21` | Erroneously paid in wrong account | Dispute |
+| `D22` | Duplicate payment | Dispute |
+| `D23` | Erroneously paid the wrong amount | Dispute |
+| `D31` | Payment info not received from biller / delay in receiving | Complaint |
+| `D32` | Bill paid but amount not adjusted or still showing due | Complaint |
+
 ### Request
 
 ```jsonc
@@ -328,7 +372,7 @@ Error response (4xx / 5xx):
   "ticket_raise_request": {
     "agent_id": "AGENT001",                  // required
     "txn_reference_id": "TXN20241201001",    // required — completed transaction ref
-    "disposition": "COMPLAINT",              // required — COMPLAINT | QUERY | SERVICE_REQUEST
+    "disposition": "D11",                    // required — use D11–D32 codes (see table above)
     "description": "Payment deducted but biller not updated",  // required
     "customer_mobile": "9999999999",         // required (PII)
     "customer_email_id": "c@example.com",    // optional (PII)
@@ -373,26 +417,105 @@ Error response (4xx / 5xx):
 
 ---
 
-## 9. Polling Strategy
+## 9. Agent Institution Wallet — Full Schema
 
-Both async endpoints (bill fetch, bill payment, ticket) follow the same polling pattern:
+### Get Wallet Balance
 
-| Condition | Action |
-|---|---|
-| `response_reason` = `"Processing"` | Wait and retry |
-| `response_code` = `"000"` | Terminal success |
-| Any other `response_code` | Terminal failure — surface to user |
+**Request:** `GET /agent/{agentId}/wallet/balance`
 
-Recommended poll interval: **2–5 seconds**. NBBL timeout per request is **20 seconds** — expect most responses within this window.
+Path parameter `agentId` = BBPS Agent ID (bbpsAgentId) of the Agent Institution.
+
+**Response (200 OK):**
+```jsonc
+{
+  "balance": 5000.00    // Current available balance in INR (not paise)
+}
+```
+
+**Error examples (400):**
+```jsonc
+// No active wallet
+{ "message": "No active wallet found for bbpsAgentId: OU01XXXXINT001123456", "code": "wallet_not_found", "type": "invalid_request_error" }
+
+// Agent not found
+{ "message": "Agent not found for bbpsAgentId: OU01XXXXINT001123456", "code": "agent_not_found", "type": "invalid_request_error" }
+```
 
 ---
 
-## 10. Common Errors
+### Get Wallet Ledger
 
-| HTTP Status | `status` field | Cause |
-|---|---|---|
-| 400 | `BAD_REQUEST` | Missing required field or validation failure |
-| 404 | `NOT_FOUND` | `ref_id` / `transaction_ref_id` does not exist |
-| 500 | `FAILURE` | Downstream NBBL error or internal error |
+**Request:** `POST /agent/{agentId}/wallet/ledger?page=0&size=20`
 
-For 400 errors, the `message` field describes which field failed validation.
+Query params: `page` (zero-indexed, default 0), `size` (default 20).
+
+```jsonc
+{
+  "start_date_time": "2025-01-01 00:00:00",   // optional — format: yyyy-MM-dd HH:mm:ss
+  "end_date_time": "2025-01-31 23:59:59",     // optional
+  "sale_type": "DEBIT",                        // optional — CREDIT | DEBIT
+  "utr": "UTR123456789"                        // optional — filter by UTR
+}
+```
+
+All body fields optional. Empty body returns all entries.
+
+**Response (200 OK):**
+```jsonc
+{
+  "content": [
+    {
+      "id": 1001,                          // Unique ledger entry ID
+      "wallet_id": 42,                     // Internal wallet ID
+      "sale_type": "DEBIT",               // CREDIT = top-up; DEBIT = bill payment
+      "amount": 250.00,                    // Transaction amount in INR
+      "closing_balance": 4750.00,         // Wallet balance after this transaction in INR
+      "utr": "UTR123456789",              // Unique Transaction Reference number
+      "added_on": "2025-01-15 10:30:00",
+      "updated_on": "2025-01-15 10:30:05"
+    }
+  ],
+  "size": 20,       // Entries per page
+  "page": 0,        // Current page (zero-indexed)
+  "last": true      // true = no more pages
+}
+```
+
+---
+
+## 10. Polling Strategy
+
+All async endpoints use exponential backoff:
+
+| Attempt | Wait before this poll |
+|---|---|
+| 1 | 5 seconds |
+| 2 | 15 seconds |
+| 3 | 30 seconds |
+| 4 | 1 minute |
+| 5+ | 3 minutes |
+
+**Terminal conditions per endpoint:**
+
+| Endpoint | Continue polling while... | Terminal success | Terminal failure |
+|---|---|---|---|
+| Bill fetch response | `message` = `"Request is still being processed"` | `message` = `"Bill details fetched successfully"` | `message` = `"Bill request failed"` |
+| Bill payment response | `data.status` = `"processing"` | `data.status` = `"success"` | `data.status` = `"failed"` |
+| Ticket status | `message` = `"Request is still being processed"` | `message` = `"Ticket status fetched successfully"` | — |
+
+If still processing after retry limit: raise a support ticket (bill fetch/payment) or contact Cashfree support with `ref_id` (ticket).
+
+---
+
+## 11. Common Errors
+
+Error responses use `{message, code, type}` — no `status` or `data` fields.
+
+| HTTP Status | `type` | `code` example | Cause |
+|---|---|---|---|
+| 400 | `invalid_request_error` | `bill_fetch_request.agent_id_missing` | Missing required field or validation failure |
+| 401 | `authentication_error` | `request_failed` | Invalid or missing auth headers |
+| 429 | `rate_limit_error` | `request_failed` | Exceeded 100 requests per 60 seconds |
+| 500 | `api_error` | `internal_error` | Downstream NBBL error or internal error |
+
+For 400 errors, the `message` field describes which specific field failed validation (e.g. `"bill_fetch_request.agent_id : is missing in the request"`).
