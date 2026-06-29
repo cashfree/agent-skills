@@ -1,0 +1,33 @@
+name: CI
+
+# Runs when a PR is raised/updated against main, and again on the merge (push to main).
+on:
+    pull_request:
+        branches: [main]
+    push:
+        branches: [main]
+
+jobs:
+    test:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 20
+                  cache: npm
+
+            - name: Install dependencies
+              run: npm ci
+
+            # Test 1 — build must pass (tsc compile + copy .md templates into dist/).
+            - name: Build (compile + copy templates)
+              run: npm run build
+
+            # Tests 2–5 — registry resolves, manifest map complete, frontmatter present,
+            # no leaked artifacts. Runs against the dist/ produced above (no rebuild).
+            - name: Run tests
+              run: npx vitest run
