@@ -11,7 +11,9 @@
         "build": "tsc && npm run copy-templates",
         "copy-templates": "node -e \"require('fs-extra').copySync('src/templates', 'dist/templates', { filter: (src) => src.endsWith('.md') || require('fs').statSync(src).isDirectory() })\"",
         "dev": "tsc -w",
-        "test": "vitest",
+        "pretest": "npm run build",
+        "test": "vitest run",
+        "test:watch": "vitest",
         "prepublishOnly": "npm run build && node scripts/inject-telemetry.mjs"
     },
     "keywords": [
