@@ -1,0 +1,106 @@
+name: SDK Release Agent
+
+# Fires when:
+#   - an issue is OPENED already carrying the `sdk-release` label, OR
+#   - the `sdk-release` label is ADDED later to any existing issue.
+# A random issue with no label does nothing until you add `sdk-release`.
+on:
+    issues:
+        types: [opened, labeled]
+
+# Least-privilege: the agent only needs to write code, open PRs, and
+# comment on the issue. Nothing else. (No `id-token` — Codex authenticates
+# with an OpenAI API key, not OIDC.)
+permissions:
+    contents: write
+    pull-requests: write
+    issues: write
+
+# One run per issue; don't pile up if the label is toggled quickly.
+concurrency:
+    group: sdk-release-agent-${{ github.event.issue.number }}
+    cancel-in-progress: false
+
+jobs:
+    sdk-release-fix:
+        # Run EXACTLY once: when the `sdk-release` label is added, or when an
+        # issue is opened already bearing it. This avoids re-triggering when
+        # some *other* label is later added to the same issue.
+        if: >-
+            (github.event.action == 'labeled' && github.event.label.name == 'sdk-release') ||
+            (github.event.action == 'opened' && contains(github.event.issue.labels.*.name, 'sdk-release'))
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0 # full history so the agent can branch/diff cleanly
+
+            # Node is needed twice: to install the Codex CLI, and for the
+            # agent's own `npm ci && npm run build` load check (Step 6).
+            - name: Set up Node
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 20
+
+            - name: Install Codex CLI
+              # Pinned so a future breaking CLI release can't silently change
+              # behaviour. Bump deliberately after testing a newer version.
+              run: npm install -g @openai/codex@0.142.4
+
+            # Codex shells out to `git commit`; without an identity the commit
+            # fails. (The claude-code-action used to set this implicitly.)
+            - name: Configure git identity for the agent's commits
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+            - name: Run Codex SDK-release agent
+              env:
+                  # Codex picks up the API key from the environment for auth.
+                  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+                  # Token the agent uses for `gh` reads, git push, and PR creation.
+                  # actions/checkout already wires this into the git remote, so
+                  # `git push` works; `gh` reads it from GH_TOKEN.
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  # The actual instructions live in .codex/prompts/sdk-release.md —
+                  # edit THAT file to tune how the agent investigates and fixes
+                  # issues. Here we feed it to Codex and append the issue context
+                  # as the plain KEY: value lines the prompt knows to read.
+                  PROMPT="$(cat .codex/prompts/sdk-release.md)
+
+                  ISSUE_NUMBER: ${{ github.event.issue.number }}
+                  ISSUE_TITLE: ${{ github.event.issue.title }}
+                  REPO: ${{ github.repository }}"
+
+                  # Flag notes — these REPLACE Claude Code's --allowedTools
+                  # allowlist. Codex gates tools with a sandbox + approval model,
+                  # not a per-command allowlist, so there is no 1:1 mapping:
+                  #
+                  #   --model gpt-5-codex   Flagship coding model. Swap to `gpt-5`
+                  #                         or a cheaper model to trade accuracy
+                  #                         for cost (the changelog update is a
+                  #                         factual task, so accuracy is preferred).
+                  #   -c model_reasoning_effort="high"
+                  #                         Provenance-critical work — bias toward
+                  #                         more reasoning. Lower to "medium"/"low"
+                  #                         to cut cost.
+                  #   --dangerously-bypass-approvals-and-sandbox
+                  #                         Runs fully non-interactive with FS +
+                  #                         network access. This task NEEDS the
+                  #                         network (gh api, curl to npm/PyPI/Maven/
+                  #                         Go/Packagist/NuGet, public docs) and must
+                  #                         push a branch + open a PR. The ephemeral
+                  #                         GitHub runner IS the sandbox boundary, so
+                  #                         full access is scoped to this throwaway VM.
+                  #                         Do NOT use this flag on a real machine.
+                  #
+                  # Tighter alternative (keeps a workspace sandbox, just opens the
+                  # network) — swap the bypass flag for:
+                  #   --sandbox workspace-write -c sandbox_workspace_write.network_access=true
+                  codex exec \
+                      --model gpt-5-codex \
+                      -c model_reasoning_effort="high" \
+                      --dangerously-bypass-approvals-and-sandbox \
+                      "$PROMPT"
