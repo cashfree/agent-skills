@@ -24,6 +24,21 @@ notes prose or from memory.**
 
 ---
 
+## Repo conventions — read `docs/CONTRIBUTING.md` first
+
+The repo is checked out for you. **Read `docs/CONTRIBUTING.md` before editing anything** and
+follow it. In particular:
+
+- **§4 Content principles** — the reader of every skill file is an AI that copies it into
+  production code: only authoritative, actionable, verified fact; **no `TODO`/process/curator
+  meta in shipped `src/templates/` files**; branch on error *codes*, never message strings.
+  (The `changelog` skill's `Source:` / `as-of` lines are the one allowed exception.)
+- **§6 Verifying** — the build / test / grep / smoke-test commands you must run (see Step 6).
+- **§7 Branching, commits & PRs** and **§10 PR checklist** — your draft PR must follow the
+  commit style and include the checklist.
+
+---
+
 ## Step 0 — Parse the issue
 
 Run `gh issue view <ISSUE_NUMBER> --comments`. Extract and write down:
@@ -158,22 +173,52 @@ Otherwise, leave the integration skills untouched. Stay in scope.
 
 ---
 
-## Step 6 — Verify locally
+## Step 5.5 — If NO change is required (already recorded → dummy change + flag it)
+
+Research will sometimes show the release is **already fully and correctly recorded** (the
+version row and any breaking detail are already in the reference file) and no integration
+skill needs touching. **Still produce a draft PR**, but:
+
+- **Do NOT** edit any shipped file under `src/templates/` just to create a diff — that
+  pollutes authoritative content and can trip the no-leak guardrail.
+- Make one minimal **dummy change** *outside* shipped content so the PR is non-empty: append
+  a dated line to **`docs/sdk-release-agent/no-op-log.md`** (create the file and folder if
+  missing), e.g.
+  `- <today> — cashfree-pg (Node) 6.0.4: already recorded in changelog/references/pg-backend-sdks.md; no change required.`
+- Make the no-op **unmissable**: prefix the **PR title** with `[no-op]` and put
+  **"NO CHANGELOG CHANGE REQUIRED"** at the top of the PR body, with the evidence (what you
+  verified and exactly where it is already recorded).
+- Still run the Step 6 checks and still `Closes #<ISSUE_NUMBER>`.
+
+---
+
+## Step 6 — Verify locally (run the CONTRIBUTING §6 guardrails)
+
+Run the repo's own checks and report each result honestly in the PR:
 
 ```bash
-npm ci && npm run build
-node -e "import('./dist/skills.js').then(m=>{let ok=0,bad=0;for(const s of m.ALL_SKILLS){try{s.getTemplate().length?ok++:bad++}catch(e){bad++}}console.log('skills ok:',ok,'bad:',bad)})"
+npm ci
+npm run build      # tsc + copy .md templates into dist/
+npm test           # vitest guardrails: build + registry + manifest + frontmatter + no-leak
+node -e "console.log('skills:', require('./dist/skills.js').ALL_SKILLS.length)"   # skill count
+# no placeholder/meta leaked into shipped content:
+grep -rniE '\b(TODO|FIXME|TBD|XXX)\b|verify (this )?later|earlier (note|version)' src/templates/ || echo "grep clean"
 ```
-Report the result honestly. If the build or load check fails, say so in the PR — do not hide it.
+
+If `npm test` is red or the build fails, **say so explicitly in the PR** — a draft PR with an
+honest red result is fine; a green claim that isn't true is not.
 
 ---
 
 ## Step 7 — Open a DRAFT pull request
 
 - Branch: `sdk-release/issue-<ISSUE_NUMBER>`.
-- Commit with a clear message, e.g. `changelog: record <product> <version> (<breaking|non-breaking>)`.
+- Commit in the repo's conventional style (CONTRIBUTING §7), e.g.
+  `fix(changelog): record <product> <version> (<breaking|non-breaking>)` — or, for a no-op,
+  `chore(changelog): no-op — <product> <version> already recorded`.
 - Push and `gh pr create --draft`.
-- The PR body **MUST** contain `Closes #<ISSUE_NUMBER>`.
+- For a no-op, the PR **title** MUST be prefixed `[no-op]`. The PR body **MUST** contain
+  `Closes #<ISSUE_NUMBER>` and follow the format below.
 
 ## Required PR body format
 
@@ -181,17 +226,27 @@ Report the result honestly. If the build or load check fails, say so in the PR �
 ## Release
 <product / language / new version, with the source link>
 
+## Change required?
+<"Yes — changelog updated" — OR — "NO CHANGELOG CHANGE REQUIRED: already recorded in <file>; this PR is a documented no-op (dummy change in docs/sdk-release-agent/no-op-log.md)">
+
 ## What I verified
 <the sources you fetched — GitHub tag, registry version, docs/OpenAPI — and any tag-vs-registry mismatch>
 
 ## What changed (the changelog entry)
-<the timeline row + breaking detail you added, in your own words>
+<the timeline row + breaking detail you added, in your own words — or "none; see Change required?">
 
 ## Integration-skill updates
 <files touched beyond the changelog, and why — or "none">
 
-## Verification
-<commands run and outcome — be honest about anything you could not verify or run>
+## Verification (CONTRIBUTING §6)
+<outcome of each command: npm run build, npm test, skill count, grep — be honest about anything red or unrun>
+
+## PR checklist (CONTRIBUTING §10)
+- [ ] Content fact-checked against the source of truth (source named above)
+- [ ] No process/curator/TODO meta in any shipped `.md` (grep clean)
+- [ ] Frontmatter intact; SKILL stays a flow, depth in the REFERENCE
+- [ ] `npm test` result reported above (green, or red explained)
+- [ ] Change is in scope for this release only
 
 ## Notes for the reviewer
 <assumptions, anything you couldn't confirm, follow-ups>
