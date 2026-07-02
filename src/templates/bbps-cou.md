@@ -45,7 +45,14 @@ This is not a synchronous API — you must poll the status endpoint.
 | Sandbox | `https://sandbox.cashfree.com/bbps/cou` |
 | Production | `https://api.cashfree.com/bbps/cou` |
 
-All requests go through the Cashfree API Gateway and require standard Cashfree auth headers.
+All requests require these two headers on every call:
+
+```http
+x-client-id: <your-client-id>
+x-client-secret: <your-client-secret>
+```
+
+Credentials are issued per Agent Institution and are available in the [Merchant Dashboard](https://merchant.cashfree.com/verificationsuite/developers/api-keys) for both sandbox and production environments.
 
 ---
 
@@ -94,6 +101,28 @@ All requests go through the Cashfree API Gateway and require standard Cashfree a
 
 For `DIRECT_PAY` billers (e.g. donation billers), skip bill fetch entirely and go directly to bill payment.
 
+**How `VALIDATE_AND_PAY` differs from `FETCH_AND_PAY`:**
+
+`VALIDATE_AND_PAY` billers require identity validation before payment but do not return bill details. The flow still calls the bill fetch and poll endpoints, but the response is different:
+
+| | `FETCH_AND_PAY` | `VALIDATE_AND_PAY` |
+|---|---|---|
+| Call bill fetch? | Yes | Yes |
+| Poll response includes `bill_details` | Yes | No |
+| Poll response includes `biller_response` | Yes | No |
+| Poll response includes `additional_info` | Yes | Yes |
+| What to echo in payment `bill_details`? | Echo `customer_params` from fetch response | Use the original `input_params` from your fetch request |
+| What to echo in payment `biller_response`? | Echo full `biller_response` from fetch | Omit or send empty — no bill data returned |
+
+For `VALIDATE_AND_PAY`, the bill fetch poll response (`message` = `"Bill details fetched successfully"`) only contains:
+```json
+{
+  "bill_fetch_response": { "ref_id": "...", "approval_ref_num": "...", "response_code": "000" },
+  "additional_info": { "tag": [...] }
+}
+```
+No `bill_details` or `biller_response` will be present. Proceed to bill payment using the customer's original input params and omit `biller_response` from the payment request.
+
 ---
 
 ## 5. Step-by-Step: Happy Path
@@ -109,7 +138,14 @@ Response:
 {
   "status": "OK",
   "message": "Biller categories fetched successfully",
-  "data": ["Electricity", "Gas", "Water", "Broadband", "Insurance", "DTH", "FASTag"]
+  "data": [
+    "Broadband Postpaid", "Cable TV", "Clubs and Associations", "Credit Card",
+    "DTH", "Donation", "Education", "Electricity", "Fastag", "Gas",
+    "Hospital", "Hospital and Pathology", "Insurance", "LPG Gas",
+    "Landline Postpaid", "Loan Repayment", "Mobile Postpaid",
+    "Municipal Services", "Municipal Taxes", "Recurring Deposit",
+    "Rental", "Subscription", "Water"
+  ]
 }
 ```
 
@@ -125,8 +161,8 @@ Content-Type: application/json
 
 {
   "biller_fetch_request": {
-    "biller_id": "UPCL123",
-    "category": "Electricity"
+    "biller_id": ["UPCL123"],
+    "biller_category_name": ["Electricity"]
   }
 }
 ```
@@ -153,7 +189,7 @@ Content-Type: application/json
     },
     "input_params": {
       "input": [
-        { "name": "Consumer Number", "value": "12345678" }
+        { "param_name": "Consumer Number", "param_value": "12345678" }
       ]
     },
     "agent_device_info": {
@@ -236,15 +272,47 @@ Content-Type: application/json
 {
   "bill_payment_request": {
     "head": {
-      "bill_fetch_ref_id": "REF20241201001",
-      "pg_reference_id": "PG_ORDER_001"
+      "bill_fetch_ref_id": "REF20241201001",   // required — ref_id from bill fetch
+      "pg_reference_id": "PG_ORDER_001"         // required — your internal order ID
     },
-    "customer": { "mobile": "9999999999" },
-    "agent": { "id": "AGENT001", "channel": "INT" },
-    "bill_details": { ... },
-    "biller_response": { ... },
-    "payment_method": { "payment_mode": "Internet Banking" },
-    "amount": { "amount": "150000", "currency": "INR" }
+    "customer": {
+      "mobile": "9999999999",
+      "tag": [{ "name": "EMAIL", "value": "customer@example.com" }]  // optional — EMAIL | AADHAAR | PAN
+    },
+    "agent": {
+      "id": "AGENT001",
+      "device": {
+        "tag": [
+          { "name": "INITIATING_CHANNEL", "value": "INT" },
+          { "name": "IP", "value": "192.168.1.1" }
+        ]
+      }
+    },
+    "bill_details": {
+      "biller": { "id": "UPCL123" },           // required — biller ID
+      "customer_params": {
+        "tag": [{ "name": "Consumer Number", "value": "12345678" }]
+      }
+    },
+    "biller_response": { ... },                 // echo back from bill fetch status
+    "additional_info": { "tag": [] },           // echo back from bill fetch status
+    "payment_method": {
+      "quick_pay": "No",                        // required — "Yes" if paying without prior fetch
+      "split_pay": "No",                        // required
+      "off_us_pay": "No",                       // required
+      "payment_mode": "UPI"                     // must match biller_payment_modes
+    },
+    "amount": {
+      "amt": {
+        "amount": "150000",                     // paise — must match bill amount for Exact billers
+        "cust_conv_fee": "0",                   // customer convenience fee in paise
+        "cou_cust_conv_fee": "0",               // COU convenience fee in paise
+        "currency": "356"                       // numeric INR code
+      }
+    },
+    "payment_information": {
+      "tag": [{ "name": "VPA", "value": "customer@upi" }]  // required — instrument details by payment mode
+    }
   }
 }
 ```
@@ -266,7 +334,7 @@ Response (HTTP 202):
 
 ### Step 6 — Poll Bill Payment Status
 
-Poll at increasing intervals: 5s → 15s → 30s → 1 min → 3 min. Stop when `data.status` is `"success"` or `"failed"`. If still processing after your retry limit, treat as timeout and raise a support ticket.
+Poll at increasing intervals: 5s → 15s → 30s → 1 min → 3 min. Stop when `data.status` is `"SUCCESS"` or `"FAILED"`. If still processing after your retry limit, treat as timeout and raise a support ticket.
 
 ```http
 POST /v1/billers/response/bill-payment
@@ -281,19 +349,21 @@ Content-Type: application/json
 Success response (HTTP 200):
 ```json
 {
-  "status": "success",
-  "message": "Bill payment successful",
+  "status": "OK",
+  "message": "Payment successful",
   "data": {
-    "status": "success",
-    "bill_payment_response": {
-      "head": { "bill_fetch_ref_id": "REF20241201001" },
-      "reason": {
-        "approval_ref_num": "NBBL_PAY_001",
-        "response_code": "000",
-        "response_reason": "Transaction Approved"
-      },
-      "txn": { "transaction_ref_id": "TXN20241201001" },
-      "biller_response": { "customer_name": "John Doe", "amount": "150000" }
+    "status": "SUCCESS",
+    "response": {
+      "bill_payment_response": {
+        "head": { "bill_fetch_ref_id": "REF20241201001" },
+        "reason": {
+          "approval_ref_num": "APPR123456",
+          "response_code": "000",
+          "response_reason": "Approved"
+        },
+        "txn": { "transaction_ref_id": "TXN20241201001" },
+        "biller_response": { "customer_name": "John Doe", "amount": "150000" }
+      }
     }
   }
 }
@@ -349,7 +419,7 @@ Response (HTTP 202):
 
 ### Step 8 (Optional) — Get Ticket Status
 
-Poll at increasing intervals: 5s → 15s → 30s → 1 min → 3 min. Stop when `message` is `"Ticket status fetched successfully"`. If still processing after your retry limit, contact Cashfree support with the `ref_id`.
+Poll at increasing intervals: 5s → 15s → 30s → 1 min → 3 min. Stop when `message` is `"Ticket details fetched successfully"` or `"Ticket request failed"`. If still processing after your retry limit, contact Cashfree support with the `ref_id`.
 
 ```http
 POST /v1/billers/response/ticket-status
@@ -361,16 +431,16 @@ Content-Type: application/json
 Response (HTTP 200):
 ```json
 {
-  "status": "SUCCESS",
-  "message": "Ticket status retrieved",
+  "status": "OK",
+  "message": "Ticket details fetched successfully",
   "data": {
     "ref_id": "TKT_REF_001",
     "ticket_id": "TKT001",
-    "ticket_status": "OPEN",
-    "ticket_type": "COMPLAINT",
-    "assigned": "AGENT001",
+    "ticket_status": "ASSIGNED",
+    "ticket_type": "DISPUTE",
+    "assigned": "BILLER",
     "response_code": "000",
-    "response_reason": "Ticket created successfully",
+    "response_reason": "SUCCESS",
     "description": "Payment deducted but biller not updated"
   }
 }
@@ -447,7 +517,11 @@ Response (HTTP 200):
 - **Always poll** — bill fetch and bill payment are async. A `202 ACCEPTED` response is not final.
 - **Use exponential backoff when polling** — 5s → 15s → 30s → 1 min → 3 min intervals.
 - **Check flow before calling bill fetch** — for `DIRECT_PAY` billers (both `fetch_requirement` and `support_bill_validation` = `NOT_SUPPORTED`), skip bill fetch entirely and go directly to bill payment. Calling bill fetch for these billers returns a validation error.
-- **Echo back biller data** — the bill payment request must include `biller_response` and `bill_details` exactly as received from the fetch status response.
+- **Echo back biller data** — the bill payment request must include `biller_response`, `bill_details`, and `additional_info` exactly as received from the fetch status response.
+- **`payment_information` is required** — pass payment instrument details as `tag[]` with the appropriate fields for the payment mode (e.g. `VPA` for UPI, `CardNum`+`AuthCode` for card, `IFSC`+`AccountNo` for bank transfer).
+- **`payment_method` requires three flags** — always include `quick_pay`, `split_pay`, and `off_us_pay` (typically all `"No"`).
+- **`amount.amt.currency` is the numeric INR code** — use `"356"`, not `"INR"`.
+- **`bill_details.biller.id` is required** — include the biller ID in the payment request alongside the customer params.
 - **Amount is in paise** — `"150000"` = ₹1500.00.
 - **`bill_fetch_ref_id` links fetch to payment** — the `ref_id` from bill fetch becomes `bill_fetch_ref_id` in bill payment and all subsequent calls.
 - **Ticket is post-payment** — `txn_reference_id` in the ticket raise must reference a real completed transaction.

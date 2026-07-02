@@ -89,9 +89,9 @@ Error response (4xx / 5xx) — uses `message`, `code`, and `type` fields (no `st
 
 ```jsonc
 {
-  "biller_fetch_request": {        // optional — omit to fetch all billers
-    "biller_id": "UPCL123",        // optional filter
-    "category": "Electricity"      // optional filter
+  "biller_fetch_request": {                    // optional — omit to fetch all billers
+    "biller_id": ["UPCL123"],                  // optional — array, max 100 entries
+    "biller_category_name": ["Electricity"]    // optional — array, max 50 entries; union with biller_id if both provided
   }
 }
 ```
@@ -108,9 +108,9 @@ Error response (4xx / 5xx) — uses `message`, `code`, and `type` fields (no `st
     "biller_mode": "ONLINE",
     "biller_accepts_adhoc": false,
     "biller_coverage": "NA",
-    "fetch_requirement": "MANDATORY",         // MANDATORY | OPTIONAL | NOT_SUPPORTED
-    "payment_amount_exactness": "EXACT",      // EXACT | EXACT_UP | EXACT_DOWN | ANY
-    "support_bill_validation": "true",
+    "fetch_requirement": "MANDATORY",                  // MANDATORY | OPTIONAL | NOT_SUPPORTED
+    "payment_amount_exactness": "Exact",               // Exact | Exact and above | Exact and below
+    "support_bill_validation": "MANDATORY",            // MANDATORY | OPTIONAL | NOT_SUPPORTED
     "biller_effctv_from": "2023-01-01",
     "biller_effctv_to": "9999-12-31",
     "biller_customer_params": [
@@ -129,7 +129,7 @@ Error response (4xx / 5xx) — uses `message`, `code`, and `type` fields (no `st
         "payment_mode": "Internet Banking",
         "min_limit": 100,
         "max_limit": 500000,
-        "support_pending_status": "true"
+        "support_pending_status": "Yes"          // Yes | No
       }
     ],
     "biller_payment_channels": [
@@ -148,9 +148,15 @@ Error response (4xx / 5xx) — uses `message`, `code`, and `type` fields (no `st
     "support_pending_status": "true",
     "support_deemed": "false",
     "biller_time_out": "60000",
-    "biller_ownership": "B",
+    "biller_ownership": "PSU",                 // Government | PSU | Private
     "status": "ACTIVE",
-    "plan_mdm_requirement": "NOT_SUPPORTED"
+    "plan_mdm_requirement": "NOT_SUPPORTED",   // MANDATORY | OPTIONAL | NOT_SUPPORTED
+    "biller_description": null,                // optional descriptive text
+    "biller_additional_info": [],              // additional info params in fetch/validation response
+    "biller_additional_info_payment": [],      // additional info params in payment response
+    "plan_additional_info": [],                // additional info params in Plan MDM
+    "interchange_fee_conf": [],                // interchange fee configuration details
+    "interchange_fee": []                      // interchange fee details (fee codes, direction, ranges)
   }
 ]
 ```
@@ -178,19 +184,19 @@ For `DIRECT_PAY` billers, the Bill Fetch Request API will return a validation er
   "bill_fetch_request": {
     "agent_id": "AGENT001",              // required
     "biller_id": "UPCL123",             // required
-    "customer_info": {
-      "customer_mobile": "9999999999",   // optional
+    "customer_info": {                    // mandatory for FETCH_AND_PAY
+      "customer_mobile": "9999999999",   // required for FETCH_AND_PAY
       "customer_email": "c@ex.com",      // optional
       "aadhaar": "655675523712",         // optional
       "pan": "ABCDE1234F"               // optional
     },
     "input_params": {
       "input": [
-        { "name": "Consumer Number", "value": "12345678" }
-        // name must match param_name from biller_customer_params
+        { "param_name": "Consumer Number", "param_value": "12345678" }
+        // param_name must match param_name from biller_customer_params
       ]
     },
-    "agent_device_info": {               // optional but recommended
+    "agent_device_info": {               // mandatory for FETCH_AND_PAY; optional for VALIDATE_AND_PAY
       "app": "MerchantApp",
       "imei": "123456789012345",
       "init_channel": "INT",             // INT | MOB | KIOSK | BNKBRNCH | BKMNG | INTBBNK | CORPBBNK
@@ -263,45 +269,69 @@ For `DIRECT_PAY` billers, the Bill Fetch Request API will return a validation er
   "bill_payment_request": {
     "head": {
       "bill_fetch_ref_id": "REF20241201001",   // required — ref_id from bill fetch
-      "pg_reference_id": "PG_ORDER_001"         // optional — your internal order ID
+      "pg_reference_id": "PG_ORDER_001"         // required — Agent Institution's internal order ID
     },
     "customer": {
-      "mobile": "9999999999",
-      "email": "c@example.com",
-      "pan": "ABCDE1234F",
-      "aadhaar": "655675523712"
+      "mobile": "9999999999",                  // required
+      "tag": [                                 // optional — additional customer identifiers
+        { "name": "EMAIL", "value": "c@example.com" }  // EMAIL | AADHAAR | PAN
+      ]
     },
     "agent": {
-      "id": "AGENT001",
-      "channel": "INT"
+      "id": "AGENT001",                        // required — Agent Institution ID
+      "device": {                              // required
+        "tag": [                               // at least one tag required
+          { "name": "INITIATING_CHANNEL", "value": "INT" },
+          { "name": "IP", "value": "192.168.1.1" }
+          // Supported: INITIATING_CHANNEL, IP, MOBILE, GEOCODE, POSTAL_CODE,
+          //            TERMINAL_ID, IMEI, IFSC, MAC, OS, APP
+        ]
+      }
     },
-    "bill_details": {                            // echo back from bill fetch status
-      "customer_params": {
+    "bill_details": {                          // required
+      "biller": {
+        "id": "UPCL123"                        // required — biller ID from Fetch Billers Info
+      },
+      "customer_params": {                     // required — customer identifiers for the bill
         "tag": [{ "name": "Consumer Number", "value": "12345678" }]
       }
     },
-    "biller_response": {                         // echo back from bill fetch status
+    "biller_response": {                       // echo back from bill fetch status (mandatory for Electricity, DTH, Gas etc.)
       "customer_name": "John Doe",
       "amount": "150000",
       "due_date": "2024-12-31",
+      "bill_date": "2024-11-01",
       "bill_number": "BILL2024001",
-      "bill_period": "NOV-2024",
-      "tag": []
+      "bill_period": "NOV-2024"
     },
-    "additional_info": {
+    "additional_info": {                       // echo back from bill fetch status
       "tag": []
     },
     "payment_method": {
-      "payment_mode": "Internet Banking"         // must match biller_payment_modes
+      "quick_pay": "No",                       // required — "Yes" if paying without prior fetch
+      "split_pay": "No",                       // required
+      "off_us_pay": "No",                      // required
+      "payment_mode": "UPI"                    // required — must match biller_payment_modes
+      // Supported: UPI, Internet Banking, Debit Card, Credit Card, IMPS, Cash, Wallet, NEFT, AEPS, Bharat QR
     },
     "amount": {
-      "amount": "150000",                        // paise — must match bill amount for EXACT billers
-      "currency": "INR"
+      "amt": {
+        "amount": "150000",                    // required — paise; must match bill amount for "Exact" billers
+        "cust_conv_fee": "0",                  // required — customer convenience fee (CCF1) in paise
+        "cou_cust_conv_fee": "0",              // required — COU convenience fee (CCF2) in paise
+        "currency": "356"                      // required — numeric INR code (not "INR")
+      }
     },
-    "payment_information": {
-      "payment_ref_id": "PAY_REF_001",
-      "payment_date_time": "2024-12-01T10:30:00+05:30",
-      "init_channel": "INT"
+    "payment_information": {                   // required — payment instrument details for the selected mode
+      "tag": [                                 // at least one tag required
+        { "name": "VPA", "value": "account@upi" }
+        // Required tags by payment mode:
+        // UPI: VPA
+        // Card: CardNum, AuthCode
+        // Bank transfer: IFSC, AccountNo
+        // Wallet: WalletName, MobileNo
+        // AEPS: Aadhaar, IIN
+      ]
     }
   }
 }
@@ -330,20 +360,22 @@ For `DIRECT_PAY` billers, the Bill Fetch Request API will return a validation er
 
 ```jsonc
 {
-  "status": "success",
-  "bill_payment_response": {
-    "head": { "bill_fetch_ref_id": "REF20241201001" },
-    "reason": {
-      "approval_ref_num": "NBBL_PAY_001",
-      "response_code": "000",
-      "response_reason": "Transaction Approved",
-      "compliance_resp_cd": "",
-      "compliance_reason": ""
-    },
-    "txn": { "transaction_ref_id": "TXN20241201001" },
-    "bill_details": { ... },
-    "biller_response": { ... },
-    "additional_info": { ... }
+  "status": "SUCCESS",                          // PROCESSING | SUCCESS | FAILED — poll until not "PROCESSING"
+  "response": {
+    "bill_payment_response": {
+      "head": { "bill_fetch_ref_id": "REF20241201001" },
+      "reason": {
+        "approval_ref_num": "APPR123456",       // null on failure or while processing
+        "response_code": "000",                 // "000" = success; "PENDING" = processing; other = failure
+        "response_reason": "Approved",
+        "compliance_resp_cd": null,             // present only on failure
+        "compliance_reason": null               // present only on failure
+      },
+      "txn": { "transaction_ref_id": "TXN20241201001" },
+      "bill_details": { ... },                  // present only on SUCCESS
+      "biller_response": { ... },               // present only on SUCCESS; includes cust_conv_fee
+      "additional_info": { ... }                // present only on SUCCESS
+    }
   }
 }
 ```
@@ -406,8 +438,8 @@ For `DIRECT_PAY` billers, the Bill Fetch Request API will return a validation er
 {
   "ref_id": "TKT_REF_001",
   "ticket_id": "TKT001",
-  "ticket_status": "OPEN",          // OPEN | IN_PROGRESS | RESOLVED | CLOSED
-  "ticket_type": "COMPLAINT",
+  "ticket_status": "ASSIGNED",      // ASSIGNED | RESOLVED | REJECTED | REFUNDED
+  "ticket_type": "DISPUTE",         // DISPUTE | COMPLAINT
   "assigned": "AGENT001",
   "response_code": "000",
   "response_reason": "Ticket created successfully",
@@ -500,8 +532,8 @@ All async endpoints use exponential backoff:
 | Endpoint | Continue polling while... | Terminal success | Terminal failure |
 |---|---|---|---|
 | Bill fetch response | `message` = `"Request is still being processed"` | `message` = `"Bill details fetched successfully"` | `message` = `"Bill request failed"` |
-| Bill payment response | `data.status` = `"processing"` | `data.status` = `"success"` | `data.status` = `"failed"` |
-| Ticket status | `message` = `"Request is still being processed"` | `message` = `"Ticket status fetched successfully"` | — |
+| Bill payment response | `data.status` = `"PROCESSING"` | `data.status` = `"SUCCESS"` | `data.status` = `"FAILED"` |
+| Ticket status | `message` = `"Ticket request is still being processed"` | `message` = `"Ticket details fetched successfully"` | `message` = `"Ticket request failed"` |
 
 If still processing after retry limit: raise a support ticket (bill fetch/payment) or contact Cashfree support with `ref_id` (ticket).
 
