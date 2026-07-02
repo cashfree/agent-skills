@@ -45,11 +45,12 @@ This is not a synchronous API — you must poll the status endpoint.
 | Sandbox | `https://sandbox.cashfree.com/bbps/cou` |
 | Production | `https://api.cashfree.com/bbps/cou` |
 
-All requests require these two headers on every call:
+All requests require these headers on every call:
 
 ```http
 x-client-id: <your-client-id>
 x-client-secret: <your-client-secret>
+x-api-version: 2025-01-01
 ```
 
 Credentials are issued per Agent Institution and are available in the [Merchant Dashboard](https://merchant.cashfree.com/verificationsuite/developers/api-keys) for both sandbox and production environments.
@@ -79,14 +80,19 @@ Credentials are issued per Agent Institution and are available in the [Merchant 
 1. GET  /v1/billers/categories              → list of category labels (optional discovery)
 2. POST /v1/billers/info                    → biller details, input params, payment modes, flow config
 3. POST /v1/billers/request/bill-fetch      → 202 ACCEPTED, ref_id + flow returned
-                                               (skip for DIRECT_PAY billers — go straight to step 5)
+                                               (skip for DIRECT_PAY billers — go straight to step 5a)
 4. POST /v1/billers/response/bill-fetch     → poll with ref_id until terminal message
-5. POST /v1/billers/request/bill-payment    → 202 ACCEPTED, transaction_ref_id returned
-6. POST /v1/billers/response/bill-payment   → poll with bill_fetch_ref_id + transaction_ref_id
+
+[PG payment layer — happens before bill payment]
+5a. POST /pg/orders (Cashfree PG)           → create order with bbps block (bill_fetch_ref_id, biller_id, agent_id)
+5b. Customer completes payment via Cashfree PG (Checkout / SDK)
+
+6. POST /v1/billers/request/bill-payment    → 202 ACCEPTED, transaction_ref_id returned
+7. POST /v1/billers/response/bill-payment   → poll with bill_fetch_ref_id + transaction_ref_id
 
 [Optional — for disputes]
-7. POST /v1/billers/request/ticket          → 202 ACCEPTED, ref_id returned
-8. POST /v1/billers/response/ticket-status  → poll with ref_id until resolved
+8. POST /v1/billers/request/ticket          → 202 ACCEPTED, ref_id returned
+9. POST /v1/billers/response/ticket-status  → poll with ref_id until resolved
 ```
 
 **Flow is determined by biller config (priority order):**
@@ -261,7 +267,43 @@ Success response (HTTP 200):
 
 ---
 
-### Step 5 — Initiate Bill Payment
+### Step 5a — Create Cashfree PG Order
+
+Before initiating the BBPS bill payment, create a Cashfree PG order with a `bbps` block. The `bbps` block links the PG order to the bill fetch and is required for BBPS payments.
+
+```http
+POST /pg/orders
+x-client-id: <your-client-id>
+x-client-secret: <your-client-secret>
+x-api-version: 2025-01-01
+Content-Type: application/json
+
+{
+  "order_amount": 1500.00,
+  "order_currency": "INR",
+  "customer_details": {
+    "customer_id": "CUST001",
+    "customer_phone": "9999999999"
+  },
+  "bbps": {
+    "bill_fetch_ref_id": "REF20241201001",   // ref_id from bill fetch
+    "biller_id": "UPCL123",
+    "agent_id": "AGENT001"
+  }
+}
+```
+
+> All three fields in the `bbps` block — `bill_fetch_ref_id`, `biller_id`, and `agent_id` — are required.
+
+---
+
+### Step 5b — Customer Completes Payment via Cashfree PG
+
+Use the PG order response (payment session) to render the Cashfree Checkout or invoke the SDK so the customer can complete the payment. Once the customer pays successfully through PG, proceed to Step 6.
+
+---
+
+### Step 6 — Initiate Bill Payment
 
 Use `ref_id` from Step 3 as `bill_fetch_ref_id`. Echo back `biller_response` and `bill_details` exactly as received from Step 4.
 

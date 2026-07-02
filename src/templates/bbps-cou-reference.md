@@ -30,7 +30,19 @@ description: >
 
 ---
 
-## 2. Standard Response Envelope
+## 2. Required Headers
+
+All BBPS COU API calls require these three headers:
+
+```http
+x-client-id: <your-client-id>
+x-client-secret: <your-client-secret>
+x-api-version: 2025-01-01
+```
+
+---
+
+## 3. Standard Response Envelope
 
 Success responses are wrapped in:
 
@@ -75,7 +87,7 @@ Error response (4xx / 5xx) — uses `message`, `code`, and `type` fields (no `st
 
 ---
 
-## 3. Get Biller Categories
+## 4. Get Biller Categories
 
 **Request:** No body.
 
@@ -83,7 +95,7 @@ Error response (4xx / 5xx) — uses `message`, `code`, and `type` fields (no `st
 
 ---
 
-## 4. Get Biller Info — Full Schema
+## 5. Get Biller Info — Full Schema
 
 ### Request
 
@@ -175,7 +187,7 @@ For `DIRECT_PAY` billers, the Bill Fetch Request API will return a validation er
 
 ---
 
-## 5. Bill Fetch — Full Schema
+## 6. Bill Fetch — Full Schema
 
 ### Request
 
@@ -260,7 +272,40 @@ For `DIRECT_PAY` billers, the Bill Fetch Request API will return a validation er
 
 ---
 
-## 6. Bill Payment — Full Schema
+## 7. Cashfree PG — Create Order (`bbps` block)
+
+Before calling the Bill Payment API, create a Cashfree PG order with the `bbps` block. This links the PG payment to the bill fetch.
+
+**Endpoint:** `POST /pg/orders`
+**Base URL:** `https://sandbox.cashfree.com` / `https://api.cashfree.com`
+
+**Required headers:**
+```http
+x-client-id: <your-client-id>
+x-client-secret: <your-client-secret>
+x-api-version: 2025-01-01
+```
+
+### `bbps` block schema
+
+```jsonc
+{
+  "order_amount": 1500.00,       // required — bill amount in INR (convert from paise: amount / 100)
+  "order_currency": "INR",       // required
+  "customer_details": { ... },   // required — standard PG customer object
+  "bbps": {
+    "bill_fetch_ref_id": "REF20241201001",   // required — ref_id from bill fetch
+    "biller_id": "UPCL123",                  // required — biller ID
+    "agent_id": "AGENT001"                   // required — Agent Institution ID
+  }
+}
+```
+
+All three fields inside the `bbps` block are required. Omitting any one returns a validation error.
+
+---
+
+## 8. Bill Payment — Full Schema
 
 ### Request
 
@@ -382,7 +427,7 @@ For `DIRECT_PAY` billers, the Bill Fetch Request API will return a validation er
 
 ---
 
-## 7. Ticket Raise — Full Schema
+## 9. Ticket Raise — Full Schema
 
 **Disposition codes** (required; use code string, not free-text):
 
@@ -424,7 +469,7 @@ For `DIRECT_PAY` billers, the Bill Fetch Request API will return a validation er
 
 ---
 
-## 8. Ticket Status — Full Schema
+## 10. Ticket Status — Full Schema
 
 ### Request
 
@@ -449,7 +494,7 @@ For `DIRECT_PAY` billers, the Bill Fetch Request API will return a validation er
 
 ---
 
-## 9. Agent Institution Wallet — Full Schema
+## 11. Agent Institution Wallet — Full Schema
 
 ### Get Wallet Balance
 
@@ -515,7 +560,7 @@ All body fields optional. Empty body returns all entries.
 
 ---
 
-## 10. Polling Strategy
+## 12. Polling Strategy
 
 All async endpoints use exponential backoff:
 
@@ -539,7 +584,7 @@ If still processing after retry limit: raise a support ticket (bill fetch/paymen
 
 ---
 
-## 11. Common Errors
+## 13. Common Errors
 
 Error responses use `{message, code, type}` — no `status` or `data` fields.
 
