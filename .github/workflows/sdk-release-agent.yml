@@ -1,0 +1,84 @@
+name: SDK Release Agent
+
+# Fires when:
+#   - an issue is OPENED already carrying the `sdk-release` label, OR
+#   - the `sdk-release` label is ADDED later to any existing issue.
+# A random issue with no label does nothing until you add `sdk-release`.
+on:
+    issues:
+        types: [opened, labeled]
+
+# Least-privilege: the agent only needs to write code, open PRs, and
+# comment on the issue.
+permissions:
+    contents: write
+    pull-requests: write
+    issues: write
+
+# One run per issue.
+concurrency:
+    group: sdk-release-agent-${{ github.event.issue.number }}
+    cancel-in-progress: true
+
+jobs:
+    sdk-release-fix:
+        # Run only for the `sdk-release` label: when it is added, or when an
+        # issue is opened already bearing it. Other labels do nothing.
+        if: >-
+            (github.event.action == 'labeled' && github.event.label.name == 'sdk-release') ||
+            (github.event.action == 'opened' && contains(github.event.issue.labels.*.name, 'sdk-release'))
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v5
+              with:
+                  fetch-depth: 0 # full history so the agent can branch/diff cleanly
+            - name: Set up Node
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 20
+
+            - name: Configure git identity for the agent's commits
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+            - name: Build the Codex prompt
+              env:
+                  ISSUE_NUMBER: ${{ github.event.issue.number }}
+                  ISSUE_TITLE: ${{ github.event.issue.title }}
+                  REPO: ${{ github.repository }}
+              run: |
+                  {
+                    cat .codex/prompts/sdk-release.md
+                    echo
+                    echo "ISSUE_NUMBER: ${ISSUE_NUMBER}"
+                    echo "ISSUE_TITLE: ${ISSUE_TITLE}"
+                    echo "REPO: ${REPO}"
+                  } > "${RUNNER_TEMP}/sdk-release-prompt.md"
+
+            - name: Run Codex SDK-release agent
+              uses: openai/codex-action@v1
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              with:
+                  openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+                  # Instructions + issue context built in the previous step.
+                  prompt-file: ${{ runner.temp }}/sdk-release-prompt.md
+                  # Pinned so a future CLI release can't silently change behaviour.
+                  codex-version: 0.142.4
+                  effort: high
+                  sandbox: danger-full-access
+                  # Capture the agent's final message for the run log.
+                  output-file: ${{ runner.temp }}/codex-final.md
+
+            - name: Surface the agent's final message
+              if: always()
+              run: |
+                  echo "### Codex final message" >> "$GITHUB_STEP_SUMMARY"
+                  if [ -f "${RUNNER_TEMP}/codex-final.md" ]; then
+                    cat "${RUNNER_TEMP}/codex-final.md" >> "$GITHUB_STEP_SUMMARY"
+                  else
+                    echo "_(no final message file produced)_" >> "$GITHUB_STEP_SUMMARY"
+                  fi

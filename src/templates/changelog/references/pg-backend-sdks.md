@@ -66,7 +66,7 @@ Every language's 4.0.0 carries the identical note *"SDK now supports our new ver
 
 | version | date | breaking? | headline |
 |---|---|---|---|
-| 6.0.4 | 2026-05-18 (npm) | **Yes** (major) | New API spec; major bump. Release notes absent on GitHub (tag-only). |
+| 6.0.4 | 2026-05-18 (npm) | **Yes** (major) | Generated from OpenAPI document version `2026-01-01`; major bump. No GitHub Release object for the tag. |
 | 5.1.3 | 2026-04-22 | No | Patch over 5.1.x |
 | 5.1.0 | 2025-10-08 (npm) | No | Feature bump (5.0.8 → 5.1.0); thin auto-notes |
 | 5.0.7 | 2025 (first 5.x on npm) | **Yes** | New instance client; `x-api-version` dropped from method args |
@@ -84,14 +84,14 @@ Every language's 4.0.0 carries the identical note *"SDK now supports our new ver
 - **Backward compat:** min Node not enforced (no `engines`); min API version `2023-08-01`; **not drop-in** from v4.
 - **Source:** https://github.com/cashfree/cashfree-pg-sdk-nodejs (README @ 5.0.7 vs 4.2.0) · https://www.npmjs.com/package/cashfree-pg — as-of 2026-06-23
 
-### Node `cashfree-pg` 6.0.x — 2026-05 (npm 6.0.4)
+### Node `cashfree-pg` 6.0.x — 2026-05-18 (npm 6.0.4)
 - **Type:** Breaking (major)
-- **Breaking?:** Yes (major bump to the new OpenAPI spec; SDK default `x-api-version` = `2026-01-01`). Detailed prose notes absent (tag-only release).
-- **What changed:** Regenerated against the newest API spec; SDK ships `2026-01-01` as its internal default `x-api-version`.
-- **What to fix (your code):** Bump `cashfree-pg` to `^6`; re-run your integration tests; confirm whether you want the SDK default `2026-01-01` or to pin `x-api-version` to the documented `2025-01-01`.
-- **What to test:** all methods you call (response models may have shifted); webhook verification; the api-version actually sent on the wire.
-- **Backward compat:** call signatures unchanged from v5 (still instance client, no version arg); behavior change is the spec/default version. Re-verify.
-- **Source:** https://www.npmjs.com/package/cashfree-pg (6.0.4) — as-of 2026-06-23 *(release notes not published; bump verified, field-level delta unverified)*
+- **Breaking?:** Yes — major version generated from OpenAPI document version `2026-01-01`; SDK default `XApiVersion` = `2026-01-01`.
+- **What changed:** npm `cashfree-pg` publishes `6.0.4`, matching git tag `6.0.4`. The tag's generated `index.ts` identifies OpenAPI document version `2026-01-01`, and `api.ts` sets `Cashfree.XApiVersion = "2026-01-01"`.
+- **What to fix (your code):** Bump `cashfree-pg` to `^6`; keep the v5+ instance call style (`const cashfree = new Cashfree(env, id, secret)` then `cashfree.PGCreateOrder(request, ...)`); set `cashfree.XApiVersion = "2025-01-01"` before calls if you need the latest documented REST API contract instead of the SDK default.
+- **What to test:** order create/fetch, every other method you call, webhook signature verification, and the `x-api-version` actually sent on the wire.
+- **Backward compat:** no declared Node `engines` requirement in `package.json`; call signatures are unchanged from v5 for the checked methods (`PGCreateOrder(request, x_request_id?, x_idempotency_key?, options?)`, `PGFetchOrder(order_id, ...)`, `PGVerifyWebhookSignature(signature, rawBody, timestamp)`); behavior changes can come from the generated `2026-01-01` API surface/default version.
+- **Source:** https://www.npmjs.com/package/cashfree-pg/v/6.0.4 · https://github.com/cashfree/cashfree-pg-sdk-nodejs/tree/6.0.4 · https://raw.githubusercontent.com/cashfree/cashfree-pg-sdk-nodejs/6.0.4/index.ts · https://raw.githubusercontent.com/cashfree/cashfree-pg-sdk-nodejs/6.0.4/api.ts · https://raw.githubusercontent.com/cashfree/cashfree-pg-sdk-nodejs/6.0.4/package.json — as-of 2026-06-29
 
 ### Node `cashfree-pg` 4.0.0 — 2024-01-22 (boundary)
 - **Type:** Breaking
@@ -279,4 +279,3 @@ Module-path note: v6 requires importing `github.com/cashfree/cashfree-pg/v6` (Go
 
 ### .NET 4.0.0 — 2024-01-22 (boundary)
 - **Breaking?:** Yes — new PG APIs. **What to fix:** migrate from 3.x. **Backward compat:** not drop-in from 3.x. **Source:** https://github.com/cashfree/cashfree-pg-sdk-dotnet/releases/tag/4.0.0 — as-of 2026-06-23
-
