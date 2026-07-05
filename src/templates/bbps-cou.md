@@ -415,18 +415,7 @@ Success response (HTTP 200):
 
 ### Step 7 (Optional) — Raise Support Ticket
 
-Use when a transaction needs follow-up or the customer disputes a completed payment. The `disposition` field must use a predefined code:
-
-| Code | Description | Type |
-|---|---|---|
-| `D11` | Transaction successful, amount debited but service not received | Dispute |
-| `D12` | Transaction successful, amount debited but service disconnected/stopped | Dispute |
-| `D13` | Transaction successful, amount debited but LPSC charges added in next bill | Dispute |
-| `D21` | Erroneously paid in wrong account | Dispute |
-| `D22` | Duplicate payment | Dispute |
-| `D23` | Erroneously paid the wrong amount | Dispute |
-| `D31` | Payment information not received from biller / delay in receiving | Complaint |
-| `D32` | Bill paid but amount not adjusted or still showing due | Complaint |
+Use when a transaction needs follow-up or the customer disputes a completed payment. The `disposition` field must use a predefined code (D11–D32) — see `references/REFERENCE.md` for the full disposition code table.
 
 ```http
 POST /v1/billers/request/ticket
@@ -490,67 +479,9 @@ Response (HTTP 200):
 
 ---
 
-### Wallet — Get Agent Institution Wallet Balance
+### Wallet — Balance and Ledger
 
-Use to check the available balance before initiating payments.
-
-```http
-GET /agent/{agentId}/wallet/balance
-```
-
-Response (HTTP 200):
-```json
-{
-  "balance": 5000.00
-}
-```
-
-`balance` is in **INR** (not paise).
-
----
-
-### Wallet — Get Agent Institution Wallet Ledger
-
-Use for reconciliation — paginated list of credits (wallet top-ups) and debits (bill payments).
-
-```http
-POST /agent/{agentId}/wallet/ledger?page=0&size=20
-Content-Type: application/json
-
-{
-  "start_date_time": "2025-01-01 00:00:00",
-  "end_date_time": "2025-01-31 23:59:59",
-  "sale_type": "DEBIT",
-  "utr": "UTR123456789"
-}
-```
-
-All body fields are optional. An empty body returns all entries.
-
-Response (HTTP 200):
-```json
-{
-  "content": [
-    {
-      "id": 1001,
-      "wallet_id": 42,
-      "sale_type": "DEBIT",
-      "amount": 250.00,
-      "closing_balance": 4750.00,
-      "utr": "UTR123456789",
-      "added_on": "2025-01-15 10:30:00",
-      "updated_on": "2025-01-15 10:30:05"
-    }
-  ],
-  "size": 20,
-  "page": 0,
-  "last": true
-}
-```
-
-- `sale_type`: `CREDIT` = wallet top-up, `DEBIT` = bill payment
-- `last: true` means no more pages
-- Datetime format: `yyyy-MM-dd HH:mm:ss`
+Use `GET /agent/{agentId}/wallet/balance` to check available balance before initiating payments (returns INR, not paise), and `POST /agent/{agentId}/wallet/ledger` for paginated reconciliation history. Full request/response schemas are in `references/REFERENCE.md`.
 
 ---
 
