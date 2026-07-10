@@ -55,6 +55,10 @@ import {
     getAutoCollectReferenceTemplate,
 } from "./templates/auto-collect.js";
 import {
+    getBbpsCouSkillTemplate,
+    getBbpsCouReferenceTemplate,
+} from "./templates/bbps-cou.js";
+import {
     getChangelogSkillTemplate,
     getChangelogPgBackendSdksTemplate,
     getChangelogPgApiVersionsTemplate,
@@ -116,6 +120,8 @@ export const ALL_SKILLS: Skill[] = [
     { dir: "settlements-and-reconciliation/references", fileName: "REFERENCE.md", getTemplate: getSettlementsReferenceTemplate },
     { dir: "auto-collect", getTemplate: getAutoCollectSkillTemplate },
     { dir: "auto-collect/references", fileName: "REFERENCE.md", getTemplate: getAutoCollectReferenceTemplate },
+    { dir: "bbps-cou", getTemplate: getBbpsCouSkillTemplate },
+    { dir: "bbps-cou/references", fileName: "REFERENCE.md", getTemplate: getBbpsCouReferenceTemplate },
 
     // --- Migration skills (switching from another PG) ---
     { dir: "migrate-from-razorpay", getTemplate: getMigrateFromRazorpaySkillTemplate },

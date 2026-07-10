@@ -51,6 +51,7 @@ You are helping a developer integrate Cashfree Payments.
 | Send payouts / disbursements | \`${s}/payouts/SKILL.md\` |
 | Understand settlements, reconcile against bank, match UTRs | \`${s}/settlements-and-reconciliation/SKILL.md\` |
 | Accept inbound via virtual bank accounts / static VPAs / QR | \`${s}/auto-collect/SKILL.md\` |
+| Integrate BBPS COU — fetch and pay bills on behalf of customers | \`${s}/bbps-cou/SKILL.md\` |
 | Migrate an existing Razorpay integration to Cashfree | \`${s}/migrate-from-razorpay/SKILL.md\` |
 | Migrate an existing Juspay integration to Cashfree | \`${s}/migrate-from-juspay/SKILL.md\` |
 | Migrate an existing PayU integration to Cashfree | \`${s}/migrate-from-payu/SKILL.md\` |
