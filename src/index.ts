@@ -33,11 +33,14 @@ import {
     createInstallCompletedEvent,
     createInstallStartedEvent,
     createProgressFeedbackSubmittedEvent,
+    createDeveloperFeedbackSubmittedEvent,
     createTelemetryDistinctId,
     isTelemetryEnabled,
     sendTelemetryEvents,
     type InstallTelemetryEvent,
     type ProgressFeedbackTelemetryInput,
+    type DeveloperFeedbackTelemetryInput,
+    type DeveloperSentiment,
     type SelectionMode,
 } from "./telemetry.js";
 
@@ -396,6 +399,115 @@ program
                 skills_used_count: payload.skillsUsed.length,
                 completed_steps_count: payload.completedSteps.length,
                 pending_steps_count: payload.pendingSteps.length,
+            }));
+        }
+    });
+
+const VALID_SENTIMENTS: DeveloperSentiment[] = ["positive", "negative", "neutral", "dismissed"];
+
+program
+    .command("report-integration-feedback")
+    .description("Submit the developer's own thumbs up/down sentiment about a finished Cashfree integration")
+    .requiredOption("--sentiment <sentiment>", `Developer sentiment: ${VALID_SENTIMENTS.join(", ")}`)
+    .requiredOption("--flow <flow>", "Integration flow or product area, e.g. pg, subscriptions, payouts")
+    .requiredOption("--framework <framework>", "LLM framework/identity relaying this feedback (e.g. claude-code, opencode)")
+    .option("--tested", "Set if the developer confirmed they actually tested the integration")
+    .option("--reason-category <category>", "Structured reason bucket (mainly for negatives), e.g. skill_inaccurate")
+    .option("--reason <reason>", "Developer's own words on what went well/wrong. No secrets or PII.")
+    .option("--rating <rating>", "Optional 1-5 score, if collected")
+    .option("--skill <skill>", "Skill used during the workflow. Repeat for multiple skills.", collectOptionValues, [])
+    .option("--completed-step <step>", "Completed step. Repeat for multiple steps.", collectOptionValues, [])
+    .option("--pending-step <step>", "Pending step. Repeat for multiple steps.", collectOptionValues, [])
+    .option("--credentials-verified", "Set if the sandbox credential check succeeded earlier this session")
+    .option("--error-type <type>", "Cashfree error class/code hit during integration. Repeat for multiple.", collectOptionValues, [])
+    .option("--correlation-id <id>", "Correlation ID minted at start-integration. Required to join the session timeline; auto-generated with an 'auto-' prefix only as a legacy fallback.")
+    .option("--app-id <appId>", "Cashfree App ID (x-client-id) seen in the integration, if available")
+    .option("--silent", "Suppress JSON output")
+    .action(async (options: {
+        sentiment: string;
+        flow: string;
+        framework: string;
+        tested?: boolean;
+        reasonCategory?: string;
+        reason?: string;
+        rating?: string;
+        skill: string[];
+        completedStep: string[];
+        pendingStep: string[];
+        credentialsVerified?: boolean;
+        errorType: string[];
+        correlationId?: string;
+        appId?: string;
+        silent?: boolean;
+    }) => {
+        const validFrameworks = FRAMEWORKS.map((f) => f.value);
+        const framework = options.framework.trim().toLowerCase();
+        if (!validFrameworks.includes(framework as any)) {
+            console.error(`Error: --framework must be one of: ${validFrameworks.join(", ")}`);
+            process.exitCode = 1;
+            return;
+        }
+
+        const sentiment = options.sentiment.trim().toLowerCase() as DeveloperSentiment;
+        if (!VALID_SENTIMENTS.includes(sentiment)) {
+            console.error(`Error: --sentiment must be one of: ${VALID_SENTIMENTS.join(", ")}`);
+            process.exitCode = 1;
+            return;
+        }
+
+        const flow = options.flow.trim();
+        if (!flow) {
+            console.error('Error: --flow is required and cannot be empty.');
+            process.exitCode = 1;
+            return;
+        }
+
+        let rating: number | undefined;
+        if (options.rating !== undefined) {
+            const parsed = Number.parseInt(options.rating, 10);
+            if (Number.isNaN(parsed) || parsed < 1 || parsed > 5) {
+                console.error('Error: --rating must be an integer between 1 and 5.');
+                process.exitCode = 1;
+                return;
+            }
+            rating = parsed;
+        }
+
+        // Pairs this sentiment with its start-integration event so the whole
+        // session (start → progress → sentiment) can be stitched together. The
+        // 'auto-' fallback only exists so a resumed session still reports.
+        const correlationId = options.correlationId?.trim() || `auto-${randomUUID()}`;
+
+        const payload: DeveloperFeedbackTelemetryInput = {
+            cliVersion: pkg.version,
+            framework,
+            flow,
+            skillsUsed: options.skill.map((s) => s.trim()).filter(Boolean),
+            sentiment,
+            tested: Boolean(options.tested),
+            reasonCategory: options.reasonCategory?.trim() || undefined,
+            reasonText: options.reason?.trim() || undefined,
+            rating,
+            completedSteps: options.completedStep.map((s) => s.trim()).filter(Boolean),
+            pendingSteps: options.pendingStep.map((s) => s.trim()).filter(Boolean),
+            ...(options.credentialsVerified !== undefined && { credentialsVerified: Boolean(options.credentialsVerified) }),
+            errorTypes: options.errorType.map((s) => s.trim()).filter(Boolean),
+            correlationId,
+            appId: options.appId?.trim(),
+        };
+
+        const event = createDeveloperFeedbackSubmittedEvent(payload);
+        await sendTelemetryEvents([event]);
+
+        if (!options.silent) {
+            console.log(JSON.stringify({
+                ok: true,
+                submitted: isTelemetryEnabled(),
+                event: event.event,
+                correlation_id: correlationId,
+                sentiment: payload.sentiment,
+                flow: payload.flow,
+                reason_category: payload.reasonCategory ?? "",
             }));
         }
     });

@@ -20,6 +20,33 @@ export interface ProgressFeedbackTelemetryInput {
     appId?: string;
 }
 
+export type DeveloperSentiment = "positive" | "negative" | "neutral" | "dismissed";
+
+export interface DeveloperFeedbackTelemetryInput {
+    cliVersion: string;
+    framework: string;
+    flow: string;
+    skillsUsed: string[];
+    sentiment: DeveloperSentiment;
+    /** Whether the developer confirmed they actually tested the integration. */
+    tested: boolean;
+    /** Structured reason bucket, mainly for negatives (e.g. skill_inaccurate). */
+    reasonCategory?: string;
+    /** The developer's own words. Must be free of secrets / PII. */
+    reasonText?: string;
+    /** Optional finer-grained 1-5 score, if a framework collects one. */
+    rating?: number;
+    completedSteps?: string[];
+    pendingSteps?: string[];
+    /** Did the sandbox credential check succeed earlier this session? */
+    credentialsVerified?: boolean;
+    /** Cashfree error classes/codes hit during the integration, for diagnosis. */
+    errorTypes?: string[];
+    /** Same id minted at start-integration, to join the full session timeline. */
+    correlationId: string;
+    appId?: string;
+}
+
 export function deriveMerchantId(value: string): number {
     const trimmed = value.trim().replace(/^TEST/i, "");
     if (trimmed.length === 0) return 0;
@@ -56,6 +83,7 @@ const EVENT_ENDPOINTS: Record<string, string> = {
     "agent_skills_framework_install_failed":      "/telemetry/agent-skills-install/framework-failed",
     "agent_skills_install_completed":             "/telemetry/agent-skills-install/completed",
     "agent_skills_progress_feedback_submitted":   "/telemetry/agent-skills-progress-feedback",
+    "agent_skills_developer_feedback_submitted":   "/telemetry/agent-skills-developer-feedback",
 };
 
 export function createTelemetryDistinctId(): string {
@@ -160,6 +188,39 @@ export function createProgressFeedbackSubmittedEvent(
             completed_steps: input.completedSteps,
             pending_steps: input.pendingSteps,
             llm_feedback: input.llmFeedback,
+            ...(merchantId !== undefined && merchantId > 0 && { merchant_id: merchantId }),
+            ...(input.appId && { app_id: input.appId }),
+        },
+        timestamp: new Date().toISOString(),
+    };
+}
+
+export function createDeveloperFeedbackSubmittedEvent(
+    input: DeveloperFeedbackTelemetryInput
+): InstallTelemetryEvent {
+    const merchantId = input.appId ? deriveMerchantId(input.appId) : undefined;
+    const reasonText = (input.reasonText ?? "").trim();
+
+    return {
+        event: "agent_skills_developer_feedback_submitted",
+        properties: {
+            ...buildSystemProperties(randomUUID(), input.cliVersion),
+            correlation_id: input.correlationId,
+            framework: input.framework,
+            flow: input.flow,
+            skills_used: input.skillsUsed,
+            sentiment: input.sentiment,
+            tested: input.tested ? 1 : 0,
+            reason_category: input.reasonCategory ?? "",
+            reason_text: reasonText,
+            reason_text_length: reasonText.length,
+            completed_steps: input.completedSteps ?? [],
+            pending_steps: input.pendingSteps ?? [],
+            error_types: input.errorTypes ?? [],
+            ...(input.rating !== undefined && { rating: input.rating }),
+            ...(input.credentialsVerified !== undefined && {
+                credentials_verified: input.credentialsVerified ? 1 : 0,
+            }),
             ...(merchantId !== undefined && merchantId > 0 && { merchant_id: merchantId }),
             ...(input.appId && { app_id: input.appId }),
         },

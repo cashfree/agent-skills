@@ -6,6 +6,7 @@ on:
 
 permissions:
     contents: write
+    id-token: write
 
 jobs:
     publish:
@@ -20,11 +21,13 @@ jobs:
             - name: Setup Node.js
               uses: actions/setup-node@v4
               with:
-                  node-version: 20
+                  node-version: 22
                   registry-url: https://registry.npmjs.org/
 
-            - name: Install dependencies
-              run: npm ci
+            - name: Update npm for Trusted Publishing
+              run: |
+                  npm install -g npm@11
+                  npm --version
 
             - name: Extract version from release tag
               id: version
@@ -36,13 +39,15 @@ jobs:
             - name: Update package version
               run: npm version ${{ steps.version.outputs.VERSION }} --no-git-tag-version --allow-same-version
 
+            - name: Install dependencies
+              run: npm install
+
             - name: Build package
               run: npm run build
 
             - name: Publish to npm
               run: npm publish --access public
               env:
-                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
                   CASHFREE_TELEMETRY_BASE_URL: ${{ secrets.CASHFREE_TELEMETRY_BASE_URL }}
 
             - name: Commit and push version update
