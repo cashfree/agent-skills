@@ -46,7 +46,7 @@ jobs:
               run: npm run build
 
             - name: Publish to npm
-              run: npm publish --access public
+              run: npm publish --access public --tag latest
               env:
                   CASHFREE_TELEMETRY_BASE_URL: ${{ secrets.CASHFREE_TELEMETRY_BASE_URL }}
 
