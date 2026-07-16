@@ -4,8 +4,12 @@
     "description": "CLI tool to add Cashfree MCP configurations to AI coding assistants",
     "type": "module",
     "main": "dist/index.js",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/cashfree/agent-skills.git"
+    },
     "bin": {
-        "cashfree": "./dist/index.js"
+        "cashfree": "dist/index.js"
     },
     "scripts": {
         "build": "tsc && npm run copy-templates",
