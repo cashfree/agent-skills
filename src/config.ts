@@ -20,7 +20,7 @@ export type Framework = typeof FRAMEWORKS[number]['value'];
  */
 export function getSkillsBasePath(framework: Framework): string {
     switch (framework) {
-        case "claude-code":     return ".claude/skills/cashfree-skills";
+        case "claude-code":     return ".claude/skills";
         case "cursor":          return ".cursor/cashfree-skills";
         case "opencode":        return ".opencode/skills/cashfree-skills";
         case "vscode-copilot":  return ".github/skills/cashfree-skills";
