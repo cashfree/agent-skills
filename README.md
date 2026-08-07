@@ -152,7 +152,7 @@ cashfree-skills/
 
 | Framework | Skills Location | Manifest File |
 |-----------|----------------|---------------|
-| Claude Code | `.claude/skills/cashfree-skills/` | `CLAUDE.md` (project root) |
+| Claude Code | `.claude/skills/` | `CLAUDE.md` (project root) |
 | Cursor | `.cursor/cashfree-skills/` | `.cursor/rules/cashfree.mdc` |
 | OpenCode | `.opencode/skills/cashfree-skills/` | `AGENTS.md` (project root) |
 | VS Code Copilot | `.github/skills/cashfree-skills/` | `.github/copilot-instructions.md` |
@@ -160,6 +160,7 @@ cashfree-skills/
 | Antigravity | `.agent/skills/cashfree-skills/` | `AGENTS.md` (project root) |
 | GitHub Copilot CLI | `.github/skills/cashfree-skills/` | `.github/copilot-instructions.md` |
 | OpenAI Codex CLI | `.agents/skills/cashfree-skills/` | `AGENTS.md` (project root) |
+| Kiro | `.kiro/skills/` | `.kiro/steering/cashfree.md` |
 
 ### Manifest File
 
@@ -168,7 +169,7 @@ The manifest is auto-generated with framework-specific paths. It tells the AI as
 2. A skill map routing user intents to the correct skill file
 3. After any integration code, always read `validation-and-testing/SKILL.md`
 
-For Cursor, the manifest uses `.mdc` format with frontmatter. For all other frameworks, it's plain markdown.
+For Cursor, the manifest uses `.mdc` format with frontmatter. For Kiro, it's a steering file with `inclusion: always` frontmatter. For all other frameworks, it's plain markdown.
 
 ## How AI Assistants Use Skills
 

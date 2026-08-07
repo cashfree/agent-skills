@@ -8,7 +8,7 @@
 
 export function generateManifestContent(
     skillsBasePath: string,
-    format: 'markdown' | 'mdc'
+    format: 'markdown' | 'mdc' | 'kiro-steering'
 ): string {
     const s = skillsBasePath;
 
@@ -73,6 +73,14 @@ You are helping a developer integrate Cashfree Payments.
         return `---
 description: Cashfree Payments integration skills — routes to the correct skill file based on what the developer needs.
 alwaysApply: true
+---
+
+${body}`;
+    }
+
+    if (format === 'kiro-steering') {
+        return `---
+inclusion: always
 ---
 
 ${body}`;

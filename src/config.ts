@@ -9,7 +9,8 @@ export const FRAMEWORKS = [
     { name: 'VS Code Copilot', value: 'vscode-copilot' },
     { name: 'Gemini CLI', value: 'gemini-cli' },
     { name: 'Antigravity', value: 'antigravity' },
-    { name: 'GitHub Copilot CLI', value: 'copilot-cli' }
+    { name: 'GitHub Copilot CLI', value: 'copilot-cli' },
+    { name: 'Kiro', value: 'kiro' }
 ] as const;
 
 export type Framework = typeof FRAMEWORKS[number]['value'];
@@ -28,6 +29,7 @@ export function getSkillsBasePath(framework: Framework): string {
         case "gemini-cli":      return ".gemini/skills/cashfree-skills";
         case "codex":           return ".agents/skills/cashfree-skills";
         case "antigravity":     return ".agent/skills/cashfree-skills";
+        case "kiro":            return ".kiro/skills";
         default: {
             const _exhaustive: never = framework;
             throw new Error(`Unknown framework: ${_exhaustive}`);
@@ -39,7 +41,7 @@ export function getSkillsBasePath(framework: Framework): string {
  * Returns the manifest file path (from project root) and format.
  * Based on each framework's official manifest convention.
  */
-export function getManifestConfig(framework: Framework): { path: string; format: 'markdown' | 'mdc' } {
+export function getManifestConfig(framework: Framework): { path: string; format: 'markdown' | 'mdc' | 'kiro-steering' } {
     switch (framework) {
         case "claude-code":     return { path: "CLAUDE.md", format: "markdown" };
         case "cursor":          return { path: ".cursor/rules/cashfree.mdc", format: "mdc" };
@@ -49,6 +51,7 @@ export function getManifestConfig(framework: Framework): { path: string; format:
         case "gemini-cli":      return { path: "GEMINI.md", format: "markdown" };
         case "codex":           return { path: "AGENTS.md", format: "markdown" };
         case "antigravity":     return { path: "AGENTS.md", format: "markdown" };
+        case "kiro":            return { path: ".kiro/steering/cashfree.md", format: "kiro-steering" };
         default: {
             const _exhaustive: never = framework;
             throw new Error(`Unknown framework: ${_exhaustive}`);
