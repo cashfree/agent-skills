@@ -1,18 +1,17 @@
 ---
 name: Migrate Payment Gateway - PayU to Cashfree Payments
 description: >
-  Use when migrating an existing PayU (PayU India / PayUBiz / PayUMoney) Payment Gateway integration to
+  Use when migrating an existing PayU (PayUBiz / PayUMoney) Payment Gateway integration to
   Cashfree Payments. Triggers: migrate from PayU to Cashfree, replace PayU with Cashfree, switch payment
-  gateway from PayU, port PayU integration, PayU to Cashfree, swap PayU, PayU vs Cashfree, replace
-  secure.payu.in/_payment, replace test.payu.in, rewrite PayU _payment form post, move off PayU, deprecate
-  PayU, replace PayU key and salt with Cashfree headers, replace SHA-512 PayU hash with Cashfree signature,
-  convert txnid to order_id, convert mihpayid to cf_payment_id, replace PayU reverse hash verification with
-  Cashfree backend re-fetch, replace surl furl with return_url, translate PayU verify_payment to Cashfree
-  fetch order, migrate PayU cancel_refund_transaction to Cashfree refund, translate PayU webhook hash to
-  x-webhook-signature, replace PayU Bolt checkout with Cashfree.js, migrate PayU CheckoutPro mobile SDK to
-  Cashfree mobile SDK, migrate PayU SI Standing Instruction to Cashfree Subscriptions, PayU success failure
-  pending status to Cashfree PAID. Pair this with the Cashfree backend-sdks, apis, webhooks, web-sdk,
-  mobile-sdks, subscriptions, and go-live skills once the mapping is clear.
+  gateway from PayU, port PayU integration, replace secure.payu.in/_payment,
+  rewrite PayU _payment form post, move off PayU, replace PayU key and salt with Cashfree headers,
+  replace SHA-512 PayU hash with Cashfree signature, convert txnid to order_id, convert mihpayid to
+  cf_payment_id, replace PayU reverse hash verification with Cashfree backend re-fetch, replace surl
+  furl with return_url, translate PayU verify_payment to Cashfree fetch order, migrate PayU
+  cancel_refund_transaction to Cashfree refund, translate PayU webhook hash to x-webhook-signature,
+  replace PayU Bolt checkout with Cashfree.js, migrate PayU CheckoutPro SDK to Cashfree mobile
+  SDK, migrate PayU SI to Subscriptions. Pair this with the Cashfree backend-sdks, apis,
+  webhooks, web-sdk, mobile-sdks, and subscriptions skills once the mapping is clear.
 ---
 
 # Migrating From PayU to Cashfree Payments

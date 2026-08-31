@@ -6,11 +6,11 @@ description: >
   standing instructions, SI on cards, physical NACH, subscription plan, create subscription, charge subscription,
   subscription webhook, subscription checkout, subscription_session_id, periodic subscription, on-demand subscription,
   mandate authorization, subscription lifecycle, subscription status, BANK_APPROVAL_PENDING, subscription refund,
-  subscription SDK, Android subscription SDK, iOS subscription SDK, Flutter subscription SDK, React Native subscription,
-  Cordova subscription, subscription payment failed, subscription retry, cancel subscription, pause subscription,
-  reactivate subscription, import mandates, batch subscriptions, subscription card expiry, subscription hosted checkout,
-  PGCreatePlan, PGCreateSubscription, subscription_first_charge_time, subscription_expiry_time, plan_type PERIODIC,
-  plan_type ON_DEMAND, subscription payment modes, subscription error codes, subscription rate limits.
+  subscription SDK, Android/iOS/Flutter/React Native subscription SDK, subscription payment failed,
+  subscription retry, cancel subscription, pause subscription, reactivate subscription,
+  subscription card expiry, subscription hosted checkout, PGCreatePlan, PGCreateSubscription,
+  subscription_first_charge_time, subscription_expiry_time, plan_type PERIODIC, plan_type ON_DEMAND,
+  subscription payment modes, subscription error codes, subscription rate limits.
 ---
 
 # Cashfree Subscriptions — Recurring Payments & Mandates

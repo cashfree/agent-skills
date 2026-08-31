@@ -1,5 +1,5 @@
 ---
-name: Cashfree Payment Gateway - Common Integration Mistakes & Pitfalls
+name: Cashfree Payment Gateway - Common Integration Mistakes
 description: >
   Use when a developer is debugging a failed integration, encountering errors, or asking
   why something isn't working.

@@ -1,5 +1,5 @@
 ---
-name: Migrate Payment Orchestrator / Gateway - Juspay to Cashfree Payments
+name: Migrate Payment Gateway - Juspay to Cashfree Payments
 description: >
   Use when migrating an existing Juspay integration to Cashfree Payments.
   Triggers: migrate from Juspay to Cashfree, replace Juspay with Cashfree, switch from Juspay
