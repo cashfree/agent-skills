@@ -1,5 +1,5 @@
 ---
-name: Changelog — PG Mobile SDKs (Android, iOS, Flutter, React Native, Cordova, Capacitor)
+name: Changelog — PG Mobile SDKs (Android, iOS, Flutter, RN, Cordova)
 description: >
   Source-verified changelog for Cashfree's PG mobile SDKs, drawn primarily from the
   cashfree/docs per-platform changelog .mdx files (Cashfree's own dated notes) and

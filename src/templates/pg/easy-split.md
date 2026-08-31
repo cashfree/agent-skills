@@ -1,5 +1,5 @@
 ---
-name: Cashfree Payment Gateway - Easy Split (Marketplace Split Payments)
+name: Cashfree Payment Gateway - Easy Split (Marketplace)
 description: >
   Use when building a marketplace / platform flow where a single customer payment must be
   split across multiple vendors (sellers, partners, drivers, agents) with Cashfree handling

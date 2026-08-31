@@ -1,5 +1,5 @@
 ---
-name: Changelog — PG Web / JS SDKs (cashfree.js v3, pg-react, pg-svelte)
+name: Changelog — PG Web / JS SDKs (cashfree.js v3, react, svelte)
 description: >
   Source-verified changelog for Cashfree's PG browser/JS SDKs — cashfree.js (the
   /js/v3/ browser SDK + npm @cashfreepayments/cashfree-js), pg-react, pg-svelte.

@@ -3,9 +3,9 @@ name: Migrate Payment Gateway - Razorpay to Cashfree Payments
 description: >
   Use when migrating an existing Razorpay Payment Gateway integration to Cashfree Payments.
   Triggers: migrate from Razorpay to Cashfree, replace Razorpay with Cashfree, switch payment
-  gateway from Razorpay, port Razorpay integration, Razorpay to Cashfree, swap Razorpay,
-  Razorpay vs Cashfree, replace razorpay-node, replace razorpay pip, replace checkout.razorpay.com,
-  rewrite Razorpay checkout, move off Razorpay, deprecate Razorpay, convert razorpay_payment_id
+  gateway from Razorpay, port Razorpay integration, Razorpay to Cashfree,
+  replace razorpay-node, replace razorpay pip, replace checkout.razorpay.com,
+  rewrite Razorpay checkout, move off Razorpay, convert razorpay_payment_id
   to cf_payment_id, translate Razorpay webhook to Cashfree webhook, change X-Razorpay-Signature
   to x-webhook-signature, port razorpay.orders.create, port Razorpay handler to Cashfree,
   reimplement Razorpay signature verification with Cashfree, migrate Razorpay refund to Cashfree,
