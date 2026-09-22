@@ -209,18 +209,25 @@ For `DIRECT_PAY` billers, the Bill Fetch Request API will return a validation er
       ]
     },
     "agent_device_info": {               // mandatory for FETCH_AND_PAY; optional for VALIDATE_AND_PAY
-      "app": "MerchantApp",
-      "imei": "123456789012345",
-      "init_channel": "INT",             // INT | MOB | KIOSK | BNKBRNCH | BKMNG | INTBBNK | CORPBBNK
+      "init_channel": "INT",             // BNKBRNCH | MOB | MOBB | INT | INTB | ATM | KIOSK | AGT | BSC
       "ip": "192.168.1.1",
-      "os": "Android",
-      "mobile": "9999999999",
-      "geo_code": "28.7041,77.1025",
-      "postal_code": "110001",
-      "terminal_id": "TERM001",
-      "ifsc": "HDFC0001234",
-      "mac": "01:23:45:67:89:AB"
+      "mac": "01:23:45:67:89:AB",
+      // Other sub-fields (pass what is applicable to your channel):
+      "app": "MerchantApp",             // required for MOB/MOBB
+      "imei": "123456789012345",        // required for MOB/MOBB
+      "os": "Android",                  // required for MOB/MOBB
+      "mobile": "9999999999",           // required for AGT/BSC/BNKBRNCH
+      "geo_code": "28.7041,77.1025",   // required for AGT/BSC/BNKBRNCH
+      "postal_code": "110001",          // required for AGT/BSC/BNKBRNCH
+      "terminal_id": "TERM001",         // required for ATM/KIOSK/AGT/BSC
+      "ifsc": "HDFC0001234"             // required for BNKBRNCH
     }
+    // Required sub-fields by init_channel:
+    // INT / INTB          → ip, mac
+    // MOB / MOBB          → ip, imei, os, app
+    // ATM / KIOSK         → terminal_id
+    // AGT / BSC           → terminal_id, mobile, geo_code, postal_code
+    // BNKBRNCH            → ifsc, mobile, geo_code, postal_code
   }
 }
 ```
@@ -254,8 +261,7 @@ For `DIRECT_PAY` billers, the Bill Fetch Request API will return a validation er
   },
   "biller_response": {
     "customer_name": "John Doe",
-    "amount": "150000",                   // paise
-    "cust_conv_fee": "0",
+    "amount": "1200.00",                  // rupees (decimal)
     "due_date": "2024-12-31",
     "bill_date": "2024-11-01",
     "bill_number": "BILL2024001",
@@ -290,7 +296,7 @@ x-api-version: 2025-01-01
 
 ```jsonc
 {
-  "order_amount": 1500.00,       // required — bill amount in INR (convert from paise: amount / 100)
+  "order_amount": 1200.00,       // required — bill amount in INR (use biller_response.amount directly)
   "order_currency": "INR",       // required
   "customer_details": { ... },   // required — standard PG customer object
   "bbps": {
@@ -343,7 +349,7 @@ All three fields inside the `bbps` block are required. Omitting any one returns 
     },
     "biller_response": {                       // echo back from bill fetch status (mandatory for Electricity, DTH, Gas etc.)
       "customer_name": "John Doe",
-      "amount": "150000",
+      "amount": "1200.00",                     // rupees — echo exactly as received from fetch response
       "due_date": "2024-12-31",
       "bill_date": "2024-11-01",
       "bill_number": "BILL2024001",
@@ -361,9 +367,9 @@ All three fields inside the `bbps` block are required. Omitting any one returns 
     },
     "amount": {
       "amt": {
-        "amount": "150000",                    // required — paise; must match bill amount for "Exact" billers
-        "cust_conv_fee": "0",                  // required — customer convenience fee (CCF1) in paise
-        "cou_cust_conv_fee": "0",              // required — COU convenience fee (CCF2) in paise
+        "amount": "1200.00",                   // required — rupees; must match bill amount for "Exact" billers
+        "cust_conv_fee": "10.00",              // required — customer convenience fee (CCF1) in rupees; "0.00" if none
+        "cou_cust_conv_fee": "15.00",          // required — COU convenience fee (CCF2) in rupees; "0.00" if none
         "currency": "356"                      // required — numeric INR code (not "INR")
       }
     },
@@ -401,25 +407,42 @@ All three fields inside the `bbps` block are required. Omitting any one returns 
 }
 ```
 
-### Status Poll Response `data` (200 OK)
+### Status Poll Response — full outer envelope (200 OK)
+
+Poll on the top-level `message` field, not `data.*`:
+
+| `message` | Meaning |
+|---|---|
+| `"Payment is still being processed"` | Continue polling |
+| `"Payment successful"` | Terminal — payment complete |
+| `"Payment failed"` | Terminal — payment failed |
 
 ```jsonc
 {
-  "status": "SUCCESS",                          // PROCESSING | SUCCESS | FAILED — poll until not "PROCESSING"
-  "response": {
-    "bill_payment_response": {
+  "status": "OK",                               // always "OK"
+  "message": "Payment successful",             // THIS is the field to poll on
+  "data": {
+    "bill_payment_response": {                  // no data.status, no data.response wrapper
       "head": { "bill_fetch_ref_id": "REF20241201001" },
       "reason": {
-        "approval_ref_num": "APPR123456",       // null on failure or while processing
-        "response_code": "000",                 // "000" = success; "PENDING" = processing; other = failure
-        "response_reason": "Approved",
-        "compliance_resp_cd": null,             // present only on failure
-        "compliance_reason": null               // present only on failure
+        "approval_ref_num": "APPR123456",       // empty string on failure or while processing
+        "response_code": "000",                 // "000" = success; "PENDING" = processing; empty on failure
+        "response_reason": "Successful",
+        "compliance_resp_cd": null,             // failure code from biller (see Section 14)
+        "compliance_reason": null               // human-readable failure reason; on payment failures
+                                                // often formatted as "ERR_CODE : description"
       },
       "txn": { "transaction_ref_id": "TXN20241201001" },
-      "bill_details": { ... },                  // present only on SUCCESS
-      "biller_response": { ... },               // present only on SUCCESS; includes cust_conv_fee
-      "additional_info": { ... }                // present only on SUCCESS
+      "bill_details": { ... },                  // populated on SUCCESS; null while processing or on failure
+      "biller_response": {                      // populated on SUCCESS; null while processing or on failure
+        "customer_name": "John Doe",
+        "amount": "1200.00",                    // rupees
+        "cust_conv_fee": "0.00",               // convenience fee in rupees
+        "due_date": "2024-12-31",
+        "bill_number": "BILL2024001",
+        "bill_period": "NOV-2024"
+      },
+      "additional_info": { ... }                // populated when biller returns it; null otherwise
     }
   }
 }
@@ -500,22 +523,23 @@ All three fields inside the `bbps` block are required. Omitting any one returns 
 
 **Request:** `GET /agent/{agentId}/wallet/balance`
 
-Path parameter `agentId` = BBPS Agent ID (bbpsAgentId) of the Agent Institution.
+Path parameter `{agentId}` = **Agent Institution ID** (`bbpsAgentInstituteId`), for example `AI15`. This is the parent institution identifier — **not** the channel-level `agent_id` used in bill fetch and bill payment requests (which looks like `OU01XXXXINT001123456`).
+
+**Funding models:** The balance can be positive or negative:
+- **Prefunding model** — wallet is funded in advance. Payments debit from it. Balance never goes below zero.
+- **Shortfall (postfunding) model** — Cashfree provides a credit line. Payments draw against it. A **negative balance** is expected and represents the amount drawn that must be repaid.
 
 **Response (200 OK):**
 ```jsonc
 {
-  "balance": 5000.00    // Current available balance in INR (not paise)
+  "balance": 5000.00    // Current available balance in INR. Can be negative on the shortfall model.
 }
 ```
 
 **Error examples (400):**
 ```jsonc
 // No active wallet
-{ "message": "No active wallet found for bbpsAgentId: OU01XXXXINT001123456", "code": "wallet_not_found", "type": "invalid_request_error" }
-
-// Agent not found
-{ "message": "Agent not found for bbpsAgentId: OU01XXXXINT001123456", "code": "agent_not_found", "type": "invalid_request_error" }
+{ "message": "No active wallet found for agentInstitutionId: AI15", "code": "wallet_not_found", "type": "invalid_request_error" }
 ```
 
 ---
@@ -523,6 +547,8 @@ Path parameter `agentId` = BBPS Agent ID (bbpsAgentId) of the Agent Institution.
 ### Get Wallet Ledger
 
 **Request:** `POST /agent/{agentId}/wallet/ledger?page=0&size=20`
+
+`{agentId}` = Agent Institution ID (`bbpsAgentInstituteId`, e.g. `AI15`) — same as wallet balance.
 
 Query params: `page` (zero-indexed, default 0), `size` (default 20).
 
@@ -544,9 +570,15 @@ All body fields optional. Empty body returns all entries.
     {
       "id": 1001,                          // Unique ledger entry ID
       "wallet_id": 42,                     // Internal wallet ID
-      "sale_type": "DEBIT",               // CREDIT = top-up; DEBIT = bill payment
+      "event": "BILL_PAYMENT_DEBIT",       // Ledger event type:
+                                           //   BILL_PAYMENT_FREEZE   — amount held when payment is initiated
+                                           //   BILL_PAYMENT_UNFREEZE — hold released on completion/timeout/failure
+                                           //   BILL_PAYMENT_DEBIT    — actual debit on successful payment
+                                           //   WALLET_SEED           — wallet top-up credit
+      "event_id": "CH0162455XTQK9MIPNYZ", // transaction_ref_id from Bill Payment API — use to correlate entries
+      "sale_type": "DEBIT",               // CREDIT = wallet top-up; DEBIT = bill payment
       "amount": 250.00,                    // Transaction amount in INR
-      "closing_balance": 4750.00,         // Wallet balance after this transaction in INR
+      "closing_balance": 4750.00,         // Wallet balance after this transaction in INR (can be negative on shortfall model)
       "utr": "UTR123456789",              // Unique Transaction Reference number
       "added_on": "2025-01-15 10:30:00",
       "updated_on": "2025-01-15 10:30:05"
@@ -577,7 +609,7 @@ All async endpoints use exponential backoff:
 | Endpoint | Continue polling while... | Terminal success | Terminal failure |
 |---|---|---|---|
 | Bill fetch response | `message` = `"Request is still being processed"` | `message` = `"Bill details fetched successfully"` | `message` = `"Bill request failed"` |
-| Bill payment response | `data.status` = `"PROCESSING"` | `data.status` = `"SUCCESS"` | `data.status` = `"FAILED"` |
+| Bill payment response | `message` = `"Payment is still being processed"` | `message` = `"Payment successful"` | `message` = `"Payment failed"` |
 | Ticket status | `message` = `"Ticket request is still being processed"` | `message` = `"Ticket details fetched successfully"` | `message` = `"Ticket request failed"` |
 
 If still processing after retry limit: raise a support ticket (bill fetch/payment) or contact Cashfree support with `ref_id` (ticket).
@@ -596,3 +628,97 @@ Error responses use `{message, code, type}` — no `status` or `data` fields.
 | 500 | `api_error` | `internal_error` | Downstream NBBL error or internal error |
 
 For 400 errors, the `message` field describes which specific field failed validation (e.g. `"bill_fetch_request.agent_id : is missing in the request"`).
+
+---
+
+## 14. Compliance Error Codes
+
+When a bill fetch, validation, or payment request fails at the biller or network level, the response contains:
+- `compliance_resp_cd` — machine-readable code
+- `compliance_reason` — human-readable reason (on payment failures, often formatted as `"ERR_CODE : description"`)
+
+**Retry categories:**
+- `NON_RETRIABLE` — the same input will fail again. Correct customer details or inform the customer.
+- `RETRIABLE` — temporary biller or network issue. Retry after a short delay.
+- `CONDITIONAL` — inspect the inner error codes in `compliance_reason` before deciding whether to retry.
+
+### Bill fetch error codes (`BFR` prefix — from Bill Fetch Response API)
+
+| `compliance_resp_cd` | Reason | Category |
+|---|---|---|
+| `BFR001` | Incorrect or invalid customer account | `NON_RETRIABLE` |
+| `BFR002` | Invalid combination of customer parameters | `NON_RETRIABLE` |
+| `BFR003` | No bill data available | `NON_RETRIABLE` |
+| `BFR004` | Payment received for the billing period, no bill due | `NON_RETRIABLE` |
+| `BFR005` | Customer account is blocked or closed | `NON_RETRIABLE` |
+| `BFR006` | Customer account is not activated | `NON_RETRIABLE` |
+| `BFR007` | Bill due date has expired, bill details not available | `NON_RETRIABLE` |
+| `BFR008` | Unable to get bill details from biller | `RETRIABLE` |
+| `BFR009` | Scheduled downtime by biller, try again later | `RETRIABLE` |
+| `BFR010` | Unscheduled downtime by biller, try again later | `RETRIABLE` |
+| `BFR011` | Incomplete details in biller system, update customer profile | `NON_RETRIABLE` |
+| `BFR012` | ePayment not enabled for the dealer | `NON_RETRIABLE` |
+| `BFR013` | Maximum refill count reached | `NON_RETRIABLE` |
+| `BFR014` | Consumer has reported loss of cylinder | `NON_RETRIABLE` |
+| `BFR015` | Cannot take booking, consumer KYC not submitted | `NON_RETRIABLE` |
+| `BFR016` | One prior booking is pending against this consumer | `NON_RETRIABLE` |
+| `BFR017` | Price not yet set for nature or package code. Retry later. | `RETRIABLE` |
+| `BFR018` | Day-end not done, try after some time | `RETRIABLE` |
+| `BFR019` | Consumer number and distributor not matching | `NON_RETRIABLE` |
+| `BFR020` | LPG ID not found | `NON_RETRIABLE` |
+| `BFR021` | Vehicle registration number invalid or does not exist | `NON_RETRIABLE` |
+| `BFR022` | FASTag inactive or blocked, recharge not allowed | `NON_RETRIABLE` |
+| `BFR023` | FASTag exempted, recharge not allowed | `NON_RETRIABLE` |
+
+### Bill validation error codes (`BVR` prefix — from Bill Fetch Response API, VALIDATE_AND_PAY flow)
+
+| `compliance_resp_cd` | Reason | Category |
+|---|---|---|
+| `BVR001` | Incorrect or invalid customer account | `NON_RETRIABLE` |
+| `BVR002` | Invalid combination of customer parameters | `NON_RETRIABLE` |
+| `BVR003` | Customer account is blocked or closed | `NON_RETRIABLE` |
+| `BVR004` | Customer account is not activated | `NON_RETRIABLE` |
+| `BVR005` | Invalid amount | `NON_RETRIABLE` |
+| `BVR006` | Customer account deactivated, pay to activate | `NON_RETRIABLE` |
+| `BVR007` | Incomplete details in biller system, update profile | `NON_RETRIABLE` |
+| `BVR008` | Customer account valid but no bill due | `NON_RETRIABLE` |
+| `BVR009` | Technical exception from biller | `RETRIABLE` |
+
+### Payment posting error codes (`BPR` prefix — from Bill Payment Response API)
+
+| `compliance_resp_cd` | Reason | Category |
+|---|---|---|
+| `BPR001` | Incorrect or invalid customer account | `NON_RETRIABLE` |
+| `BPR002` | Invalid combination of customer parameters | `NON_RETRIABLE` |
+| `BPR003` | Customer account is blocked or closed | `NON_RETRIABLE` |
+| `BPR004` | Customer account is not activated | `NON_RETRIABLE` |
+| `BPR005` | Payment cannot be accepted at this time | `RETRIABLE` |
+| `BPR006` | Payment request has been exceeded for the day. Retry the next day. | `NON_RETRIABLE` |
+| `BPR007` | Repeat payment request | `NON_RETRIABLE` |
+| `BPR008` | Due date expired, re-fetch to get current outstanding | `RETRIABLE` |
+| `BPR009` | Scheduled downtime by biller, try again later | `RETRIABLE` |
+| `BPR010` | Unscheduled downtime by biller, try again later | `RETRIABLE` |
+| `BPR011` | Payment amount different from current outstanding | `RETRIABLE` |
+| `BPR012` | FASTag top-up failed, try again later | `RETRIABLE` |
+
+### Infrastructure error codes (`BOU`/`COU` prefix)
+
+These indicate transport or switch-level failures between operating units, not a biller decision.
+
+| `compliance_resp_cd` | Reason | Category |
+|---|---|---|
+| `BOU001` | Send failed to BOU | `RETRIABLE` |
+| `BOU002` | Inner error codes from BOU negative acknowledgement | `CONDITIONAL` |
+| `BOU003` | Timeout at BOU | `RETRIABLE` |
+| `BOU004` | BOU reversal retry failure | `NON_RETRIABLE` |
+| `BOU005` | BOU reversal response timeout | `NON_RETRIABLE` |
+| `BOU006` | Connect timeout at BOU | `RETRIABLE` |
+| `BOU007` | Read timeout at BOU | `RETRIABLE` |
+| `BOU008` | Unable to connect to BOU | `RETRIABLE` |
+| `BOU009` | Pending transaction timeout at BOU | `RETRIABLE` |
+| `COU001` | Send failed to COU | `RETRIABLE` |
+| `COU002` | Inner error codes from COU negative acknowledgement | `CONDITIONAL` |
+| `COU003` | COU reversal retry failure | `NON_RETRIABLE` |
+| `COU006` | Connect timeout at COU | `RETRIABLE` |
+| `COU007` | Read timeout at COU | `RETRIABLE` |
+| `COU008` | Unable to connect to COU | `RETRIABLE` |
