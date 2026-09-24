@@ -222,12 +222,16 @@ For `DIRECT_PAY` billers, the Bill Fetch Request API will return a validation er
       "terminal_id": "TERM001",         // required for ATM/KIOSK/AGT/BSC
       "ifsc": "HDFC0001234"             // required for BNKBRNCH
     }
-    // Required sub-fields by init_channel:
-    // INT / INTB          → ip, mac
-    // MOB / MOBB          → ip, imei, os, app
-    // ATM / KIOSK         → terminal_id
-    // AGT / BSC           → terminal_id, mobile, geo_code, postal_code
-    // BNKBRNCH            → ifsc, mobile, geo_code, postal_code
+    // init_channel values — initiating channel and required sub-fields:
+    // BNKBRNCH  Bank Branch                          → ifsc, mobile, geo_code, postal_code
+    // MOB       Mobile (Pre-login)                   → ip, imei, os, app
+    // MOBB      Mobile Banking (Post-login)          → ip, imei, os, app
+    // INT       Internet (Pre-login)                 → ip, mac
+    // INTB      Internet Banking (Post-login)        → ip, mac
+    // ATM       ATM                                  → terminal_id
+    // KIOSK     Kiosk                                → terminal_id
+    // AGT       Agent                                → terminal_id, mobile, geo_code, postal_code
+    // BSC       Business Correspondent               → terminal_id, mobile, geo_code, postal_code
   }
 }
 ```
