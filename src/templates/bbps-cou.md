@@ -175,6 +175,8 @@ Content-Type: application/json
 
 Response includes `biller_customer_params`, `biller_payment_modes`, `fetch_requirement`, and `payment_amount_exactness`.
 
+> **Tip:** Cache the biller categories and biller info responses — this data changes infrequently. Avoid calling these on every user request.
+
 ---
 
 ### Step 3 — Initiate Bill Fetch
@@ -199,9 +201,14 @@ Content-Type: application/json
       ]
     },
     "agent_device_info": {
-      "init_channel": "INT",
+      "init_channel": "INT",   // BNKBRNCH | MOB | MOBB | INT | INTB | ATM | KIOSK | AGT | BSC
       "ip": "192.168.1.1",
       "mac": "01:23:45:67:89:AB"
+      // Required fields vary by init_channel:
+      // INT/INTB  → ip, mac
+      // MOB/MOBB  → ip, imei, os, app
+      // ATM/KIOSK → terminal_id
+      // AGT/BSC/BNKBRNCH → terminal_id (or ifsc), mobile, geo_code, postal_code
     }
   }
 }
@@ -254,7 +261,7 @@ Success response (HTTP 200):
     },
     "biller_response": {
       "customer_name": "John Doe",
-      "amount": "150000",
+      "amount": "1200.00",
       "due_date": "2024-12-31",
       "bill_number": "BILL2024001",
       "bill_period": "NOV-2024"
@@ -263,7 +270,7 @@ Success response (HTTP 200):
 }
 ```
 
-> Amount is in **paise** — `"150000"` = ₹1500.00.
+> Amount is in **rupees** — `"1200.00"` = ₹1200.00.
 
 ---
 
@@ -279,7 +286,7 @@ x-api-version: 2025-01-01
 Content-Type: application/json
 
 {
-  "order_amount": 1500.00,
+  "order_amount": 1200.00,             // bill amount in INR (use biller_response.amount directly)
   "order_currency": "INR",
   "customer_details": {
     "customer_id": "CUST001",
@@ -346,9 +353,9 @@ Content-Type: application/json
     },
     "amount": {
       "amt": {
-        "amount": "150000",                     // paise — must match bill amount for Exact billers
-        "cust_conv_fee": "0",                   // customer convenience fee in paise
-        "cou_cust_conv_fee": "0",               // COU convenience fee in paise
+        "amount": "1200.00",                    // rupees — must match bill amount for Exact billers
+        "cust_conv_fee": "10.00",               // customer convenience fee (CCF1) in rupees
+        "cou_cust_conv_fee": "15.00",           // COU convenience fee (CCF2) in rupees
         "currency": "356"                       // numeric INR code
       }
     },
@@ -376,7 +383,7 @@ Response (HTTP 202):
 
 ### Step 6 — Poll Bill Payment Status
 
-Poll at increasing intervals: 5s → 15s → 30s → 1 min → 3 min. Stop when `data.status` is `"SUCCESS"` or `"FAILED"`. If still processing after your retry limit, treat as timeout and raise a support ticket.
+Poll at increasing intervals: 5s → 15s → 30s → 1 min → 3 min. Stop when `message` is `"Payment successful"` or `"Payment failed"`. Continue polling while `message` is `"Payment is still being processed"`. If still processing after your retry limit, treat as timeout and raise a support ticket.
 
 ```http
 POST /v1/billers/response/bill-payment
@@ -394,18 +401,16 @@ Success response (HTTP 200):
   "status": "OK",
   "message": "Payment successful",
   "data": {
-    "status": "SUCCESS",
-    "response": {
-      "bill_payment_response": {
-        "head": { "bill_fetch_ref_id": "REF20241201001" },
-        "reason": {
-          "approval_ref_num": "APPR123456",
-          "response_code": "000",
-          "response_reason": "Approved"
-        },
-        "txn": { "transaction_ref_id": "TXN20241201001" },
-        "biller_response": { "customer_name": "John Doe", "amount": "150000" }
-      }
+    "bill_payment_response": {
+      "head": { "bill_fetch_ref_id": "REF20241201001" },
+      "reason": {
+        "approval_ref_num": "APPR123456",
+        "response_code": "000",
+        "response_reason": "Successful"
+      },
+      "txn": { "transaction_ref_id": "TXN20241201001" },
+      "bill_details": { "customer_params": { "tag": [{ "name": "Consumer Number", "value": "12345678" }] } },
+      "biller_response": { "customer_name": "John Doe", "amount": "1200.00", "cust_conv_fee": "0.00" }
     }
   }
 }
@@ -481,7 +486,7 @@ Response (HTTP 200):
 
 ### Wallet — Balance and Ledger
 
-Use `GET /agent/{agentId}/wallet/balance` to check available balance before initiating payments (returns INR, not paise), and `POST /agent/{agentId}/wallet/ledger` for paginated reconciliation history. Full request/response schemas are in `references/REFERENCE.md`.
+Use `GET /agent/{agentId}/wallet/balance` to check available balance (in INR; can be negative on the shortfall/postfunding model). Use `POST /agent/{agentId}/wallet/ledger` for paginated reconciliation history. Note: `{agentId}` here is the Agent Institution ID (e.g. `AI15`), not the channel-level `agent_id` used in bill fetch/payment. Full schemas in `references/REFERENCE.md`.
 
 ---
 
@@ -495,8 +500,10 @@ Use `GET /agent/{agentId}/wallet/balance` to check available balance before init
 - **`payment_method` requires three flags** — always include `quick_pay`, `split_pay`, and `off_us_pay` (typically all `"No"`).
 - **`amount.amt.currency` is the numeric INR code** — use `"356"`, not `"INR"`.
 - **`bill_details.biller.id` is required** — include the biller ID in the payment request alongside the customer params.
-- **Amount is in paise** — `"150000"` = ₹1500.00.
+- **Amount is in rupees** — use decimal notation: `"1200.00"`, not paise. This applies to all amount fields in bill fetch response, bill payment request, and bill payment response.
 - **`bill_fetch_ref_id` links fetch to payment** — the `ref_id` from bill fetch becomes `bill_fetch_ref_id` in bill payment and all subsequent calls.
+- **Poll bill payment on `message`, not `data.status`** — terminal conditions are `message = "Payment successful"` or `"Payment failed"`. There is no `data.status` field in the payment response.
 - **Ticket is post-payment** — `txn_reference_id` in the ticket raise must reference a real completed transaction.
 - **Disposition must use a code** — use D11–D32 codes in the `disposition` field; free-text values like `COMPLAINT` are not accepted.
 - **All APIs rate limited** — 100 requests per 60 seconds. Exceeding returns HTTP 429.
+- **Wallet `agentId` is the institution ID** — the `{agentId}` path parameter in wallet APIs is the Agent Institution ID (e.g. `AI15`), not the channel-level `agent_id` used in bill fetch and payment requests.
