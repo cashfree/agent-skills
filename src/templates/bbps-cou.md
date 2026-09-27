@@ -55,6 +55,37 @@ x-api-version: 2025-01-01
 
 Credentials are issued per Agent Institution and are available in the [Merchant Dashboard](https://merchant.cashfree.com/verificationsuite/developers/api-keys) for both sandbox and production environments.
 
+### Sandbox agent IDs and device block values
+
+Use these pre-configured agent IDs and device block values when testing in the sandbox environment. Only three initiating channels are supported.
+
+| Initiating channel | Channel code | Sandbox agent ID |
+|---|---|---|
+| Internet Banking (Post-login) | `INTB` | `CH01CH02INB516193127` |
+| Mobile Banking (Post-login) | `MOBB` | `CH01CH02MBBPAL001085` |
+
+**INTB device block (bill fetch `agent_device_info` / bill payment `agent.device.tag`):**
+```
+init_channel / INITIATING_CHANNEL: INTB
+ip / IP:  124.170.23.24
+mac / MAC: 01-23-45-67-89-ab
+```
+
+**MOBB device block:**
+```
+init_channel / INITIATING_CHANNEL: MOBB
+ip / IP:   124.170.23.24
+imei / IMEI: 123456789012345
+os / OS:   IOS
+app / APP:  AGENTAPP
+```
+
+> Note: for bill fetch, pass these as named fields under `agent_device_info`. For bill payment, pass them as name-value pairs in the `agent.device.tag` array.
+
+### Sandbox auto bill simulator (Loan Repayment)
+
+Use biller `SWAR00027NAT2J` (category: Loan Repayment) to test without real customer data. Pass `CF_AUTO_GENERATE` as the value for any `input_params` entry — the system auto-generates a bill and returns a `ref_id` you can poll immediately.
+
 ---
 
 ## 3. Endpoint Overview
@@ -201,14 +232,13 @@ Content-Type: application/json
       ]
     },
     "agent_device_info": {
-      "init_channel": "INT",   // BNKBRNCH | MOB | MOBB | INT | INTB | ATM | KIOSK | AGT | BSC
+      "init_channel": "INTB",  // Supported: MOBB | INTB | AGT
       "ip": "192.168.1.1",
       "mac": "01:23:45:67:89:AB"
-      // Required fields vary by init_channel:
-      // INT/INTB  → ip, mac
-      // MOB/MOBB  → ip, imei, os, app
-      // ATM/KIOSK → terminal_id
-      // AGT/BSC/BNKBRNCH → terminal_id (or ifsc), mobile, geo_code, postal_code
+      // Required fields by init_channel:
+      // INTB → ip, mac
+      // MOBB → ip, imei, os, app
+      // AGT  → terminal_id, mobile, geo_code, postal_code
     }
   }
 }
@@ -332,7 +362,7 @@ Content-Type: application/json
       "id": "AGENT001",
       "device": {
         "tag": [
-          { "name": "INITIATING_CHANNEL", "value": "INT" },
+          { "name": "INITIATING_CHANNEL", "value": "INTB" },  // Supported: MOBB | INTB | AGT
           { "name": "IP", "value": "192.168.1.1" }
         ]
       }

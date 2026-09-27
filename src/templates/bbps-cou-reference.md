@@ -209,69 +209,24 @@ For `DIRECT_PAY` billers, the Bill Fetch Request API will return a validation er
       ]
     },
     "agent_device_info": {               // mandatory for FETCH_AND_PAY; optional for VALIDATE_AND_PAY
-      "init_channel": "INT",             // BNKBRNCH | MOB | MOBB | INT | INTB | ATM | KIOSK | AGT | BSC
+      "init_channel": "INTB",            // Supported: MOBB | INTB | AGT
       "ip": "192.168.1.1",
-      "mac": "01:23:45:67:89:AB",
-      // Other sub-fields (pass what is applicable to your channel):
-      "app": "MerchantApp",             // required for MOB/MOBB
-      "imei": "123456789012345",        // required for MOB/MOBB
-      "os": "Android",                  // required for MOB/MOBB
-      "mobile": "9999999999",           // required for AGT/BSC/BNKBRNCH
-      "geo_code": "28.7041,77.1025",   // required for AGT/BSC/BNKBRNCH
-      "postal_code": "110001",          // required for AGT/BSC/BNKBRNCH
-      "terminal_id": "TERM001",         // required for ATM/KIOSK/AGT/BSC
-      "ifsc": "HDFC0001234"             // required for BNKBRNCH
+      "mac": "01:23:45:67:89:AB"
+      // Required sub-fields by init_channel:
+      //
+      // INTB     Internet Banking (Post-login)
+      //          Bill Pay section accessed after logging in to the AI's website.
+      //          Required: ip, mac
+      //
+      // MOBB     Mobile Banking (Post-login)
+      //          Payment after logging in to the customer's own bank's mobile banking app.
+      //          Required: ip, imei, os, app
+      //
+      // AGT      Agent
+      //          Assisted, human-operated outlet (retail store, CSP) where an operator
+      //          collects payment on the customer's behalf.
+      //          Required: terminal_id, mobile, geo_code, postal_code
     }
-    // init_channel values — what each channel means and which sub-fields are required:
-    //
-    // INT      Internet (Pre-login)
-    //          Payment on a website/web portal without logging in to any bank or BBPOU account.
-    //          Example: guest checkout on a website — enter consumer number, pay by card/UPI.
-    //          Required: ip, mac
-    //
-    // INTB     Internet Banking (Post-login)
-    //          Bill Pay section accessed after logging in to the AI's website.
-    //          Example: log in to AI's website → Bill Pay section → pay biller.
-    //          Required: ip, mac
-    //
-    // MOB      Mobile (Pre-login)
-    //          Payment on a mobile app or mobile website without logging in (guest/pre-login).
-    //          Example: quick-pay on a PA's mobile app, no sign-in required.
-    //          Required: ip, imei, os, app
-    //
-    // MOBB     Mobile Banking (Post-login)
-    //          Payment after logging in to the customer's own bank's mobile banking app.
-    //          Example: log in to Axis Mobile/YONO → Bill Pay module → pay biller.
-    //          Required: ip, imei, os, app
-    //
-    // ATM      ATM
-    //          Payment at a bank's ATM machine via the "Bill Payment" option using a debit card.
-    //          Example: SBI ATM → insert card → Bill Payments → pay electricity bill.
-    //          Required: terminal_id
-    //
-    // BNKBRNCH Bank Branch
-    //          Customer visits a physical bank branch; a teller processes the payment over the counter.
-    //          Example: customer hands cash to teller at Axis Bank branch; teller keys it in.
-    //          Required: ifsc, mobile, geo_code, postal_code
-    //
-    // AGT      Agent
-    //          Assisted, human-operated offline outlet (retail store, CSP) where an operator
-    //          collects payment and keys it in on the customer's behalf. Not bank staff.
-    //          Example: local kirana shop running a Cashfree bill-pay app; shopkeeper collects cash.
-    //          Required: terminal_id, mobile, geo_code, postal_code
-    //
-    // KIOSK    Kiosk
-    //          Unattended self-service physical terminal where the customer completes the
-    //          transaction independently with no operator.
-    //          Example: self-service touchscreen kiosk in a mall — customer inserts cash/card.
-    //          Required: terminal_id
-    //
-    // BSC      Business Correspondent
-    //          RBI-regulated Banking Correspondent formally appointed by a bank to deliver
-    //          banking/bill-payment services, typically using Aadhaar/biometric devices.
-    //          Example: Spice Money / CSC BC agent — transacts on the sponsor bank's behalf.
-    //          Required: terminal_id, mobile, geo_code, postal_code
-  }
 }
 ```
 
@@ -375,10 +330,11 @@ All three fields inside the `bbps` block are required. Omitting any one returns 
       "id": "AGENT001",                        // required — Agent Institution ID
       "device": {                              // required
         "tag": [                               // at least one tag required
-          { "name": "INITIATING_CHANNEL", "value": "INT" },
+          { "name": "INITIATING_CHANNEL", "value": "INTB" },  // Supported values: MOBB | INTB | AGT
           { "name": "IP", "value": "192.168.1.1" }
-          // Supported: INITIATING_CHANNEL, IP, MOBILE, GEOCODE, POSTAL_CODE,
-          //            TERMINAL_ID, IMEI, IFSC, MAC, OS, APP
+          // Supported tag names: INITIATING_CHANNEL, IP, MOBILE, GEOCODE, POSTAL_CODE,
+          //                      TERMINAL_ID, IMEI, MAC, OS, APP
+          // Required tags by channel: INTB → IP, MAC | MOBB → IP, IMEI, OS, APP | AGT → TERMINAL_ID, MOBILE, GEOCODE, POSTAL_CODE
         ]
       }
     },
