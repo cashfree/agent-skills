@@ -6,7 +6,8 @@ description: >
   bill fetch, biller, bill-fetch, bill-payment, bbps/cou, BillFetch, BillPayment, ticket raise,
   complaint, agent_id, biller_id, ref_id, bill_fetch_ref_id, transaction_ref_id, ACCEPTED, PROCESSING,
   biller categories, biller info, customer_params, bill_details, biller_response, NBBL, NPCI, COU,
-  utility bill, recurring bill, complaint ticket.
+  utility bill, recurring bill, complaint ticket, synchronous response, sync response, data.result,
+  HTTP 200 vs 202.
 ---
 
 # Cashfree BBPS COU — Bill Payments
@@ -34,7 +35,9 @@ BBPS COU operates as an **async two-phase protocol**:
 1. **Initiate** — Submit a request (bill fetch or bill payment). Receive a `ref_id` / `transaction_ref_id` immediately with HTTP 202 and status `ACCEPTED`.
 2. **Poll** — Call the corresponding status endpoint with that ID until the status changes from `PROCESSING` to a terminal state (`SUCCESS`, `FAILED`, etc.).
 
-This is not a synchronous API — you must poll the status endpoint.
+By default this is not a synchronous API: you must poll the status endpoint.
+
+**Synchronous responses (opt-in):** a merchant can ask Cashfree to enable synchronous responses for bill fetch and bill payment. When enabled, the initiate call waits briefly for the final result. If the result is ready in time, the call returns HTTP 200 with the final result in `data.result`, and no polling is needed. Otherwise it returns the usual HTTP 202 and you poll. Always handle both 200 and 202, because a slow biller still returns 202 when the feature is enabled. Set the HTTP client timeout for both initiate calls to at least 30 seconds.
 
 ---
 
@@ -111,15 +114,17 @@ Use biller `SWAR00027NAT2J` (category: Loan Repayment) to test without real cust
 1. GET  /v1/billers/categories              → list of category labels (optional discovery)
 2. POST /v1/billers/info                    → biller details, input params, payment modes, flow config
 3. POST /v1/billers/request/bill-fetch      → 202 ACCEPTED, ref_id + flow returned
+                                               (or 200 OK with data.result if synchronous responses are enabled)
                                                (skip for DIRECT_PAY billers — go straight to step 5a)
-4. POST /v1/billers/response/bill-fetch     → poll with ref_id until terminal message
+4. POST /v1/billers/response/bill-fetch     → poll with ref_id until terminal message (skip if step 3 returned 200)
 
 [PG payment layer — happens before bill payment]
 5a. POST /pg/orders (Cashfree PG)           → create order with bbps block (bill_fetch_ref_id, biller_id, agent_id)
 5b. Customer completes payment via Cashfree PG (Checkout / SDK)
 
 6. POST /v1/billers/request/bill-payment    → 202 ACCEPTED, transaction_ref_id returned
-7. POST /v1/billers/response/bill-payment   → poll with bill_fetch_ref_id + transaction_ref_id
+                                               (or 200 OK with data.result if synchronous responses are enabled)
+7. POST /v1/billers/response/bill-payment   → poll with bill_fetch_ref_id + transaction_ref_id (skip if step 6 returned 200)
 
 [Optional — for disputes]
 8. POST /v1/billers/request/ticket          → 202 ACCEPTED, ref_id returned
@@ -259,9 +264,47 @@ Response (HTTP 202):
 
 Store `ref_id` — needed for status polling and as `bill_fetch_ref_id` in payment. Store `flow` — it determines which fields to expect in the poll response (`FETCH_AND_PAY` | `VALIDATE_AND_PAY` | `DIRECT_PAY`).
 
+**Synchronous response (HTTP 200, only if enabled for the merchant):** if the final result is ready in time, the same call returns HTTP 200 instead of 202. `data.status` is `SUCCESS` or `FAILED`, and `data.result` is identical to the `data` object returned by the bill fetch status API in Step 4. Skip Step 4 and use `data.result` directly.
+
+```json
+{
+  "status": "OK",
+  "message": "Bill details fetched successfully",
+  "data": {
+    "ref_id": "REF20241201001",
+    "status": "SUCCESS",
+    "flow": "FETCH_AND_PAY",
+    "result": {
+      "bill_fetch_response": {
+        "ref_id": "REF20241201001",
+        "approval_ref_num": "NBBL_APPR_001",
+        "response_code": "000",
+        "response_reason": "Success"
+      },
+      "bill_details": {
+        "customer_params": {
+          "tag": [{ "name": "Consumer Number", "value": "12345678" }]
+        }
+      },
+      "biller_response": {
+        "customer_name": "John Doe",
+        "amount": "1200.00",
+        "due_date": "2024-12-31",
+        "bill_number": "BILL2024001",
+        "bill_period": "NOV-2024"
+      }
+    }
+  }
+}
+```
+
+On failure the response is still HTTP 200, with `message` = `"Bill request failed"`, `data.status` = `"FAILED"`, and the failure details in `data.result.bill_fetch_response`.
+
 ---
 
 ### Step 4 — Poll Bill Fetch Status
+
+Skip this step if Step 3 returned HTTP 200.
 
 Poll at increasing intervals: 5s → 15s → 30s → 1 min → 3 min. Stop when `message` is `"Bill details fetched successfully"` or `"Bill request failed"`. If still processing after your retry limit, treat as timeout and raise a support ticket.
 
@@ -409,9 +452,42 @@ Response (HTTP 202):
 }
 ```
 
+**Synchronous response (HTTP 200, only if enabled for the merchant):** if the final status is ready in time, the same call returns HTTP 200 instead of 202. `data.status` is `SUCCESS` or `FAILED`, and `data.result` is identical to the `data` object returned by the bill payment status API. Skip the polling step and use `data.result` directly.
+
+```json
+{
+  "status": "OK",
+  "message": "Payment successful",
+  "data": {
+    "bill_fetch_ref_id": "REF20241201001",
+    "transaction_ref_id": "TXN20241201001",
+    "status": "SUCCESS",
+    "result": {
+      "bill_payment_response": {
+        "head": { "bill_fetch_ref_id": "REF20241201001" },
+        "reason": {
+          "approval_ref_num": "APPR123456",
+          "response_code": "000",
+          "response_reason": "Successful"
+        },
+        "txn": { "transaction_ref_id": "TXN20241201001" },
+        "bill_details": { "customer_params": { "tag": [{ "name": "Consumer Number", "value": "12345678" }] } },
+        "biller_response": { "customer_name": "John Doe", "amount": "1200.00", "cust_conv_fee": "0.00" }
+      }
+    }
+  }
+}
+```
+
+On failure the response is still HTTP 200, with `message` = `"Payment failed"`, `data.status` = `"FAILED"`, and the failure reason in `data.result.bill_payment_response.reason`.
+
+> Do not resend a bill payment request after a client timeout or an HTTP 202. Resending can create a duplicate payment. Poll the bill payment status API instead.
+
 ---
 
 ### Step 6 — Poll Bill Payment Status
+
+Skip this step if the bill payment request returned HTTP 200.
 
 Poll at increasing intervals: 5s → 15s → 30s → 1 min → 3 min. Stop when `message` is `"Payment successful"` or `"Payment failed"`. Continue polling while `message` is `"Payment is still being processed"`. If still processing after your retry limit, treat as timeout and raise a support ticket.
 
@@ -522,7 +598,8 @@ Use `GET /agent/{agentId}/wallet/balance` to check available balance (in INR; ca
 
 ## 6. Key Rules
 
-- **Always poll** — bill fetch and bill payment are async. A `202 ACCEPTED` response is not final.
+- **Branch on the HTTP status of bill fetch and bill payment requests** - `202 ACCEPTED` is not final, so poll. `200 OK` (synchronous responses enabled) is final, so read `data.status` and `data.result` and do not poll. Always handle both.
+- **Use a client timeout of at least 30 seconds for bill fetch and bill payment requests** - with synchronous responses enabled, the call waits for the final result before responding. Never resend a bill payment request after a timeout; poll the bill payment status API instead.
 - **Use exponential backoff when polling** — 5s → 15s → 30s → 1 min → 3 min intervals.
 - **Check flow before calling bill fetch** — for `DIRECT_PAY` billers (both `fetch_requirement` and `support_bill_validation` = `NOT_SUPPORTED`), skip bill fetch entirely and go directly to bill payment. Calling bill fetch for these billers returns a validation error.
 - **Echo back biller data** — the bill payment request must include `biller_response`, `bill_details`, and `additional_info` exactly as received from the fetch status response.
@@ -532,7 +609,7 @@ Use `GET /agent/{agentId}/wallet/balance` to check available balance (in INR; ca
 - **`bill_details.biller.id` is required** — include the biller ID in the payment request alongside the customer params.
 - **Amount is in rupees** — use decimal notation: `"1200.00"`, not paise. This applies to all amount fields in bill fetch response, bill payment request, and bill payment response.
 - **`bill_fetch_ref_id` links fetch to payment** — the `ref_id` from bill fetch becomes `bill_fetch_ref_id` in bill payment and all subsequent calls.
-- **Poll bill payment on `message`, not `data.status`** — terminal conditions are `message = "Payment successful"` or `"Payment failed"`. There is no `data.status` field in the payment response.
+- **Poll bill payment on `message`, not `data.status`** - terminal conditions are `message = "Payment successful"` or `"Payment failed"`. There is no `data.status` field in the payment status poll response.
 - **Ticket is post-payment** — `txn_reference_id` in the ticket raise must reference a real completed transaction.
 - **Disposition must use a code** — use D11–D32 codes in the `disposition` field; free-text values like `COMPLAINT` are not accepted.
 - **All APIs rate limited** — 100 requests per 60 seconds. Exceeding returns HTTP 429.
