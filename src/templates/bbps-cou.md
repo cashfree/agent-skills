@@ -6,7 +6,8 @@ description: >
   bill fetch, biller, bill-fetch, bill-payment, bbps/cou, BillFetch, BillPayment, ticket raise,
   complaint, agent_id, biller_id, ref_id, bill_fetch_ref_id, transaction_ref_id, ACCEPTED, PROCESSING,
   biller categories, biller info, customer_params, bill_details, biller_response, NBBL, NPCI, COU,
-  utility bill, recurring bill, complaint ticket.
+  utility bill, recurring bill, complaint ticket, synchronous response, sync response, data.result,
+  HTTP 200 vs 202.
 ---
 
 # Cashfree BBPS COU — Bill Payments
