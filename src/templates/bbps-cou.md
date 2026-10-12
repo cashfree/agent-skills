@@ -37,7 +37,7 @@ BBPS COU operates as an **async two-phase protocol**:
 
 By default this is not a synchronous API: you must poll the status endpoint.
 
-**Synchronous responses (opt-in):** a merchant can ask Cashfree to enable synchronous responses for bill fetch and bill payment. When enabled, the initiate call waits up to 8 seconds (bill fetch) or 15 seconds (bill payment) for the final result. If the result is ready in time, the call returns HTTP 200 with the final result in `data.result`, and no polling is needed. Otherwise it returns the usual HTTP 202 and you poll. Always handle both 200 and 202, because a slow biller still returns 202 when the feature is enabled. Set the HTTP client timeout for both initiate calls to at least 30 seconds.
+**Synchronous responses (opt-in):** a merchant can ask Cashfree to enable synchronous responses for bill fetch and bill payment. When enabled, the initiate call waits briefly for the final result. If the result is ready in time, the call returns HTTP 200 with the final result in `data.result`, and no polling is needed. Otherwise it returns the usual HTTP 202 and you poll. Always handle both 200 and 202, because a slow biller still returns 202 when the feature is enabled. Set the HTTP client timeout for both initiate calls to at least 30 seconds.
 
 ---
 
@@ -264,7 +264,7 @@ Response (HTTP 202):
 
 Store `ref_id` — needed for status polling and as `bill_fetch_ref_id` in payment. Store `flow` — it determines which fields to expect in the poll response (`FETCH_AND_PAY` | `VALIDATE_AND_PAY` | `DIRECT_PAY`).
 
-**Synchronous response (HTTP 200, only if enabled for the merchant):** if the final result is available within 8 seconds, the same call returns HTTP 200 instead of 202. `data.status` is `SUCCESS` or `FAILED`, and `data.result` is identical to the `data` object returned by the bill fetch status API in Step 4. Skip Step 4 and use `data.result` directly.
+**Synchronous response (HTTP 200, only if enabled for the merchant):** if the final result is ready in time, the same call returns HTTP 200 instead of 202. `data.status` is `SUCCESS` or `FAILED`, and `data.result` is identical to the `data` object returned by the bill fetch status API in Step 4. Skip Step 4 and use `data.result` directly.
 
 ```json
 {
@@ -452,7 +452,7 @@ Response (HTTP 202):
 }
 ```
 
-**Synchronous response (HTTP 200, only if enabled for the merchant):** if the final status is available within 15 seconds, the same call returns HTTP 200 instead of 202. `data.status` is `SUCCESS` or `FAILED`, and `data.result` is identical to the `data` object returned by the bill payment status API. Skip the polling step and use `data.result` directly.
+**Synchronous response (HTTP 200, only if enabled for the merchant):** if the final status is ready in time, the same call returns HTTP 200 instead of 202. `data.status` is `SUCCESS` or `FAILED`, and `data.result` is identical to the `data` object returned by the bill payment status API. Skip the polling step and use `data.result` directly.
 
 ```json
 {
@@ -599,7 +599,7 @@ Use `GET /agent/{agentId}/wallet/balance` to check available balance (in INR; ca
 ## 6. Key Rules
 
 - **Branch on the HTTP status of bill fetch and bill payment requests** - `202 ACCEPTED` is not final, so poll. `200 OK` (synchronous responses enabled) is final, so read `data.status` and `data.result` and do not poll. Always handle both.
-- **Use a client timeout of at least 30 seconds for bill fetch and bill payment requests** - with synchronous responses enabled, the call can wait up to 15 seconds before responding. Never resend a bill payment request after a timeout; poll the bill payment status API instead.
+- **Use a client timeout of at least 30 seconds for bill fetch and bill payment requests** - with synchronous responses enabled, the call waits for the final result before responding. Never resend a bill payment request after a timeout; poll the bill payment status API instead.
 - **Use exponential backoff when polling** — 5s → 15s → 30s → 1 min → 3 min intervals.
 - **Check flow before calling bill fetch** — for `DIRECT_PAY` billers (both `fetch_requirement` and `support_bill_validation` = `NOT_SUPPORTED`), skip bill fetch entirely and go directly to bill payment. Calling bill fetch for these billers returns a validation error.
 - **Echo back biller data** — the bill payment request must include `biller_response`, `bill_details`, and `additional_info` exactly as received from the fetch status response.

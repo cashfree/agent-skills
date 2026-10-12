@@ -242,7 +242,7 @@ For `DIRECT_PAY` billers, the Bill Fetch Request API will return a validation er
 
 ### Synchronous Response `data` (200 OK)
 
-Returned only when synchronous responses are enabled for the merchant and the result is available within 8 seconds. Top-level `status` is `"OK"` and `message` is `"Bill details fetched successfully"` or `"Bill request failed"`.
+Returned only when synchronous responses are enabled for the merchant and the result is ready in time. Top-level `status` is `"OK"` and `message` is `"Bill details fetched successfully"` or `"Bill request failed"`.
 
 ```jsonc
 {
@@ -412,7 +412,7 @@ All three fields inside the `bbps` block are required. Omitting any one returns 
 
 ### Synchronous Response `data` (200 OK)
 
-Returned only when synchronous responses are enabled for the merchant and the final status is available within 15 seconds. Top-level `status` is `"OK"` and `message` is `"Payment successful"` or `"Payment failed"`.
+Returned only when synchronous responses are enabled for the merchant and the final status is ready in time. Top-level `status` is `"OK"` and `message` is `"Payment successful"` or `"Payment failed"`.
 
 ```jsonc
 {
