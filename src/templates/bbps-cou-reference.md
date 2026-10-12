@@ -37,7 +37,7 @@ All BBPS COU API calls require these three headers:
 ```http
 x-client-id: <your-client-id>
 x-client-secret: <your-client-secret>
-x-api-version: 2025-01-01
+x-api-version: 2025-01-01  // optional — defaults to 2025-01-01 if omitted; use 2026-10-01 for LIST biller support
 ```
 
 ---
@@ -121,7 +121,12 @@ Error response (4xx / 5xx) — uses `message`, `code`, and `type` fields (no `st
     "biller_accepts_adhoc": false,
     "biller_coverage": "NA",
     "fetch_requirement": "MANDATORY",                  // MANDATORY | OPTIONAL | NOT_SUPPORTED
-    "payment_amount_exactness": "Exact",               // Exact | Exact and above | Exact and below
+    "payment_amount_exactness": "Exact",               // Exact | Exact and above | Exact and below | RANGE
+                                                   // RANGE = biller defines min/max range; customer pays any amount within range
+    "biller_response_type": "SINGLE",                  // SINGLE | LIST | null
+                                                   // LIST = biller can return multiple bills in a single fetch; use x-api-version: 2026-10-01 for these billers
+    "selection_type": "SINGLE",                        // SINGLE | MULTIPLE | ALL | null — only for LIST billers
+                                                   // SINGLE = customer picks one bill; MULTIPLE = customer picks multiple; ALL = customer must pay all bills
     "support_bill_validation": "MANDATORY",            // MANDATORY | OPTIONAL | NOT_SUPPORTED
     "biller_effctv_from": "2023-01-01",
     "biller_effctv_to": "9999-12-31",
@@ -272,6 +277,43 @@ For `DIRECT_PAY` billers, the Bill Fetch Request API will return a validation er
 }
 ```
 
+```jsonc
+// --- x-api-version: 2026-10-01 (LIST billers only) ---
+// biller_response is null; biller_responses array is returned instead:
+{
+  "bill_fetch_response": { ... },
+  "bill_details": { ... },
+  "biller_responses": [
+    {
+      "customer_name": "John Doe",
+      "amount": "200.00",              // total bill amount in rupees
+      "due_date": "2024-12-31",
+      "bill_date": "2024-11-01",
+      "bill_number": "BILL001",
+      "bill_period": "NOV-2024",
+      "label": "Electricity Bill - Zone A",  // display label to distinguish bills for same customer
+      "min_amount": "100.00",          // present when payment_amount_exactness is RANGE
+      "max_amount": "400.00",          // present when payment_amount_exactness is RANGE
+      "amount_multiple": null,         // amount must be a multiple of this value, if set
+      "tag": [                         // selectable payment options (e.g. Part Payment, Foreclosure)
+        {                              // customer picks ONE option; echo chosen entry in amount.tag in payment request
+          "name": "Part Payment",
+          "min_amount": "50.00",
+          "max_amount": "150.00"
+        },
+        {
+          "name": "Foreclosure",
+          "min_amount": "100.00",
+          "max_amount": "200.00",
+          "amount_multiple": "50.00"
+        }
+      ]
+    }
+  ],
+  "additional_info": { ... }
+}
+```
+
 **Polling:** Continue polling while `message` is `"Request is still being processed"`. Terminal messages: `"Bill details fetched successfully"` (success) or `"Bill request failed"` (failure). Poll at increasing intervals: 5s → 15s → 30s → 1 min → 3 min. If still processing after retry limit, treat as timeout and raise a support ticket.
 
 ---
@@ -318,7 +360,8 @@ All three fields inside the `bbps` block are required. Omitting any one returns 
   "bill_payment_request": {
     "head": {
       "bill_fetch_ref_id": "REF20241201001",   // required — ref_id from bill fetch
-      "pg_reference_id": "PG_ORDER_001"         // required — Agent Institution's internal order ID
+      "pg_reference_id": "PG_ORDER_001",        // required when skip_pg_transaction is false or omitted; omit when skip_pg_transaction is true
+      "skip_pg_transaction": false              // optional — set true for postfunding Agent Institutions that use shortfall wallet instead of PG
     },
     "customer": {
       "mobile": "9999999999",                  // required
@@ -347,6 +390,7 @@ All three fields inside the `bbps` block are required. Omitting any one returns 
       }
     },
     "biller_response": {                       // echo back from bill fetch status (mandatory for Electricity, DTH, Gas etc.)
+                                           // DO NOT pass for LIST type billers (biller_response_type: LIST) — use amount_break_up instead
       "customer_name": "John Doe",
       "amount": "1200.00",                     // rupees — echo exactly as received from fetch response
       "due_date": "2024-12-31",
@@ -370,6 +414,20 @@ All three fields inside the `bbps` block are required. Omitting any one returns 
         "cust_conv_fee": "10.00",              // required — customer convenience fee (CCF1) in rupees; "0.00" if none
         "cou_cust_conv_fee": "15.00",          // required — COU convenience fee (CCF2) in rupees; "0.00" if none
         "currency": "356"                      // required — numeric INR code (not "INR")
+      },
+      "tag": [                                 // required when biller returns payment options (tag[]) in biller_responses from fetch
+        {                                      // echo the chosen option back; set value to the amount the customer chose to pay
+          "name": "Part Payment",              // name echoed from biller_responses[].tag[].name
+          "value": "100.00",                   // amount chosen by customer for this option
+          "min_amount": "50.00",               // echoed from fetch response
+          "max_amount": "150.00"               // echoed from fetch response
+        }
+      ],
+      "amount_break_up": {                     // required for LIST type billers (x-api-version: 2026-10-01)
+        "bill_amt": [                          // one entry per bill being paid
+          { "bill_number": "BILL001", "amount": "600.00" },
+          { "bill_number": "BILL002", "amount": "600.00" }
+        ]
       }
     },
     "payment_information": {                   // required — payment instrument details for the selected mode
@@ -382,6 +440,9 @@ All three fields inside the `bbps` block are required. Omitting any one returns 
         // Wallet: WalletName, MobileNo
         // AEPS: Aadhaar, IIN
       ]
+    },
+    "payment_breakdown": {                     // optional for prefunding; mandatory for postfunding Agent Institutions
+      "shortfall_amount": "200.00"             // amount drawn from Agent Institution's shortfall wallet to complete payment
     }
   }
 }
@@ -441,6 +502,16 @@ Poll on the top-level `message` field, not `data.*`:
         "bill_number": "BILL2024001",
         "bill_period": "NOV-2024"
       },
+      // x-api-version: 2026-10-01 (LIST billers): biller_response is null; biller_responses array is returned instead
+      "biller_responses": [                     // populated on SUCCESS for LIST billers with x-api-version: 2026-10-01
+        {
+          "customer_name": "John Doe",
+          "amount": "600.00",
+          "bill_number": "BILL001",
+          "bill_period": "NOV-2024",
+          "label": "Bill - Zone A"
+        }
+      ],
       "additional_info": { ... }                // populated when biller returns it; null otherwise
     }
   }
@@ -721,3 +792,90 @@ These indicate transport or switch-level failures between operating units, not a
 | `COU006` | Connect timeout at COU | `RETRIABLE` |
 | `COU007` | Read timeout at COU | `RETRIABLE` |
 | `COU008` | Unable to connect to COU | `RETRIABLE` |
+
+---
+
+## 15. Webhooks
+
+Cashfree sends webhook events to your configured endpoint for async status updates. All events use HTTP POST with a JSON body and an HMAC-SHA256 signature in the `x-webhook-signature` header for verification.
+
+**Signature verification:**
+```
+HMAC-SHA256(secret_key, raw_request_body)
+```
+Use `crypto.timingSafeEqual` (Node.js) or equivalent timing-safe comparison to avoid timing attacks.
+
+### Event types
+
+| Event | Trigger |
+|---|---|
+| `BILL_FETCH_STATUS` | Bill fetch request reaches a terminal state (success or failure) |
+| `BILL_VALIDATION_STATUS` | Bill validation request reaches a terminal state |
+| `BILL_PAYMENT_STATUS` | Bill payment request reaches a terminal state |
+| `BILLER_MDM_UPDATED` | Biller master data (categories, params, modes) is updated |
+
+### Webhook payload structure
+
+All events share a common envelope:
+
+```jsonc
+{
+  "event": "BILL_PAYMENT_STATUS",        // event type
+  "event_time": "2024-01-15T10:30:00Z",  // ISO 8601 UTC timestamp
+  "data": { ... }                         // event-specific payload
+}
+```
+
+### BILL_FETCH_STATUS / BILL_VALIDATION_STATUS payload
+
+```jsonc
+{
+  "ref_id": "REF20241201001",
+  "response_code": "200",                // always 200 (HTTP); check compliance_resp_cd for biller errors
+  "response_reason": "Success",
+  "compliance_resp_cd": "",              // BFR/BVR code if failed at biller level
+  "compliance_reason": ""
+}
+```
+
+### BILL_PAYMENT_STATUS payload
+
+```jsonc
+{
+  "ref_id": "REF20241201001",
+  "transaction_ref_id": "TXN20241201001",
+  "response_code": "200",
+  "response_reason": "Success",
+  "compliance_resp_cd": "",
+  "compliance_reason": ""
+}
+```
+
+### BILLER_MDM_UPDATED payload
+
+```jsonc
+{
+  "billers": [
+    {
+      "biller_id": "UPCL123",
+      "biller_name": "...",
+      "biller_category_name": "Electricity",
+      "fetch_requirement": "MANDATORY",
+      "payment_amount_exactness": "Exact",
+      "biller_response_type": "SINGLE",   // SINGLE | LIST
+      "selection_type": "SINGLE",         // SINGLE | MULTIPLE | ALL — only for LIST billers
+      "support_bill_validation": "N",
+      "biller_effctv_from": "2020-01-01",
+      "biller_effctv_to": "9999-12-31",
+      "biller_customer_params": [ ... ],
+      "biller_payment_modes": [ ... ]
+    }
+  ]
+}
+```
+
+**Key points:**
+- Webhooks replace polling for event-driven architectures — use them instead of polling where possible.
+- Always verify the `x-webhook-signature` before processing.
+- The `response_code` in webhook payloads is always `"200"` (HTTP level); check `compliance_resp_cd` for biller-level failures.
+- For `BILLER_MDM_UPDATED`, refresh your local biller cache immediately on receipt.

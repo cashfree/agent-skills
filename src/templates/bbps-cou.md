@@ -204,9 +204,11 @@ Content-Type: application/json
 }
 ```
 
-Response includes `biller_customer_params`, `biller_payment_modes`, `fetch_requirement`, and `payment_amount_exactness`.
+Response includes `biller_customer_params`, `biller_payment_modes`, `fetch_requirement`, `payment_amount_exactness`, `biller_response_type`, and `selection_type`. Store `biller_response_type` and `selection_type` — they determine whether to use `x-api-version: 2026-10-01` for LIST billers.
 
 > **Tip:** Cache the biller categories and biller info responses — this data changes infrequently. Avoid calling these on every user request.
+
+> **Note:** `payment_amount_exactness: RANGE` means the biller accepts any amount within a min/max range (returned in `biller_responses[].min_amount` / `max_amount` in the fetch response). `biller_response_type: LIST` means the biller can return multiple bills in a single fetch — use `x-api-version: 2026-10-01` for these billers.
 
 ---
 
@@ -302,6 +304,8 @@ Success response (HTTP 200):
 
 > Amount is in **rupees** — `"1200.00"` = ₹1200.00.
 
+> **LIST billers (x-api-version: 2026-10-01):** For billers with `biller_response_type: LIST`, use `x-api-version: 2026-10-01` header. The response returns `biller_responses` (array) instead of `biller_response` (single object). Each entry has `bill_number`, `amount`, `label`, `min_amount`, `max_amount`, and optionally `tag[]` with selectable payment options (e.g. Part Payment, Foreclosure). Use `selection_type` from Biller Info to determine how many bills the customer can select. Do NOT pass `biller_response` in the payment request for LIST billers.
+
 ---
 
 ### Step 5a — Create Cashfree PG Order
@@ -352,7 +356,8 @@ Content-Type: application/json
   "bill_payment_request": {
     "head": {
       "bill_fetch_ref_id": "REF20241201001",   // required — ref_id from bill fetch
-      "pg_reference_id": "PG_ORDER_001"         // required — your internal order ID
+      "pg_reference_id": "PG_ORDER_001",        // required when skip_pg_transaction is false or omitted
+      "skip_pg_transaction": false              // optional — true for postfunding Agent Institutions using shortfall wallet
     },
     "customer": {
       "mobile": "9999999999",
@@ -387,8 +392,15 @@ Content-Type: application/json
         "cust_conv_fee": "10.00",               // customer convenience fee (CCF1) in rupees
         "cou_cust_conv_fee": "15.00",           // COU convenience fee (CCF2) in rupees
         "currency": "356"                       // numeric INR code
-      }
+      },
+      // tag: required when biller returns payment options in biller_responses[].tag (e.g. Part Payment, Foreclosure)
+      // echo the chosen option back with value set to the amount the customer chose
+      // "tag": [{ "name": "Part Payment", "value": "100.00", "min_amount": "50.00", "max_amount": "150.00" }],
+      // amount_break_up: required for LIST type billers (x-api-version: 2026-10-01)
+      // "amount_break_up": { "bill_amt": [{ "bill_number": "BILL001", "amount": "600.00" }] }
     },
+    // payment_breakdown: optional for prefunding; mandatory for postfunding Agent Institutions
+    // "payment_breakdown": { "shortfall_amount": "200.00" },
     "payment_information": {
       "tag": [{ "name": "VPA", "value": "customer@upi" }]  // required — instrument details by payment mode
     }
@@ -525,7 +537,7 @@ Use `GET /agent/{agentId}/wallet/balance` to check available balance (in INR; ca
 - **Always poll** — bill fetch and bill payment are async. A `202 ACCEPTED` response is not final.
 - **Use exponential backoff when polling** — 5s → 15s → 30s → 1 min → 3 min intervals.
 - **Check flow before calling bill fetch** — for `DIRECT_PAY` billers (both `fetch_requirement` and `support_bill_validation` = `NOT_SUPPORTED`), skip bill fetch entirely and go directly to bill payment. Calling bill fetch for these billers returns a validation error.
-- **Echo back biller data** — the bill payment request must include `biller_response`, `bill_details`, and `additional_info` exactly as received from the fetch status response.
+- **Echo back biller data** — the bill payment request must include `biller_response`, `bill_details`, and `additional_info` exactly as received from the fetch status response. Exception: do NOT pass `biller_response` for LIST type billers (`biller_response_type: LIST`) — use `amount_break_up` in `amount` instead.
 - **`payment_information` is required** — pass payment instrument details as `tag[]` with the appropriate fields for the payment mode (e.g. `VPA` for UPI, `CardNum`+`AuthCode` for card, `IFSC`+`AccountNo` for bank transfer).
 - **`payment_method` requires three flags** — always include `quick_pay`, `split_pay`, and `off_us_pay` (typically all `"No"`).
 - **`amount.amt.currency` is the numeric INR code** — use `"356"`, not `"INR"`.
@@ -537,3 +549,31 @@ Use `GET /agent/{agentId}/wallet/balance` to check available balance (in INR; ca
 - **Disposition must use a code** — use D11–D32 codes in the `disposition` field; free-text values like `COMPLAINT` are not accepted.
 - **All APIs rate limited** — 100 requests per 60 seconds. Exceeding returns HTTP 429.
 - **Wallet `agentId` is the institution ID** — the `{agentId}` path parameter in wallet APIs is the Agent Institution ID (e.g. `AI15`), not the channel-level `agent_id` used in bill fetch and payment requests.
+
+---
+
+## 7. Webhooks
+
+Cashfree sends webhook events for async status updates. Configure your endpoint in the Merchant Dashboard. Verify the `x-webhook-signature` header (HMAC-SHA256) on every event before processing.
+
+**Event types:**
+
+| Event | Trigger |
+|---|---|
+| `BILL_FETCH_STATUS` | Bill fetch reaches a terminal state |
+| `BILL_VALIDATION_STATUS` | Bill validation reaches a terminal state |
+| `BILL_PAYMENT_STATUS` | Bill payment reaches a terminal state |
+| `BILLER_MDM_UPDATED` | Biller master data is updated |
+
+All events use this envelope:
+```jsonc
+{
+  "event": "BILL_PAYMENT_STATUS",
+  "event_time": "2024-01-15T10:30:00Z",
+  "data": { ... }
+}
+```
+
+- `response_code` in webhook payloads is always `"200"` (HTTP level). Check `compliance_resp_cd` for biller-level failures.
+- `BILLER_MDM_UPDATED` includes `biller_response_type` and `selection_type` — refresh your biller cache on receipt.
+- See `references/REFERENCE.md` Section 15 for full payload schemas.
