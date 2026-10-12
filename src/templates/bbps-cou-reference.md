@@ -19,9 +19,9 @@ description: >
 |---|---|---|---|
 | GET  | `/v1/billers/categories` | 200 | No request body |
 | POST | `/v1/billers/info` | 200 | Filter by biller_id, category |
-| POST | `/v1/billers/request/bill-fetch` | **202** | Async — returns ref_id; skip for DIRECT_PAY billers |
+| POST | `/v1/billers/request/bill-fetch` | **202** / 200 | Async - returns ref_id; skip for DIRECT_PAY billers. 200 only with synchronous responses enabled |
 | POST | `/v1/billers/response/bill-fetch` | 200 | Poll with ref_id |
-| POST | `/v1/billers/request/bill-payment` | **202** | Async — returns transaction_ref_id |
+| POST | `/v1/billers/request/bill-payment` | **202** / 200 | Async - returns transaction_ref_id. 200 only with synchronous responses enabled |
 | POST | `/v1/billers/response/bill-payment` | 200 | Poll with bill_fetch_ref_id + transaction_ref_id |
 | POST | `/v1/billers/request/ticket` | **202** | Async — returns ref_id |
 | POST | `/v1/billers/response/ticket-status` | 200 | Poll with ref_id |
@@ -240,6 +240,19 @@ For `DIRECT_PAY` billers, the Bill Fetch Request API will return a validation er
 }
 ```
 
+### Synchronous Response `data` (200 OK)
+
+Returned only when synchronous responses are enabled for the merchant and the result is available within 8 seconds. Top-level `status` is `"OK"` and `message` is `"Bill details fetched successfully"` or `"Bill request failed"`.
+
+```jsonc
+{
+  "ref_id": "REF20241201001",
+  "status": "SUCCESS",          // SUCCESS | FAILED
+  "flow": "FETCH_AND_PAY",      // FETCH_AND_PAY | VALIDATE_AND_PAY
+  "result": { ... }             // identical to the Status Poll Response `data` below
+}
+```
+
 ### Status Poll Response `data` (200 OK)
 
 ```jsonc
@@ -394,6 +407,19 @@ All three fields inside the `bbps` block are required. Omitting any one returns 
   "bill_fetch_ref_id": "REF20241201001",
   "transaction_ref_id": "TXN20241201001",   // store this — used in status poll
   "status": "PROCESSING"
+}
+```
+
+### Synchronous Response `data` (200 OK)
+
+Returned only when synchronous responses are enabled for the merchant and the final status is available within 15 seconds. Top-level `status` is `"OK"` and `message` is `"Payment successful"` or `"Payment failed"`.
+
+```jsonc
+{
+  "bill_fetch_ref_id": "REF20241201001",
+  "transaction_ref_id": "TXN20241201001",
+  "status": "SUCCESS",          // SUCCESS | FAILED
+  "result": { ... }             // identical to the Status Poll Response `data` below
 }
 ```
 
@@ -592,6 +618,8 @@ All body fields optional. Empty body returns all entries.
 ---
 
 ## 12. Polling Strategy
+
+Poll only after a `202 ACCEPTED`. If a bill fetch or bill payment request returns `200 OK` (synchronous responses enabled), the result is final and no polling is needed.
 
 All async endpoints use exponential backoff:
 
