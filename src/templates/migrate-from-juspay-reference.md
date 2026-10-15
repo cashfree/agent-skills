@@ -50,7 +50,7 @@ Auth differences:
 | | Juspay | Cashfree |
 |---|---|---|
 | Server auth | Basic Auth (`base64(api_key:)`) | `x-client-id` + `x-client-secret` |
-| Required extra headers | `x-merchantid`, `x-routing-id` | `x-api-version: 2025-01-01` |
+| Required extra headers | `x-merchantid`, `x-routing-id` | `x-api-version: 2026-01-01` |
 | Browser-callable payment submission endpoint | Client SDK uses `client_auth_token` / `sdk_payload` | `POST /orders/sessions` can be called from the browser; most merchants use Cashfree.js / mobile SDK instead |
 
 Cashfree overview: https://www.cashfree.com/docs/api-reference/payments/latest/overview  

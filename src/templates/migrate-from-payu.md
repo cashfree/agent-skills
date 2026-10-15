@@ -49,7 +49,7 @@ Both gateways let you start a payment, redirect/checkout, verify on the backend,
 
 | # | Gotcha | PayU | Cashfree |
 |---|---|---|---|
-| 1 | **API auth** | No headers. Every request carries a `SHA-512` **hash** built from `key` + secret `salt`. The salt never leaves your server | Three headers: `x-client-id`, `x-client-secret`, `x-api-version: 2025-01-01`. **No request hash** — the secret is sent (server-to-server only) in a header |
+| 1 | **API auth** | No headers. Every request carries a `SHA-512` **hash** built from `key` + secret `salt`. The salt never leaves your server | Three headers: `x-client-id`, `x-client-secret`, `x-api-version: 2026-01-01`. **No request hash** — the secret is sent (server-to-server only) in a header |
 | 2 | **Amount unit** | Rupees (decimal/string). `₹500` = `"500.00"` | Rupees (decimal). `₹500` = `order_amount: 500.00` — **good news: no unit change**, just drop the string-quoting and send a number |
 | 3 | **Checkout handoff** | Server computes the `hash` and posts a form (`key`, `txnid`, `amount`, `hash`, `surl`, `furl`, …) to `_payment`, or hands the same fields + hash to **Bolt** | Server gets a **`payment_session_id`** (short-lived) — no key/salt/hash on the client. Client passes only the session id to Cashfree.js / Drop-in |
 | 4 | **Success verification** | Verify the **reverse hash** PayU posts to `surl`, then optionally call `verify_payment`. Trust is anchored on the hash | Verified by the backend via `GET /pg/orders/{order_id}` (`PGFetchOrder`). There is **no client-side success hash** — re-fetch and check `order_status === "PAID"` |
@@ -404,7 +404,7 @@ These rules are what break PayU→Cashfree migrations most often:
 | Webhook signature always fails | Reusing PayU's SHA-512/hex/field-list hash | Switch to `HMAC-SHA256` → `base64` over `x-webhook-timestamp + rawBody` with `CASHFREE_SECRET_KEY` |
 | Client shows "successful" but backend never fulfils | Trusting `BOLT.response` / `.checkout()` result like the old reverse-hash trust | Call `PGFetchOrder` / `GET /orders/{id}` from the backend; only fulfil on `PAID` |
 | `customer_id_missing` / `customer_phone_missing` | PayU treated customer fields loosely | Add both as required fields in `customer_details` |
-| `400 version_missing` | No `x-api-version` | Add `x-api-version: 2025-01-01` (SDK handles this automatically) |
+| `400 version_missing` | No `x-api-version` | Add `x-api-version: 2026-01-01` (SDK handles this automatically) |
 | Refunds fail with "not found" | Calling refund by `mihpayid` / `token` | Use your merchant `order_id` — `POST /pg/orders/{order_id}/refunds` with a fresh `refund_id` |
 | Payments stuck "failed" that PayU would have shown processing | Auto-failing Cashfree `PENDING` (PayU treated pending as failed) | Treat `PENDING` as non-terminal; poll `PGFetchOrder` / wait for webhook |
 | Two `return_url`s needed | Looking for `surl`/`furl` split | Cashfree has **one** `return_url`; the backend re-fetch decides success vs failure |

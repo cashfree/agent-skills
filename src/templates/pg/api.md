@@ -58,11 +58,11 @@ Every API call (except Order Pay) requires these headers:
 ```
 x-client-id: <Your App ID>
 x-client-secret: <Your Secret Key>
-x-api-version: 2025-01-01
+x-api-version: 2026-01-01
 Content-Type: application/json
 ```
 
-Credentials from [Merchant Dashboard](https://merchant.cashfree.com/auth/login/pg/developers/api-keys?env=prod). The **Order Pay API** (`POST /orders/sessions`) does NOT require `x-client-id`/`x-client-secret` — it authenticates via `payment_session_id`.
+`2026-01-01` is the current PG REST API version — pin `2025-01-01` if you need the previous response contract. Credentials from [Merchant Dashboard](https://merchant.cashfree.com/auth/login/pg/developers/api-keys?env=prod). The **Order Pay API** (`POST /orders/sessions`) does NOT require `x-client-id`/`x-client-secret` — it authenticates via `payment_session_id`.
 
 ### Primary API Endpoints
 
@@ -96,7 +96,7 @@ This is the standard integration flow for most payment methods (Card, Netbanking
 
 ```
 POST /orders
-Headers: x-client-id, x-client-secret, x-api-version: 2025-01-01, Content-Type: application/json
+Headers: x-client-id, x-client-secret, x-api-version: 2026-01-01, Content-Type: application/json
 ```
 
 ```json
@@ -139,7 +139,7 @@ Headers: x-client-id, x-client-secret, x-api-version: 2025-01-01, Content-Type: 
 
 ```
 POST /orders/sessions
-Headers: x-api-version: 2025-01-01, Content-Type: application/json
+Headers: x-api-version: 2026-01-01, Content-Type: application/json
 ```
 
 ```json
@@ -182,7 +182,7 @@ Headers: x-api-version: 2025-01-01, Content-Type: application/json
 
 ```
 GET /orders/{order_id}
-Headers: x-client-id, x-client-secret, x-api-version: 2025-01-01
+Headers: x-client-id, x-client-secret, x-api-version: 2026-01-01
 ```
 
 | Status | Meaning |

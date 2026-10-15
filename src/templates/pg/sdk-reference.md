@@ -321,7 +321,7 @@ response = cashfree.PGCreateOrder(
 
 ```java
 var response = cashfree.PGCreateOrder(
-    "2025-01-01",
+    "2026-01-01",
     request,
     null,                                  // x-request-id
     "order:" + orderId + ":v1",            // x-idempotency-key
@@ -366,7 +366,7 @@ Full semantics and header behaviour live in `pg/apis/references/REFERENCE.md` §
 | Using parsed JSON for webhook verification | Signature mismatch (`170.00` → `170`) | Use raw request body |
 | Not wrapping SDK calls in try-catch | Unhandled exceptions crash server | Always wrap with try-catch |
 | Fulfilling based on frontend callback alone | May fulfill failed/pending payments | Call `PGFetchOrder` to confirm `PAID` |
-| Wrong API version string | Unexpected response formats | Use `"2025-01-01"` consistently |
+| Wrong API version string | Unexpected response formats | Use `"2026-01-01"` consistently (pin `"2025-01-01"` only for the previous contract) |
 | No webhook idempotency | Duplicate processing | Use `x-idempotency-key` to deduplicate |
 | `PGPayOrder` without S2S flag | API rejects request | Request S2S enablement from Cashfree |
 | Refund on unpaid order | API error | Only refund when `order_status: "PAID"` |

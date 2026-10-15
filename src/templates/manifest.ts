@@ -66,7 +66,7 @@ You are helping a developer integrate Cashfree Payments.
 - Sandbox base URL: \`https://sandbox.cashfree.com\`
 - Production base URL: \`https://api.cashfree.com\`
 - Always use env vars for \`CASHFREE_APP_ID\` and \`CASHFREE_SECRET_KEY\`
-- Latest PG API version: \`2025-01-01\`
+- Latest PG API version: \`2026-01-01\` (v6; \`2025-01-01\` is the previous version)
 `;
 
     if (format === 'mdc') {

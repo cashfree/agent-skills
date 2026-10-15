@@ -24,7 +24,7 @@ const options = {
   headers: {
     'accept': 'application/json',
     'content-type': 'application/json',
-    'x-api-version': '2025-01-01',
+    'x-api-version': '2026-01-01',
     'x-client-id': 'YOUR_CLIENT_ID',
     'x-client-secret': 'YOUR_CLIENT_SECRET'
   },
@@ -60,7 +60,7 @@ payload = {
 headers = {
     "accept": "application/json",
     "content-type": "application/json",
-    "x-api-version": "2025-01-01",
+    "x-api-version": "2026-01-01",
     "x-client-id": "YOUR_CLIENT_ID",
     "x-client-secret": "YOUR_CLIENT_SECRET"
 }
@@ -71,7 +71,7 @@ response = requests.post(url, json=payload, headers=headers)
 ```bash
 curl --request POST \
   --url https://sandbox.cashfree.com/pg/plans \
-  --header 'x-api-version: 2025-01-01' \
+  --header 'x-api-version: 2026-01-01' \
   --header 'x-client-id: YOUR_CLIENT_ID' \
   --header 'x-client-secret: YOUR_CLIENT_SECRET' \
   --header 'content-type: application/json' \

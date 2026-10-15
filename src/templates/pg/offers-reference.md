@@ -253,7 +253,7 @@ offer = cashfree.PGFetchOffer(offer_id, None, None)
 ```bash
 curl -X POST "https://api.cashfree.com/pg/offers" \
     -H "x-client-id: $APP_ID" -H "x-client-secret: $SECRET_KEY" \
-    -H "x-api-version: 2025-01-01" -H "Content-Type: application/json" \
+    -H "x-api-version: 2026-01-01" -H "Content-Type: application/json" \
     -d @offer.json
 ```
 

@@ -50,7 +50,7 @@ Example curl request:
 curl --request {REQUEST-TYPE} \
   --url https://sandbox.cashfree.com/pg/{resource} \
   --header 'Content-Type: application/json' \
-  --header 'x-api-version: 2025-01-01' \
+  --header 'x-api-version: 2026-01-01' \
   --header 'x-client-id: <YOUR_APP_ID>' \
   --header 'x-client-secret: <YOUR_SECRET_KEY>'
 ```
@@ -76,9 +76,9 @@ Other products have their own base URLs:
 
 ## API Versioning
 
-The latest Payment Gateway API version is **2025-01-01** (v5). Previous versions: 2023-08-01, 2022-09-01, 2022-01-01, 2021-05-21.
+The latest Payment Gateway API version is **2026-01-01** (v6). Previous versions: 2025-01-01, 2023-08-01, 2022-09-01, 2022-01-01, 2021-05-21.
 
-Set the version via the `x-api-version` header (format: `YYYY-MM-DD`). Always use the latest version for new integrations.
+Set the version via the `x-api-version` header (format: `YYYY-MM-DD`). Use `2026-01-01` for new integrations. It has breaking response-schema changes vs `2025-01-01`, so pin `2025-01-01` only if you need the previous contract.
 
 ## Before You Start: Register the Integration Session
 
@@ -137,7 +137,7 @@ The **Get Eligible Payment Methods** API tells you exactly which methods (UPI, c
 curl --request POST \
   --url https://sandbox.cashfree.com/pg/eligibility/payment_methods \
   --header 'Content-Type: application/json' \
-  --header 'x-api-version: 2025-01-01' \
+  --header 'x-api-version: 2026-01-01' \
   --header 'x-client-id: <api-key>' \
   --header 'x-client-secret: <api-key>' \
   --data '

@@ -9,7 +9,7 @@ description: >
 
 # Changelog — PG Backend SDKs
 
-> Read `../changelog.md` (SKILL.md) §2 for the entry schema and §4 for cross-cutting truths. **All data as-of 2026-06-23**, gathered via `gh api` (GitHub tags/releases/contents) and the language registries (npm, PyPI, Maven Central, pkg.go.dev, Packagist, NuGet), cross-checked against registry web pages.
+> Read `../changelog.md` (SKILL.md) §2 for the entry schema and §4 for cross-cutting truths. **Base data as-of 2026-06-23**; current registry versions and the .NET NuGet status **re-verified 2026-10-16**. Gathered via `gh api` (GitHub tags/releases/contents) and the language registries (npm, PyPI, Maven Central, pkg.go.dev, Packagist, NuGet), cross-checked against registry web pages.
 
 ---
 
@@ -19,12 +19,14 @@ description: >
 
 | Lang | Registry | Latest **published** | Newest git tag | Mismatch |
 |---|---|---|---|---|
-| Node | npm `cashfree-pg` | **6.0.4** | 6.0.4 | No (but newest *GitHub Release* is only 5.1.3) |
+| Node | npm `cashfree-pg` | **6.0.6** | 6.0.6 | No (but newest *GitHub Release* is only 5.1.3) |
 | Python | PyPI `cashfree-pg` | **6.0.1** | 6.0.5 | **Yes** — 6.0.2–6.0.5 tagged, not on PyPI |
 | Java | Maven Central `com.cashfree.pg.java:cashfree_pg` | **6.0.2** | 6.0.2 | No (search.maven.org solr is stale at 5.0.1 — use maven-metadata.xml) |
 | Go | pkg.go.dev `github.com/cashfree/cashfree-pg/v6` | **v6.0.5** | v6.0.5 | No |
 | PHP | Packagist `cashfree/cashfree-pg` | **6.0.5** | 6.0.5 | No (caveat: 6.0.1 published *later* with a broader PHP range — see PHP §) |
-| .NET | NuGet `cashfree_pg` | **5.0.6** | 6.0.7 | **Yes (major)** — no 6.x on NuGet at all |
+| .NET | NuGet `cashfree-dotnet-pg` | **6.0.7** | 6.0.7 | No — v6 now published under the **new** `cashfree-dotnet-pg` package (the old `cashfree_pg` package tops out at 5.0.6) |
+
+> **Versions re-verified 2026-10-16:** Node npm `6.0.6`; Python PyPI `6.0.1`; Java Maven `6.0.2`; Go `v6.0.5`; PHP Packagist `6.0.5`; .NET NuGet `6.0.7` under the renamed package `cashfree-dotnet-pg`. All v6 SDKs default `x-api-version` to `2026-01-01`, which is now the published latest REST version.
 
 ### The `x-api-version` argument — version-less on every current major
 
@@ -62,10 +64,11 @@ Every language's 4.0.0 carries the identical note *"SDK now supports our new ver
 
 ## 1. Node SDK (`cashfree-pg`)
 
-`current: 6.0.4 via npm; newest git tag: 6.0.4; mismatch: no (newest GitHub Release is only 5.1.3)`
+`current: 6.0.6 via npm (re-verified 2026-10-16); newest git tag: 6.0.6; mismatch: no (newest GitHub Release is only 5.1.3)`
 
 | version | date | breaking? | headline |
 |---|---|---|---|
+| 6.0.6 | 2026 (npm; latest as-of 2026-10-16) | No (patch over 6.0.x) | Current npm latest; same `2026-01-01` spec line as 6.0.4 |
 | 6.0.4 | 2026-05-18 (npm) | **Yes** (major) | Generated from OpenAPI document version `2026-01-01`; major bump. No GitHub Release object for the tag. |
 | 5.1.3 | 2026-04-22 | No | Patch over 5.1.x |
 | 5.1.0 | 2025-10-08 (npm) | No | Feature bump (5.0.8 → 5.1.0); thin auto-notes |
@@ -88,7 +91,7 @@ Every language's 4.0.0 carries the identical note *"SDK now supports our new ver
 - **Type:** Breaking (major)
 - **Breaking?:** Yes — major version generated from OpenAPI document version `2026-01-01`; SDK default `XApiVersion` = `2026-01-01`.
 - **What changed:** npm `cashfree-pg` publishes `6.0.4`, matching git tag `6.0.4`. The tag's generated `index.ts` identifies OpenAPI document version `2026-01-01`, and `api.ts` sets `Cashfree.XApiVersion = "2026-01-01"`.
-- **What to fix (your code):** Bump `cashfree-pg` to `^6`; keep the v5+ instance call style (`const cashfree = new Cashfree(env, id, secret)` then `cashfree.PGCreateOrder(request, ...)`); set `cashfree.XApiVersion = "2025-01-01"` before calls if you need the latest documented REST API contract instead of the SDK default.
+- **What to fix (your code):** Bump `cashfree-pg` to `^6`; keep the v5+ instance call style (`const cashfree = new Cashfree(env, id, secret)` then `cashfree.PGCreateOrder(request, ...)`); set `cashfree.XApiVersion = "2025-01-01"` before calls only if you need the previous v5 contract instead of the current published `2026-01-01` default.
 - **What to test:** order create/fetch, every other method you call, webhook signature verification, and the `x-api-version` actually sent on the wire.
 - **Backward compat:** no declared Node `engines` requirement in `package.json`; call signatures are unchanged from v5 for the checked methods (`PGCreateOrder(request, x_request_id?, x_idempotency_key?, options?)`, `PGFetchOrder(order_id, ...)`, `PGVerifyWebhookSignature(signature, rawBody, timestamp)`); behavior changes can come from the generated `2026-01-01` API surface/default version.
 - **Source:** https://www.npmjs.com/package/cashfree-pg/v/6.0.4 · https://github.com/cashfree/cashfree-pg-sdk-nodejs/tree/6.0.4 · https://raw.githubusercontent.com/cashfree/cashfree-pg-sdk-nodejs/6.0.4/index.ts · https://raw.githubusercontent.com/cashfree/cashfree-pg-sdk-nodejs/6.0.4/api.ts · https://raw.githubusercontent.com/cashfree/cashfree-pg-sdk-nodejs/6.0.4/package.json — as-of 2026-06-29
@@ -123,7 +126,7 @@ Every language's 4.0.0 carries the identical note *"SDK now supports our new ver
 - **Type:** Breaking (call-style change)
 - **Breaking?:** Yes — the call style changed.
 - **What changed:** v4 used static class config (`Cashfree.XClientId=…`) + `Cashfree().PGCreateOrder(x_api_version, req, None, None)` (version first). v5+ switches to a configured instance: `cashfree = Cashfree(XEnvironment=…, XClientId=…, XClientSecret=…)` then `cashfree.PGCreateOrder(req, None, None)` — **version-less** (verified against `cashfree_pg/api_client.py`: `def PGCreateOrder(self, create_order_request=None, …)`, version taken from `self.XApiVersion`). The v5+ method signature has **no leading version argument**; the README shows the version-first call only under its "Version < 5" section for users still on v4.
-- **What to fix (your code):** migrate to the instance constructor and **drop the version first-arg** from every method. To pin the published v5 contract, set `cashfree.XApiVersion = "2025-01-01"`.
+- **What to fix (your code):** migrate to the instance constructor and **drop the version first-arg** from every method. To pin the previous v5 (2025-01-01) contract, set `cashfree.XApiVersion = "2025-01-01"`.
 - **What to test:** order create/fetch; that the instance carries credentials; webhook verification.
 - **Backward compat:** Python ≥ 3.9; min API version `2023-08-01`; **not source-compatible with v4 version-first calls** — the version-first signature is gone in v5+.
 - **Source:** https://github.com/cashfree/cashfree-pg-sdk-python (README @ 6.0.1 — both styles shown) · https://pypi.org/project/cashfree-pg/ — as-of 2026-06-23
@@ -237,7 +240,7 @@ Module-path note: v6 requires importing `github.com/cashfree/cashfree-pg/v6` (Go
 - **Type:** Breaking (runtime requirement)
 - **Breaking?:** Yes — minimum PHP raised.
 - **What changed:** Like the other v5+ SDKs, current PHP uses the **instance / version-less** style — verified against `lib/Cashfree.php` source: constructor `new \Cashfree\Cashfree($XEnvironment, $XClientId, $XClientSecret, $XPartnerApiKey, $XPartnerMerchantId, $XClientSignature, $XEnableErrorAnalytics)`, an instance field `public $XApiVersion = "2026-01-01"` for pinning, and `PGCreateOrder($create_order_request, $x_request_id = null, $x_idempotency_key = null, $http_client = null)` — **no leading `$x_api_version` argument**. The README still documents the static `\Cashfree\Cashfree::$XClientId = …` + version-first call under its "Version < 5" section for users on old majors. The 6.0.0/6.0.5 bump also **raises min PHP to ^8.1** and targets a new spec.
-- **What to fix (your code):** bump your PHP runtime to 8.1+ for 6.0.0/6.0.5 (**or** pin `6.0.1` to stay on PHP 7.2–8.0). If migrating off a pre-v5 SDK, switch to the instance constructor and **drop the `$x_api_version` first argument** from every call; pin via `$cashfree->XApiVersion = "2025-01-01"` if you need the published v5 contract.
+- **What to fix (your code):** bump your PHP runtime to 8.1+ for 6.0.0/6.0.5 (**or** pin `6.0.1` to stay on PHP 7.2–8.0). If migrating off a pre-v5 SDK, switch to the instance constructor and **drop the `$x_api_version` first argument** from every call; pin via `$cashfree->XApiVersion = "2025-01-01"` if you need the previous v5 (2025-01-01) contract.
 - **What to test:** order create/fetch; `guzzlehttp/guzzle ^7.3` satisfied; webhook handling.
 - **Backward compat:** PHP ^8.1 (6.0.0/6.0.5) or ^7.2‖^8.0 (6.0.1, ≤5.x). Within the v5+ line the call signature is stable; the version-first→version-less change is only a concern when migrating up from a pre-v5 SDK.
 - **Source:** https://github.com/cashfree/cashfree-pg-sdk-php (composer.json @ 6.0.5 vs 6.0.1) · https://packagist.org/packages/cashfree/cashfree-pg — as-of 2026-06-23
@@ -250,15 +253,15 @@ Module-path note: v6 requires importing `github.com/cashfree/cashfree-pg/v6` (Go
 
 ## 6. .NET SDK (`cashfree_pg`)
 
-`current: 5.0.6 via NuGet; newest git tag: 6.0.7; mismatch: YES (major) — there is NO 6.x on NuGet`
+`current: 6.0.7 via NuGet under the NEW package cashfree-dotnet-pg (re-verified 2026-10-16); old cashfree_pg package tops out at 5.0.6`
 
-> **The biggest registry-vs-git divergence.** NuGet tops out at **5.0.6 (2025-04-08)**; git tags go to **6.0.7** (the 6.0.7 csproj sets `<Version>6.0.7</Version>`), but **nothing 6.x is published to NuGet** — `dotnet add package cashfree_pg` gets you 5.0.6.
+> **Package renamed for v6.** As-of 2026-10-16, v6 **is** published to NuGet — but under a **new package id, `cashfree-dotnet-pg`** (latest `6.0.7`). The original `cashfree_pg` package is frozen at **5.0.6 (2025-04-08)** and no longer updated. Install v6 with `dotnet add package cashfree-dotnet-pg`. (Base data as-of 2026-06-23 recorded no 6.x on NuGet, before the renamed package shipped.)
 
 | version | date | breaking? | headline |
 |---|---|---|---|
-| 6.0.7 | tagged only (not on NuGet) | **Yes** (major) | New spec; adds `net8.0`. **Unpublished on NuGet.** |
-| 6.0.0–6.0.6 | tagged only | **Yes** (major) | Major bump; **unpublished on NuGet** |
-| 5.0.6 | 2025-04-08 | No | **Latest on NuGet.** Patch over 5.x |
+| 6.0.7 | published on NuGet as `cashfree-dotnet-pg` (latest as-of 2026-10-16) | **Yes** (major) | New spec; adds `net8.0`. First v6 release on NuGet, under the renamed package. |
+| 6.0.0–6.0.6 | tagged (git) | **Yes** (major) | Major bump; superseded by 6.0.7 on NuGet |
+| 5.0.6 | 2025-04-08 | No | **Latest of the old `cashfree_pg` package.** Patch over 5.x |
 | 5.0.0 | 2025 | **Yes** | New `new Cashfree(env,id,secret,…)` instance; version dropped from args |
 | 4.3.11 | 2025-01-17 | No | Patch |
 | 4.2.0 | 2024-07-12 | No | Subscription APIs |
@@ -274,8 +277,8 @@ Module-path note: v6 requires importing `github.com/cashfree/cashfree-pg/v6` (Go
 - **Backward compat:** netstandard2.0/2.1, .NET FW 4.7+, .NET 6.0; min API version `2023-08-01`; not drop-in.
 - **Source:** https://github.com/cashfree/cashfree-pg-sdk-dotnet (README @ 5.0.6 vs 4.2.0) · https://www.nuget.org/packages/cashfree_pg — as-of 2026-06-23
 
-### .NET 6.0.x — tagged, **not on NuGet**
-- **Breaking?:** Yes (major; adds net8.0 target) — **but not installable from NuGet as of 2026-06-23.** Do not advise upgrading to 6.x via NuGet until published. **Source:** https://github.com/cashfree/cashfree-pg-sdk-dotnet (csproj @ 6.0.7) — as-of 2026-06-23
+### .NET 6.0.x — published on NuGet as `cashfree-dotnet-pg` (6.0.7)
+- **Breaking?:** Yes (major; adds net8.0 target; **package id changed**). Install with `dotnet add package cashfree-dotnet-pg` — the old `cashfree_pg` package is frozen at 5.0.6. Default `x-api-version` is `2026-01-01`, matching the published REST version. **Source:** https://www.nuget.org/packages/cashfree-dotnet-pg · https://github.com/cashfree/cashfree-pg-sdk-dotnet (csproj @ 6.0.7) — re-verified 2026-10-16
 
 ### .NET 4.0.0 — 2024-01-22 (boundary)
 - **Breaking?:** Yes — new PG APIs. **What to fix:** migrate from 3.x. **Backward compat:** not drop-in from 3.x. **Source:** https://github.com/cashfree/cashfree-pg-sdk-dotnet/releases/tag/4.0.0 — as-of 2026-06-23

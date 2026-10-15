@@ -23,7 +23,7 @@ description: >
 | POST | `/pg/settlement/recon` | Event-level breakdown of one or more settlements | `PGSettlementFetchRecon` |
 | POST | `/pg/recon` | Transaction-level recon by date range | `PGFetchRecon` |
 
-All endpoints: `x-client-id`, `x-client-secret`, `x-api-version: 2025-01-01`, `Content-Type: application/json`.
+All endpoints: `x-client-id`, `x-client-secret`, `x-api-version: 2026-01-01`, `Content-Type: application/json`. (`2026-01-01` is the current version; pin `2025-01-01` for the previous contract. **Breaking response changes in v6:** both **Get All Settlements** (`POST /pg/settlements` — see §3) and **Get Settlements by Order ID** (`GET /pg/orders/{order_id}/settlements`) now return a nested/recon-style object instead of a flat settlement array; verify your parsing against the v6 docs.)
 
 ### Rate limits
 
@@ -175,7 +175,11 @@ Sandbox limits are ~20/min. Respect `x-ratelimit-retry` on 429 responses; back o
 
 ## 3. List Settlements — Response Fields
 
-`POST /pg/settlements` returns an array of settlement objects (not recon rows). Each settlement:
+> **v6 breaking change (`2026-01-01`).** `POST /pg/settlements` now returns a **paginated recon object**, not a plain array of settlement objects. The envelope is `{ "cursor": <string|null>, "limit": <int>, "data": [ ... ] }` — the same shape as §2's `POST /pg/settlement/recon`, where each `data` item is a settlement-recon row with the nested `event_details` / `order_details` / `customer_details` / `payment_details` / `settlement_details` / `dispute_details` / `refund_details` structure documented in §2. Walk `cursor` until it is `null`. The flat per-settlement fields below are the **previous (`2025-01-01`) contract**; pin `2025-01-01` to keep receiving the plain array. (Verified against https://www.cashfree.com/docs/api-reference/payments/latest/settlements/get-settlements.)
+
+### Previous (`2025-01-01`) shape — plain array of settlement objects
+
+`POST /pg/settlements` returned an array of settlement objects (not recon rows). Each settlement:
 
 | Field | Type | Notes |
 |---|---|---|
@@ -278,7 +282,7 @@ res, err := cashfree.PGFetchSettlements(&req, "", "", "", "", nil)
 curl -X POST "https://api.cashfree.com/pg/settlement/recon" \
   -H "x-client-id: $CASHFREE_APP_ID" \
   -H "x-client-secret: $CASHFREE_SECRET_KEY" \
-  -H "x-api-version: 2025-01-01" \
+  -H "x-api-version: 2026-01-01" \
   -H "Content-Type: application/json" \
   -d '{"pagination":{"limit":1000,"cursor":null},"filters":{"cf_settlement_ids":[12345]}}'
 ```
@@ -325,6 +329,8 @@ def pull_recon_for(cf_settlement_id):
         cursor = res.data.cursor
         if not cursor: break
 ```
+
+> **v6 note:** the snippet above reads flat `s.status` / `s.cf_settlement_id` off each `PGFetchSettlements` row, which matches the **previous (`2025-01-01`)** response. Under `2026-01-01` those rows are settlement-recon objects (see §3) — read `s.settlement_details.cf_settlement_id` and `s.event_details.event_status` / `s.settlement_details` instead, or pin `2025-01-01` for the flat shape.
 
 Keys to avoid double-processing:
 

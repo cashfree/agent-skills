@@ -88,7 +88,7 @@ From the integration work already done in this session, you likely already have 
 curl -s -o /dev/null -w "%{http_code}" -X POST "<BASE_URL>/pg/orders" \
   -H "x-client-id: <APP_ID>" \
   -H "x-client-secret: <SECRET_KEY>" \
-  -H "x-api-version: 2025-01-01" \
+  -H "x-api-version: 2026-01-01" \
   -H "Content-Type: application/json" \
   -d '{
     "order_id": "cf_agent_skills_<RANDOM_6_CHARS>",

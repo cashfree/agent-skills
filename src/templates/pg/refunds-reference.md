@@ -24,7 +24,7 @@ description: >
 
 Sandbox limits: 30 / min create, 60 / min fetch.
 
-Headers identical across all three: `x-client-id`, `x-client-secret`, `x-api-version: 2025-01-01`, `Content-Type: application/json`.
+Headers identical across all three: `x-client-id`, `x-client-secret`, `x-api-version: 2026-01-01`, `Content-Type: application/json`. (`2026-01-01` is the current version; pin `2025-01-01` for the previous contract.)
 
 ---
 
@@ -319,7 +319,7 @@ var created = cashfree.PGOrderCreateRefund(orderId, req, null, null, null);
 curl -X POST "https://api.cashfree.com/pg/orders/$ORDER_ID/refunds" \
     -H "x-client-id: $CASHFREE_APP_ID" \
     -H "x-client-secret: $CASHFREE_SECRET_KEY" \
-    -H "x-api-version: 2025-01-01" \
+    -H "x-api-version: 2026-01-01" \
     -H "Content-Type: application/json" \
     -d '{
         "refund_id": "refund_001",

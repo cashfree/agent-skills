@@ -25,7 +25,8 @@ description: >
 |---|---|---|---|
 | `2022-09-01` (and earlier) | — | — | No new-style Subscriptions API; `/subscriptions` & `/plans` absent |
 | `2023-08-01` | (version id) | **Yes** (new surface) | New mandate-based Subscriptions API under `/pg` (subscriptions, plans, payments, refunds) |
-| `2025-01-01` (v5, latest) | (version id) | No (additive) | Adds 6 "controlled" pre-debit notify+execute endpoints for UPI mandates |
+| `2025-01-01` (v5) | (version id) | No (additive) | Adds 6 "controlled" pre-debit notify+execute endpoints for UPI mandates |
+| `2026-01-01` (v6, latest) | ~2026 | **Yes** | Create Subscription body restructured; adds `subscription_tags` + `subscription_payment_splits` (`customer_bank_account_holder_name` is retained — still in the v6 schema, mandatory for TPV); controlled subscription payments extended (adds card mandates alongside UPI Autopay; eNACH/PNACH not supported); subscription support on Create Payment Link. Re-verified 2026-10-16. |
 
 ### API `2023-08-01` — new mandate-based Subscriptions API (BREAKING vs legacy v1)
 - **Breaking?:** Yes (new surface; migration off legacy v1).
@@ -41,7 +42,15 @@ description: >
 - **What to fix (your code):** optional. To adopt: send `x-api-version: 2025-01-01`, call notify-mandate, then execute-mandate after the compliance window; poll status via the new GETs. Existing `2023-08-01` integrations need no change.
 - **What to test:** for UPI-mandate subs: notify → wait window → execute → confirm status; confirm the non-controlled `/subscriptions/pay` path is unchanged; confirm eNACH/PNACH/card aren't routed through controlled endpoints.
 - **Backward compat:** fully backward compatible — additive endpoints; no removals/signature changes on existing subscription endpoints between `2023-08-01` and `2025-01-01`.
-- **Source:** `cashfree/docs` → `openapi/payments/v2025-01-01.yaml`; `api-reference/payments/latest/subscription/payment/create-controlled-notification.mdx` — as-of 2026-06-23
+- **Source:** `cashfree/docs` → `openapi/payments/v2025-01-01.yaml`; `api-reference/payments/previous/v2025-01-01/subscription/payment/create-controlled-notification.mdx` — as-of 2026-06-23 (now filed under `previous/`)
+
+### API `2026-01-01` — current latest; Create Subscription restructured (BREAKING)
+- **Breaking?:** Yes — the Create Subscription request body is restructured.
+- **What changed:** Create Subscription uses a new body shape and adds `subscription_tags` and `subscription_payment_splits`. (`customer_bank_account_holder_name` is **retained** — the live v6 schema still lists it, mandatory for TPV; Cashfree's overview release note that calls it "removed" is contradicted by the actual schema, verified 2026-10-16.) Controlled subscription payments are extended to card mandates (in addition to UPI Autopay); eNACH/PNACH remain unsupported. Create Payment Link now supports subscriptions.
+- **What to fix (your code):** send `x-api-version: 2026-01-01` (or rely on the v6 SDK default); migrate the Create Subscription payload to the new shape. Do **not** drop `customer_bank_account_holder_name` — it is still valid in v6.
+- **What to test:** create/fetch/manage subscription on the new body; controlled notify+execute for card mandates; subscription webhooks (updated payloads in v6).
+- **Backward compat:** pin `x-api-version: 2025-01-01` to keep the previous Create Subscription contract until you migrate.
+- **Source:** `https://www.cashfree.com/docs/api-reference/payments/overview` (v2026-01-01 "now available") — re-verified 2026-10-16
 
 ---
 
@@ -50,7 +59,8 @@ description: >
 | version | date | breaking? | headline |
 |---|---|---|---|
 | 4.2.0 | 2024-07-12 | No (additive) | "SDK now supports Subscription APIs" — adds the `subs*` method family (default `x-api-version` 2023-08-01) |
-| 5.1.3 (latest Node) | 2026-04-22 | No (for subs) | Same 11 `subs*` methods, unchanged; SDK documented `x-api-version` now 2025-01-01 |
+| 5.1.3 | 2026-04-22 | No (for subs) | Same 11 `subs*` methods, unchanged; SDK documented `x-api-version` was 2025-01-01 |
+| 6.0.x (latest Node 6.0.6) | 2026 | **Yes** (major) | v6 major; SDK default `x-api-version` now `2026-01-01` (restructured Create Subscription body). Re-verified 2026-10-16. |
 
 ### SDK 4.2.0 — PG SDKs gain subscription methods
 - **Breaking?:** No (additive). **What changed:** added the `subs*` family (Node `api.ts` @4.2.0, 11 methods): `subsCreatePlan`, `subsFetchPlan`, `subsCreateSubscription`, `subsFetchSubscription`, `subsManageSubscription`, `subsCreatePayment`, `subsFetchSubscriptionPayment`, `subsFetchSubscriptionPayments`, `subsManageSubscriptionPayment`, `subsCreateRefund`, `subsFetchSubscriptionRefund` (+ helpers `subscriptionDocumentUpload`, `subscriptionEligibility`). Note the naming is `subs*`, **not** `PGCreateSubscription`. **What to fix:** upgrade SDK ≥ 4.2.0; call `subs*`, passing the API version as the first arg in the legacy style. **What to test:** plan/subscription/payment/refund flows against sandbox. **Backward compat:** additive; the `subs*` set is **identical 4.2.0 → 5.1.3** (no renames/removals), so subscription code survives the 4.x→5.x bump — only the `x-api-version` you pass changed default. **Source:** `cashfree/cashfree-pg-sdk-nodejs` release 4.2.0 + `api.ts` @4.2.0/5.1.3 — as-of 2026-06-23

@@ -261,7 +261,7 @@ Closes #<ISSUE_NUMBER>
 1. **Trust git tags + the published registry over the GitHub "Releases" tab** — it is routinely incomplete (stops at an older major while the registry ships a newer one).
 2. **Registry version can differ from the newest git tag** — always report both and flag the mismatch (e.g. a major tagged in git but never published to the registry).
 3. **The `x-api-version` argument is per *call style* (static/legacy vs instance), not per language** — verify each language's README before claiming the version arg was added/dropped.
-4. **`2026-01-01` is the SDKs' internal default, not a published REST version** — the latest *published* PG REST version is `2025-01-01` (v5). Don't present `2026-01-01` as documented.
+4. **`2026-01-01` is the current *published* PG REST version (v6)** — re-verified against the live docs 2026-10-16; `2025-01-01` (v5) is now the previous version. The v6 SDK default (`2026-01-01`) matches the docs. It has breaking response-schema changes, so pin `2025-01-01` only for backward compat. (Re-verify before each run — this flipped from the earlier "not published" state.)
 5. **Never introduce guidance to branch on error *message/description* strings** — Cashfree skills branch only on `error_code` / enums. Keep that guardrail intact.
 
 ## Rules

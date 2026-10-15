@@ -25,7 +25,7 @@ This reference is the source of truth for field-level and endpoint-level differe
 
 ## 1. Endpoint Map
 
-Razorpay base: `https://api.razorpay.com/v1/`. Cashfree bases: `https://sandbox.cashfree.com/pg` (test), `https://api.cashfree.com/pg` (prod). All Cashfree calls require headers `x-client-id`, `x-client-secret`, `x-api-version: 2025-01-01`, `Content-Type: application/json`. Razorpay uses HTTP Basic.
+Razorpay base: `https://api.razorpay.com/v1/`. Cashfree bases: `https://sandbox.cashfree.com/pg` (test), `https://api.cashfree.com/pg` (prod). All Cashfree calls require headers `x-client-id`, `x-client-secret`, `x-api-version: 2026-01-01`, `Content-Type: application/json`. Razorpay uses HTTP Basic.
 
 | Purpose | Razorpay | Cashfree |
 |---|---|---|

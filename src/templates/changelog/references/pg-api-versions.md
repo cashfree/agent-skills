@@ -2,14 +2,14 @@
 name: Changelog — PG REST API Version Line (x-api-version)
 description: >
   Source-verified timeline of Cashfree's Payment Gateway REST API versions — the
-  date-based x-api-version values (2021-05-21 → 2025-01-01) — with breaking changes,
-  what-to-fix / what-to-test, and the 2025-01-01 vs 2026-01-01 reconciliation. Read
+  date-based x-api-version values (2021-05-21 → 2026-01-01) — with breaking changes,
+  what-to-fix / what-to-test, and the 2026-01-01 vs 2025-01-01 reconciliation. Read
   changelog/SKILL.md first for the entry schema. Consumed by the upgrade-advisor skill.
 ---
 
 # Changelog — PG REST API Version Line (`x-api-version`)
 
-> Read `../changelog.md` (SKILL.md) §2 for the entry schema. **All data as-of 2026-06-23**, sourced from the `cashfree/docs` repo (`main`), the published OpenAPI specs in that repo, the public docs site, and the SDK source repos. Conflicts are called out, not smoothed over.
+> Read `../changelog.md` (SKILL.md) §2 for the entry schema. **Base data as-of 2026-06-23**; the version-line status was **re-verified against the live docs on 2026-10-16** (`2026-01-01` is now the published latest). Sourced from the `cashfree/docs` repo (`main`), the published OpenAPI specs in that repo, the public docs site, and the SDK source repos. Conflicts are called out, not smoothed over.
 
 The REST API version is set per request via the `x-api-version: <DATE>` header. It is **independent of the SDK version** (see `pg-backend-sdks.md`).
 
@@ -19,16 +19,16 @@ The REST API version is set per request via the `x-api-version: <DATE>` header. 
 
 | x-api-version | label | date | breaking? | headline |
 |---|---|---|---|---|
-| `2026-01-01` | — | unknown | **N/A — not a published API version** | SDK-internal default only (Node/Python/Go source). No docs, no OpenAPI spec, not in the version switcher. |
-| `2025-01-01` | v5 | unknown | delta **undocumented** | Current/latest **published** REST version. Disputes, Utilities, Downtimes, Simulation, Easy-Split consolidated in the v5 OpenAPI; webhooks carry `x-idempotency-key`. No release-notes/migration doc for v4→v5. |
+| `2026-01-01` | v6 | ~2026 | **Yes** | Current/latest **published** REST version (docs confirm "Cashfree API v2026-01-01 is now available"). New: Order Pay Authorise-Only, controlled subscription payments, `par` field, device-context headers, `offer_filters`, `upi_app_priority`, settlement-status filter, Partner/PA-Partner auth. Breaking response changes: Get Settlements by Order ID nested object, Get All Settlements paginated, Get Order Extended `offer`→`offers`, `bbps` removed from Create Order, Create Subscription body restructured. SDK v6 default. |
+| `2025-01-01` | v5 | unknown | delta **undocumented** | **Previous** published REST version. Disputes, Utilities, Downtimes, Simulation, Easy-Split consolidated in the v5 OpenAPI; webhooks carry `x-idempotency-key`. No release-notes/migration doc for v4→v5. |
 | `2023-08-01` | v4 | ~2024-01-23 | **Yes** | Cashfree IDs integer→string; `refund_` prefix dropped from `cf_refund_id`; payments/refunds/settlements URLs removed from order entity; `notify_url` dropped from Create Order; new Customer + Order Termination + SPOS APIs; new `x-deprecated-at` header. |
 | `2022-09-01` | v3 | unknown | **Yes (vs v1/v2)** | The "new APIs" generation: JSON (not form-encoded), `payment_session_id` replaces `order_token`/`payment_link`, JS SDK v3 checkout, entity-based responses, offers/eligibility/BNPL/cardless-EMI, first-party SDKs. |
 | `2022-01-01` | — | unknown | unverified | Listed as a prior version; no release-notes file in the repo. |
 | `2021-05-21` | — | unknown | n/a (earliest) | Oldest listed `x-api-version`; no release-notes file. |
 
-**Current/latest published:** `2025-01-01` (v5) — stated in `api-reference/payments/latest/overview.mdx`, the legacy overview pages, the public docs site, and the only `latest` OpenAPI spec (`openapi/payments/v2025-01-01.yaml`).
+**Current/latest published:** `2026-01-01` (v6) — the live docs state "Cashfree API v2026-01-01 is now available"; the Create Order page's current `x-api-version` is `2026-01-01`, with `2025-01-01` listed as the previous version. (Base data as-of 2026-06-23 treated `2025-01-01` as latest; re-verified 2026-10-16.)
 
-**Version switcher options** (public docs): `2025-01-01`, `2023-08-01`, `2022-09-01`, `2022-01-01`, `2021-05-21`.
+**Version switcher options** (public docs): `2026-01-01`, `2025-01-01`, `2023-08-01`, `2022-09-01`, `2022-01-01`, `2021-05-21`.
 
 ---
 
@@ -88,34 +88,54 @@ The REST API version is set per request via the `x-api-version: <DATE>` header. 
 
 ---
 
-## `2025-01-01` (v5) — current latest; breaking status NOT documented
+## `2026-01-01` (v6) — current latest; BREAKING vs v5
 
-- **Type:** Feature/consolidation (delta undocumented)
-- **Breaking?:** Unknown — **no release-notes or migration doc exists for v4 (2023-08-01) → v5 (2025-01-01)** in `cashfree/docs` (no `latest/release-notes.mdx`; `/payments/online/changelog` is 404).
-- **What changed (observable from the OpenAPI only):** the v5 surface consolidates **Disputes, Utilities, Downtimes, Simulation, Easy-Split** as first-class tag groups; webhooks carry `x-idempotency-key`. Exact field-level deltas vs v4 are unpublished.
-- **What to fix / test / backward compat:** not documented — cannot state authoritatively. For new integrations, pin `x-api-version: 2025-01-01` (matches the OpenAPI default and the other local skill templates).
-- **Source:** `cashfree/docs` → `api-reference/payments/latest/overview.mdx` ("The latest API version is **2025-01-01** (v5)…") · OpenAPI `openapi/payments/v2025-01-01.yaml` (`x-api-version` default `2025-01-01`, enum `["2025-01-01"]`) · `https://www.cashfree.com/docs/api-reference/payments/latest` — as-of 2026-06-23
+- **Type:** Feature + breaking response-schema changes
+- **Breaking?:** Yes — several response schemas differ from `2025-01-01`. Code that reads the previous response structure will break after upgrading.
+- **What changed (from the live overview):**
+  - **New endpoint:** Order Pay Authorise-Only (authorise a card payment without immediate capture; requires the `AUTHORIZE_ONLY` flag on the merchant account).
+  - **Controlled subscription payments:** two-step flow for UPI Autopay and card mandates (pre-debit notification then trigger debit; eNACH/PNACH not supported).
+  - **New fields/headers:** device-context headers on Order Pay and Get Eligible Payment Methods; `offer_filters` and `upi_app_priority` on Create Order; settlement-status filter on Get All Settlements; subscription support on Create Payment Link; `par` field for card payments.
+  - **Auth:** Partner and PA-Partner authentication now works on more endpoints (incl. Collect-from-India import settlement APIs).
+  - **Breaking response changes:** Get Settlements by Order ID returns a nested object; Get All Settlements returns a paginated list; Mark Order for Settlement returns HTTP 200 (was 202) with a body; Get Order Extended changes `offer` → `offers` array.
+  - **Removed:** `bbps` on Create Order.
+  - **Subscriptions:** Create Subscription uses a restructured body and adds `subscription_tags` and `subscription_payment_splits`. (`customer_bank_account_holder_name` is retained — still in the v6 schema, mandatory for TPV; the overview's "removed" note is contradicted by the live schema, verified 2026-10-16.)
+- **What to fix (your code):** send `x-api-version: 2026-01-01` (or rely on the v6 SDK default); update settlement, order-extended, and subscription response parsing; drop `bbps` from Create Order; handle the new HTTP 200 on Mark Order for Settlement.
+- **What to test:** every settlement read, Get Order Extended `offers`, subscription create/manage, webhook payloads (updated examples in v6).
+- **Backward compat:** pin `x-api-version: 2025-01-01` to stay on the previous contract until you migrate.
+- **Source:** `https://www.cashfree.com/docs/api-reference/payments/overview` ("Cashfree API v2026-01-01 is now available") · `https://www.cashfree.com/docs/api-reference/payments/latest/orders/create` (current version `2026-01-01`) — re-verified 2026-10-16
 
 ---
 
-## `2025-01-01` (published) vs `2026-01-01` (SDK default)
+## `2025-01-01` (v5) — previous published version; breaking status vs v4 NOT documented
 
-These are **two layers that are out of sync** — use the right one for the right purpose:
+- **Type:** Feature/consolidation (delta vs v4 undocumented)
+- **Breaking?:** Unknown — **no release-notes or migration doc exists for v4 (2023-08-01) → v5 (2025-01-01)** in `cashfree/docs` (no `latest/release-notes.mdx`; `/payments/online/changelog` is 404).
+- **What changed (observable from the OpenAPI only):** the v5 surface consolidates **Disputes, Utilities, Downtimes, Simulation, Easy-Split** as first-class tag groups; webhooks carry `x-idempotency-key`. Exact field-level deltas vs v4 are unpublished.
+- **What to fix / test / backward compat:** not documented — cannot state authoritatively. Still a valid pin for integrations that want the pre-`2026-01-01` contract.
+- **Source:** `cashfree/docs` → `api-reference/payments/previous/v2025-01-01/overview.mdx` · OpenAPI `openapi/payments/v2025-01-01.yaml` · `https://www.cashfree.com/docs/api-reference/payments/previous/v2025-01-01` — as-of 2026-06-23 (now filed under `previous/`)
+
+---
+
+## `2026-01-01` (published latest) vs `2025-01-01` (previous)
+
+As of 2026-10-16 the published REST API and the v6 SDK default **agree** — both are `2026-01-01`. (This replaces the earlier out-of-sync state where the docs were still on `2025-01-01` while SDKs had already stamped `2026-01-01`.)
 
 | Layer | Treats as current | Evidence |
 |---|---|---|
-| **Published REST API** (docs + OpenAPI + version switcher) | `2025-01-01` (v5) | `latest/overview.mdx`; only `latest` spec is `v2025-01-01.yaml`; public docs |
-| **First-party SDK source** (Node, Python, Go) | `2026-01-01` (hardcoded default) | Go `configuration.go` `XApiVersion = "2026-01-01"`; Node `configuration.ts` ("OpenAPI document: 2026-01-01"); Python (only `2026-01-01` appears, not `2025-01-01`) |
+| **Published REST API** (docs + version switcher) | `2026-01-01` (v6) | overview "v2026-01-01 is now available"; Create Order page current version `2026-01-01`; `2025-01-01` filed under `previous/` |
+| **First-party SDK source** (Node, Python, Go, PHP, etc.) | `2026-01-01` (hardcoded default) | Go `configuration.go` `XApiVersion = "2026-01-01"`; Node `configuration.ts` ("OpenAPI document: 2026-01-01"); PHP `Cashfree.php` `public $XApiVersion = "2026-01-01"` |
 
-- `2025-01-01` is the latest **published** REST version — use it for header values and curl examples.
-- The current Node/Python/Go SDKs default `x-api-version` to `2026-01-01` internally.
-- **`2026-01-01` is NOT a documented/published API version** — no docs folder, no OpenAPI spec, no release notes, absent from the version switcher. It exists only as the version the generated SDKs are stamped with; do not present it as a documented REST version. If you need the documented v5 contract, pin `2025-01-01` explicitly.
+- `2026-01-01` is the latest **published** REST version — use it for header values and curl examples.
+- The current v6 SDKs default `x-api-version` to `2026-01-01`, which now matches the docs.
+- **Docs caveat:** some pages (e.g. Pay Order, Authentication) still show `2025-01-01` defaults in their examples — send `x-api-version` explicitly if you need certainty.
+- If you depend on the previous v5 contract, pin `2025-01-01` explicitly until you migrate (see the breaking changes above).
 
 ---
 
 ## Deprecation / sunset status
 
-- `2022-09-01` and `2023-08-01` are filed under `api-reference/payments/previous/`; `2025-01-01` is `latest`. Both previous overview pages steer new integrations to `v2025-01-01`.
+- `2022-09-01`, `2023-08-01`, and now `2025-01-01` are filed under `api-reference/payments/previous/`; `2026-01-01` is `latest`. Previous overview pages steer new integrations to the latest version.
 - The `2023-08-01` release added the **`x-deprecated-at` response header** — deprecation dates are delivered **at runtime per call**, not as a static published table.
 - **No published sunset dates** were found for any version. `2021-05-21` and `2022-01-01` have no docs folders/specs (only listed by name), implying they are oldest/least-supported, but no formal sunset date is stated.
 

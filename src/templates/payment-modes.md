@@ -18,7 +18,7 @@ This API is the only source of truth for which payment methods are activated on 
 curl --request POST \
   --url https://sandbox.cashfree.com/pg/eligibility/payment_methods \
   --header 'Content-Type: application/json' \
-  --header 'x-api-version: 2025-01-01' \
+  --header 'x-api-version: 2026-01-01' \
   --header 'x-client-id: <api-key>' \
   --header 'x-client-secret: <api-key>' \
   --data '

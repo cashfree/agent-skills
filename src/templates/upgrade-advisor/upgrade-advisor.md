@@ -38,9 +38,9 @@ A Cashfree integration is versioned on two **independent** axes. An upgrade requ
 | Axis | Example | Governs | Changelog source |
 |---|---|---|---|
 | **SDK version** | `cashfree-pg` 4.x → 6.x | method signatures, constructor shape, min runtime, import path | the per-product reference (e.g. `pg-backend-sdks.md`) |
-| **REST API version** | `x-api-version` `2022-09-01` → `2025-01-01` | request/response shape, IDs, fields, endpoints | `pg-api-versions.md` (PG), or the product's API line (payouts/VRS have their own) |
+| **REST API version** | `x-api-version` `2022-09-01` → `2026-01-01` | request/response shape, IDs, fields, endpoints | `pg-api-versions.md` (PG), or the product's API line (payouts/VRS have their own) |
 
-Bumping the SDK does **not** automatically change `x-api-version` (and vice-versa). The current PG SDKs even ship a *default* `x-api-version` (`2026-01-01`) that is **ahead of the published REST version** (`2025-01-01`) — call this out.
+Bumping the SDK does **not** automatically change `x-api-version` (and vice-versa). The current PG v6 SDKs default `x-api-version` to `2026-01-01`, which is now the **published latest** REST version (`2025-01-01` is the previous version). `2026-01-01` carries breaking response-schema changes, so pin `2025-01-01` only for backward compat until migration — call this out.
 
 ---
 
@@ -77,7 +77,7 @@ Also detect the **call style** in use (instance vs static/legacy version-first) 
 
 ### Step 3 — Confirm the target is real (re-verify, don't trust memory)
 - The changelog has an "as-of" date. Before quoting "latest", re-check the registry (npm/PyPI/Maven Central/pkg.go.dev/Packagist/NuGet) directly — registries move and the changelog may lag.
-- **Honor the registry-vs-tag traps the changelog flags.** E.g. **.NET `cashfree_pg` has no 6.x on NuGet** (tops at 5.0.6) and **Java verification 3.0.0 is not on Maven Central** — do not advise a target the user can't actually install. Surface the ceiling instead.
+- **Honor the registry-vs-tag traps the changelog flags.** E.g. **.NET v6 ships under the renamed NuGet package `cashfree-dotnet-pg`** (latest `6.0.7`); the old `cashfree_pg` package is frozen at 5.0.6. **Java verification 3.0.0 is not on Maven Central** — do not advise a target the user can't actually install. Surface the ceiling or the renamed package instead.
 
 ### Step 4 — Collect the breaking changes between current and target
 From the chosen reference file's **version timeline table**, take every row with `breaking? = Yes` that lies **strictly after** the current version and **up to and including** the target. Pull each one's detail block. Do the same on the **API axis** if `x-api-version` is also changing.
@@ -131,14 +131,14 @@ Rules:
 ## 5. Worked example — `cashfree-pg` (Node) 4.0.0 → 6.0.4
 
 **Detected:** `package.json` → `cashfree-pg ^4.0.0`; calls use the static/legacy style (`Cashfree.PGCreateOrder("2023-08-01", …)`); `x-api-version 2023-08-01`.
-**Target:** latest (`6.0.4`, npm).
+**Target:** latest (`6.0.6`, npm; as-of 2026-10-16).
 
-**Breaking steps between 4.0.0 and 6.0.4** (from `pg-backend-sdks.md`):
+**Breaking steps between 4.0.0 and 6.0.x** (from `pg-backend-sdks.md`):
 1. **5.0.0** — instance client `new Cashfree(env, id, secret)`; calls drop the version arg.
 2. **6.0.x** — major bump to the new spec; SDK default `x-api-version` becomes `2026-01-01`.
 
 **Migration steps:**
-1. `npm i cashfree-pg@^6` (currently resolves to 6.0.4).
+1. `npm i cashfree-pg@^6` (currently resolves to 6.0.6).
 2. Pick a call style and apply it consistently:
    ```diff
    - Cashfree.XClientId = process.env.CASHFREE_APP_ID;
@@ -149,7 +149,7 @@ Rules:
    + const res = await cashfree.PGCreateOrder(request);
    ```
    (Or keep the legacy static style and pass `"2025-01-01"` first on **every** method — don't mix.)
-3. **Decide `x-api-version`.** The v6 SDK defaults to `2026-01-01`, which is **ahead of the published REST version `2025-01-01`**. If your code depends on the documented v5 contract, pin it: `cashfree.XApiVersion = "2025-01-01"`.
+3. **Decide `x-api-version`.** The v6 SDK defaults to `2026-01-01`, which is now the **published latest** REST version (`2025-01-01` is the previous version). `2026-01-01` has breaking response-schema changes, so if your code still depends on the previous v5 contract, pin it until you migrate: `cashfree.XApiVersion = "2025-01-01"`.
 
 **Test checklist:** order create/fetch → `PAID`; refund; webhook signature on raw body; every `PGxxx` you call (response models may have shifted at the major bump); the api-version actually sent on the wire.
 
@@ -160,6 +160,6 @@ Rules:
 ## 6. Guardrails
 - The plan is only as good as the changelog. Check "as-of" dates; re-verify against the live registry if an entry looks stale.
 - Re-verify the target version on the actual registry before calling it "latest."
-- Respect publication ceilings (.NET no 6.x on NuGet; Java VRS 3.0.0 not on Central; PyPI `cashfree-pg` tops at 6.0.1).
+- Respect publication ceilings (.NET v6 is on NuGet only under the renamed `cashfree-dotnet-pg` package, not `cashfree_pg`; Java VRS 3.0.0 not on Central; PyPI `cashfree-pg` tops at 6.0.1).
 - Two axes — always state both, even if only one is changing.
 - For undocumented deltas, prescribe **verification**, not a fabricated fix.

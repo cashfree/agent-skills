@@ -189,4 +189,4 @@ Increase via **Merchant Dashboard > Payment Gateway > Developers > Rate Limits**
 - **Include `x-request-id`** in every request for debugging and support.
 - **Use `x-idempotency-key`** for safe retries on Create Order and Pay Order.
 - **Avoid concurrent requests** from the same account — use a queue if needed.
-- **Always use the latest API version** (`x-api-version: 2025-01-01`).
+- **Always use the latest API version** (`x-api-version: 2026-01-01`; pin `2025-01-01` only if you need the previous contract).

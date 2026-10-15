@@ -56,7 +56,7 @@ description: >
 | Sandbox | `https://sandbox.cashfree.com/pg` |
 | Production | `https://api.cashfree.com/pg` |
 
-Auth is identical to the rest of the PG API — `x-client-id`, `x-client-secret`, `x-api-version: 2025-01-01`, `Content-Type: application/json`.
+Auth is identical to the rest of the PG API — `x-client-id`, `x-client-secret`, `x-api-version: 2026-01-01`, `Content-Type: application/json`. (`2026-01-01` is the current version; pin `2025-01-01` for the previous contract. Note the v6 breaking change to **Get All Settlements** — see `references/REFERENCE.md` §3.)
 
 ### Primary Endpoints
 

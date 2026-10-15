@@ -29,7 +29,7 @@ description: >
 | GET    | `/pg/easy-split/orders/{order_id}` | Fetch split / settlement details for an order |
 | POST   | `/pg/recon/vendor` | Per-vendor transaction-level recon (filters in body) |
 
-Headers on every call: `x-client-id`, `x-client-secret`, `x-api-version: 2025-01-01`, `Content-Type: application/json`.
+Headers on every call: `x-client-id`, `x-client-secret`, `x-api-version: 2026-01-01`, `Content-Type: application/json`.
 
 ---
 
@@ -249,7 +249,7 @@ const res = await fetch("https://api.cashfree.com/pg/easy-split/vendors", {
     headers: {
         "x-client-id": process.env.CASHFREE_APP_ID,
         "x-client-secret": process.env.CASHFREE_SECRET_KEY,
-        "x-api-version": "2025-01-01",
+        "x-api-version": "2026-01-01",
         "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -292,7 +292,7 @@ import os, requests
 HDR = {
     "x-client-id": os.environ["CASHFREE_APP_ID"],
     "x-client-secret": os.environ["CASHFREE_SECRET_KEY"],
-    "x-api-version": "2025-01-01",
+    "x-api-version": "2026-01-01",
     "Content-Type": "application/json",
 }
 BASE = "https://api.cashfree.com/pg"
