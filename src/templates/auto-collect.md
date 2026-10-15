@@ -55,7 +55,7 @@ A VBA accepts **bank transfers only — IMPS, NEFT, and RTGS**. There is **no UP
 
 Headers: `x-client-id`, `x-client-secret`, `x-api-version: 2024-07-10`, `Content-Type: application/json`.
 
-> ⚠️ VBA APIs use their **own** `x-api-version: 2024-07-10` — **not** the PG `2025-01-01`.
+> ⚠️ VBA APIs use their **own** `x-api-version: 2024-07-10` — **not** the PG `2026-01-01`.
 
 ### Endpoints
 

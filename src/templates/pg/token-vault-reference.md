@@ -25,7 +25,7 @@ description: >
 
 Plus the payment-time integration: `POST /pg/orders/sessions` with `payment_method.card.save_instrument: true` (save) or `payment_method.card.instrument_id: "..."` (charge with saved token).
 
-Headers: `x-client-id`, `x-client-secret`, `x-api-version: 2025-01-01`, `Content-Type: application/json`. Rate limits share the general Get/Pay buckets (~30–100/min).
+Headers: `x-client-id`, `x-client-secret`, `x-api-version: 2026-01-01`, `Content-Type: application/json`. Rate limits share the general Get/Pay buckets (~30–100/min).
 
 ---
 
@@ -264,15 +264,15 @@ cryp,  _, _ := cashfree.PGCustomerInstrumentsFetchCryptogram(customerId, instrum
 ```bash
 # List
 curl "https://api.cashfree.com/pg/customers/customer_123/instruments?instrument_type=card" \
-    -H "x-client-id: $APP_ID" -H "x-client-secret: $SECRET_KEY" -H "x-api-version: 2025-01-01"
+    -H "x-client-id: $APP_ID" -H "x-client-secret: $SECRET_KEY" -H "x-api-version: 2026-01-01"
 
 # Delete
 curl -X DELETE "https://api.cashfree.com/pg/customers/customer_123/instruments/54deabb4..." \
-    -H "x-client-id: $APP_ID" -H "x-client-secret: $SECRET_KEY" -H "x-api-version: 2025-01-01"
+    -H "x-client-id: $APP_ID" -H "x-client-secret: $SECRET_KEY" -H "x-api-version: 2026-01-01"
 
 # Cryptogram
 curl "https://api.cashfree.com/pg/customers/customer_123/instruments/54deabb4.../cryptogram" \
-    -H "x-client-id: $APP_ID" -H "x-client-secret: $SECRET_KEY" -H "x-api-version: 2025-01-01"
+    -H "x-client-id: $APP_ID" -H "x-client-secret: $SECRET_KEY" -H "x-api-version: 2026-01-01"
 ```
 
 ---

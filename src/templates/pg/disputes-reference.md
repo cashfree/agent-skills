@@ -26,7 +26,7 @@ description: >
 
 > The methods `PGFetchDispute` / `PGContestDispute` do **not** exist — use the names above.
 
-All endpoints require `x-client-id`, `x-client-secret`, `x-api-version: 2025-01-01`, `Content-Type: application/json`. Partner / signature auth variants also supported (`x-partner-apikey`, `x-client-signature`) — see `pg/apis/references/REFERENCE.md`.
+All endpoints require `x-client-id`, `x-client-secret`, `x-api-version: 2026-01-01`, `Content-Type: application/json`. Partner / signature auth variants also supported (`x-partner-apikey`, `x-client-signature`) — see `pg/apis/references/REFERENCE.md`.
 
 ### Rate limits (production)
 
@@ -285,7 +285,7 @@ Use the SDK methods (`PGFetchDisputeByID`, `PGAcceptDisputeByID`, `PGUploadDispu
 const H = {
     "x-client-id": process.env.CASHFREE_APP_ID,
     "x-client-secret": process.env.CASHFREE_SECRET_KEY,
-    "x-api-version": "2025-01-01",
+    "x-api-version": "2026-01-01",
 };
 
 // Fetch
@@ -309,7 +309,7 @@ import os, requests
 H = {
     "x-client-id": os.environ["CASHFREE_APP_ID"],
     "x-client-secret": os.environ["CASHFREE_SECRET_KEY"],
-    "x-api-version": "2025-01-01",
+    "x-api-version": "2026-01-01",
 }
 BASE = "https://api.cashfree.com/pg"
 
@@ -332,15 +332,15 @@ def upload_evidence(did, file_path, doc_type, note=""):
 ```bash
 # Fetch
 curl "https://api.cashfree.com/pg/disputes/1234567" \
-    -H "x-client-id: $CASHFREE_APP_ID" -H "x-client-secret: $CASHFREE_SECRET_KEY" -H "x-api-version: 2025-01-01"
+    -H "x-client-id: $CASHFREE_APP_ID" -H "x-client-secret: $CASHFREE_SECRET_KEY" -H "x-api-version: 2026-01-01"
 
 # Accept (PUT)
 curl -X PUT "https://api.cashfree.com/pg/disputes/1234567/accept" \
-    -H "x-client-id: $CASHFREE_APP_ID" -H "x-client-secret: $CASHFREE_SECRET_KEY" -H "x-api-version: 2025-01-01"
+    -H "x-client-id: $CASHFREE_APP_ID" -H "x-client-secret: $CASHFREE_SECRET_KEY" -H "x-api-version: 2026-01-01"
 
 # Contest = upload each evidence document
 curl -X POST "https://api.cashfree.com/pg/disputes/1234567/documents" \
-    -H "x-client-id: $CASHFREE_APP_ID" -H "x-client-secret: $CASHFREE_SECRET_KEY" -H "x-api-version: 2025-01-01" \
+    -H "x-client-id: $CASHFREE_APP_ID" -H "x-client-secret: $CASHFREE_SECRET_KEY" -H "x-api-version: 2026-01-01" \
     -F "file=@delivery_proof.pdf" -F "doc_type=DeliveryProof" -F "note=Delivered 2026-04-01"
 ```
 

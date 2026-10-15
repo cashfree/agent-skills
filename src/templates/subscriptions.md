@@ -69,7 +69,7 @@ Debit **variable amounts** at **any time** up to the mandate maximum. For utilit
 ```
 x-client-id: <YOUR_CLIENT_ID>
 x-client-secret: <YOUR_CLIENT_SECRET>
-x-api-version: 2025-01-01
+x-api-version: 2026-01-01
 Content-Type: application/json
 ```
 
@@ -84,7 +84,7 @@ Generate API keys from **Merchant Dashboard** → **Payment Gateway** → **Deve
 ```bash
 curl --request POST \
   --url https://sandbox.cashfree.com/pg/plans \
-  --header 'x-api-version: 2025-01-01' \
+  --header 'x-api-version: 2026-01-01' \
   --header 'x-client-id: YOUR_CLIENT_ID' \
   --header 'x-client-secret: YOUR_CLIENT_SECRET' \
   --header 'content-type: application/json' \
@@ -121,7 +121,7 @@ Plans are optional — you can create subscriptions directly with inline plan de
 ```bash
 curl --request POST \
   --url https://sandbox.cashfree.com/pg/subscriptions \
-  --header 'x-api-version: 2025-01-01' \
+  --header 'x-api-version: 2026-01-01' \
   --header 'x-client-id: YOUR_CLIENT_ID' \
   --header 'x-client-secret: YOUR_CLIENT_SECRET' \
   --header 'content-type: application/json' \
@@ -186,7 +186,7 @@ curl --request POST --url https://sandbox.cashfree.com/pg/subscriptions/sub_uniq
 ```bash
 curl --request POST \
   --url https://sandbox.cashfree.com/pg/subscriptions/pay \
-  --header 'x-api-version: 2025-01-01' \
+  --header 'x-api-version: 2026-01-01' \
   --header 'x-client-id: YOUR_CLIENT_ID' \
   --header 'x-client-secret: YOUR_CLIENT_SECRET' \
   --header 'content-type: application/json' \

@@ -50,7 +50,7 @@ The two gateways have the same shape (create an order, render a checkout, verify
 | # | Gotcha | Razorpay | Cashfree |
 |---|---|---|---|
 | 1 | **Amount unit** | Paise (integer). `₹500` = `50000` | Rupees (decimal). `₹500` = `500.00` — pass as `order_amount: 500.00`, **not** `50000` |
-| 2 | **API auth** | HTTP Basic (`key_id:key_secret` base64) | Three headers: `x-client-id`, `x-client-secret`, `x-api-version: 2025-01-01` |
+| 2 | **API auth** | HTTP Basic (`key_id:key_secret` base64) | Three headers: `x-client-id`, `x-client-secret`, `x-api-version: 2026-01-01` |
 | 3 | **Checkout handoff** | Client gets `key_id` + `order_id`; success handler returns `razorpay_payment_id` + `razorpay_signature` | Client gets **`payment_session_id`** (short-lived) — no API keys on the client. Success is **verified by the backend via `GET /pg/orders/{order_id}`**, never by trusting a client callback |
 | 4 | **Webhook signature** | `HMAC-SHA256(rawBody, webhook_secret)` → **hex** in `X-Razorpay-Signature`. Webhook secret ≠ API secret | `HMAC-SHA256(timestamp + rawBody, client_secret)` → **base64** in `x-webhook-signature`, with separate `x-webhook-timestamp` header. Same secret as API |
 | 5 | **Refund target** | `POST /v1/payments/{payment_id}/refund` — keyed by **payment** | `POST /pg/orders/{order_id}/refunds` — keyed by **order**, amount in rupees, requires a merchant-generated `refund_id` |
@@ -393,7 +393,7 @@ These four rules are what breaks Razorpay→Cashfree migrations most often:
 | Signature verification always fails | Using hex encoding, or hashing `rawBody` only | Switch to `base64`; include `x-webhook-timestamp` before `rawBody` in the HMAC input |
 | Client shows "payment successful" but backend never fulfills | Relying on a JS-side callback like the old Razorpay `handler` | Call `PGFetchOrder` / `GET /orders/{id}` from the backend; only fulfill on `PAID` |
 | `customer_id_missing` / `customer_phone_missing` | Razorpay treated these as optional `notes` | Add both as required fields in `customer_details` |
-| `400 version_missing` | No `x-api-version` | Add `x-api-version: 2025-01-01` (SDK handles this automatically) |
+| `400 version_missing` | No `x-api-version` | Add `x-api-version: 2026-01-01` (SDK handles this automatically) |
 | Refunds fail with "payment not found" | Calling refund by `payment_id` | Use the merchant's `order_id` — `POST /pg/orders/{order_id}/refunds` |
 | Webhooks never arrive | Default firewall rules, or wrong events subscribed | Whitelist Cashfree IPs (see Step 6); re-check event subscriptions in Dashboard |
 | UPI apps missing on iOS after mobile migration | `LSApplicationQueriesSchemes` not set | See `common-mistakes/SKILL.md` §E3 |

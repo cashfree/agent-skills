@@ -59,7 +59,7 @@ Same as the rest of the PG API:
 | Sandbox | `https://sandbox.cashfree.com/pg` |
 | Production | `https://api.cashfree.com/pg` |
 
-Headers on every call: `x-client-id`, `x-client-secret`, `x-api-version: 2025-01-01`, `Content-Type: application/json`.
+Headers on every call: `x-client-id`, `x-client-secret`, `x-api-version: 2026-01-01`, `Content-Type: application/json`. (`2026-01-01` is the current version; pin `2025-01-01` for the previous contract.)
 
 ### Endpoints
 
@@ -85,7 +85,7 @@ Webhook event: `REFUND_STATUS_WEBHOOK`.
 
 ```
 POST /pg/orders/{order_id}/refunds
-Headers: x-client-id, x-client-secret, x-api-version: 2025-01-01, Content-Type: application/json
+Headers: x-client-id, x-client-secret, x-api-version: 2026-01-01, Content-Type: application/json
 ```
 
 ```json

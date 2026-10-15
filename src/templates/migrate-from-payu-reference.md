@@ -27,7 +27,7 @@ This reference is the source of truth for field-level and endpoint-level differe
 
 ## 1. Endpoint Map
 
-PayU has two surfaces: the **payment/redirect** surface (`secure.payu.in` / `test.payu.in`) and the **command (postservice)** surface for verification/refunds (`info.payu.in` / `test.payu.in`). Cashfree exposes a single REST base: `https://sandbox.cashfree.com/pg` (test), `https://api.cashfree.com/pg` (prod). All Cashfree calls require headers `x-client-id`, `x-client-secret`, `x-api-version: 2025-01-01`, `Content-Type: application/json`. PayU calls carry a `hash` field instead of auth headers.
+PayU has two surfaces: the **payment/redirect** surface (`secure.payu.in` / `test.payu.in`) and the **command (postservice)** surface for verification/refunds (`info.payu.in` / `test.payu.in`). Cashfree exposes a single REST base: `https://sandbox.cashfree.com/pg` (test), `https://api.cashfree.com/pg` (prod). All Cashfree calls require headers `x-client-id`, `x-client-secret`, `x-api-version: 2026-01-01`, `Content-Type: application/json`. PayU calls carry a `hash` field instead of auth headers.
 
 | Purpose | PayU | Cashfree |
 |---|---|---|
@@ -82,7 +82,7 @@ Cashfree authenticates server-to-server calls with three headers — the SDK set
 ```
 x-client-id:      <CASHFREE_APP_ID>
 x-client-secret:  <CASHFREE_SECRET_KEY>
-x-api-version:    2025-01-01
+x-api-version:    2026-01-01
 ```
 
 There is **no request hash** to compute. The only place HMAC appears is **inbound webhook verification** (§8) — and that is `HMAC-SHA256` over `timestamp + rawBody`, base64-encoded, which is a different algorithm/encoding/input than any PayU hash.

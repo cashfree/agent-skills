@@ -25,7 +25,7 @@ description: >
 | POST | `/pg/vba/notificationgroup` | Create notification group |
 | PUT  | `/pg/vba/notificationgroup/{notification_group_name}` | Edit notification group |
 
-Headers: `x-client-id`, `x-client-secret`, **`x-api-version: 2024-07-10`** (VBA's own version — not the PG `2025-01-01`), `Content-Type: application/json`.
+Headers: `x-client-id`, `x-client-secret`, **`x-api-version: 2024-07-10`** (VBA's own version — not the PG `2026-01-01`), `Content-Type: application/json`.
 
 > There is no "list all VBAs" endpoint and no `/close`. Deactivate by editing to `INACTIVE` via `PUT /pg/vba/{virtual_account_id}`.
 

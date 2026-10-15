@@ -43,7 +43,7 @@ description: >
 | **Java** | `com.cashfree.pg.java:cashfree_pg` (Maven Central) | Maven/Gradle (see Section 4) |
 | **Go** | `github.com/cashfree/cashfree-pg/v6` | `go get github.com/cashfree/cashfree-pg/v6` |
 | **PHP** | `cashfree/cashfree-pg` (Packagist) | `composer require cashfree/cashfree-pg` |
-| **.NET** | `cashfree_pg` (NuGet) | `dotnet add package cashfree_pg` |
+| **.NET** | `cashfree-dotnet-pg` (NuGet) | `dotnet add package cashfree-dotnet-pg` |
 
 ### API Environments
 
@@ -54,7 +54,7 @@ description: >
 
 ### API Version
 
-**The current SDK majors (Node, Python v5+, Java v5+/6.x, Go v6, PHP v6, .NET v5) all use the same call style: build a client instance with credentials, then call methods WITHOUT a version argument.** The instance carries the version; you do not pass `x-api-version` per call.
+**The current SDK majors (Node, Python v5+, Java v5+/6.x, Go v6, PHP v6, .NET v6) all use the same call style: build a client instance with credentials, then call methods WITHOUT a version argument.** The instance carries the version; you do not pass `x-api-version` per call.
 
 - **Node:** `new Cashfree(CFEnvironment.SANDBOX, id, secret)` → `cashfree.PGCreateOrder(request)`
 - **Python:** `Cashfree(XEnvironment=Cashfree.SANDBOX, XClientId=id, XClientSecret=secret)` → `cashfree.PGCreateOrder(request, None, None)`
@@ -64,19 +64,21 @@ description: >
 
 > **Legacy (pre-v5) style — do not use on current SDKs.** Older SDK majors set credentials statically (`Cashfree.XClientId = …`) and passed the API version as the **first positional argument of every method** (`cashfree.PGCreateOrder("2023-08-01", request, …)` / `$cashfree->PGCreateOrder($x_api_version, $request)`). Current-major method signatures do **not** accept that leading version argument — calling it that way will not compile. If you see version-first examples, they target an SDK below v5.
 
-**Bundled default vs published version — pin if it matters.** The current SDK source hardcodes `x-api-version = "2026-01-01"` as its internal default. But the latest **published** REST API version is **`2025-01-01` (v5)** — `2026-01-01` is not in Cashfree's public docs / OpenAPI / version switcher. If your code depends on the documented v5 response contract, pin the version explicitly by setting the client's `XApiVersion` before making calls:
+**SDK default and published version now match — `2026-01-01`.** The current v6 SDK source defaults `x-api-version` to `2026-01-01`, and this is now the **current published REST API version** in Cashfree's docs (`2025-01-01` is the previous version). On a current SDK you normally send nothing extra. Caveat: `2026-01-01` carries **breaking response-schema changes** vs `2025-01-01` (settlement responses restructured, `offer` becomes an `offers` array on Get Order Extended, `bbps` removed from Create Order, Create Subscription body restructured). If your code still depends on the previous v5 contract, pin it explicitly by setting the client's `XApiVersion` before making calls until you migrate:
 
 ```javascript
 // Node
 const cashfree = new Cashfree(CFEnvironment.SANDBOX, id, secret);
-cashfree.XApiVersion = "2025-01-01";   // pin to the published v5 contract
+cashfree.XApiVersion = "2025-01-01";   // pin the previous v5 contract (opt out of 2026-01-01 changes)
 ```
 
 ```java
 // Java
 Cashfree cashfree = new Cashfree(Cashfree.SANDBOX, id, secret, null, null, null);
-cashfree.XApiVersion = "2025-01-01";   // public field, default "2026-01-01"
+cashfree.XApiVersion = "2025-01-01";   // public field, default "2026-01-01" (current published)
 ```
+
+> **Docs caveat:** some Cashfree doc pages still show `2025-01-01` defaults in their examples. Always send `x-api-version` explicitly if you need to be certain which contract you are on.
 
 See the `changelog` skill → `references/pg-api-versions.md` for the full reconciliation.
 
@@ -95,7 +97,7 @@ const cashfree = new Cashfree(
   process.env.CASHFREE_APP_ID,
   process.env.CASHFREE_SECRET_KEY
 );
-// XApiVersion defaults to "2026-01-01" — override only if you need an older API version.
+// XApiVersion defaults to "2026-01-01" (current published version) — set to "2025-01-01" for the previous contract.
 ```
 
 **Python (v6+):**
@@ -127,7 +129,7 @@ Cashfree cashfree = new Cashfree(
     "<secret_key>",
     null, null, null             // partner api key, partner merchant id, client signature
 );
-// cashfree.XApiVersion defaults to "2026-01-01" — set to "2025-01-01" to pin the published v5 contract.
+// cashfree.XApiVersion defaults to "2026-01-01" (current published) — set to "2025-01-01" to pin the previous v5 contract.
 ```
 
 **Go (v6+):**
@@ -155,7 +157,7 @@ $cashfree = new \Cashfree\Cashfree(
 );
 ```
 
-**.NET:**
+**.NET:** (v6 ships on NuGet as the `cashfree-dotnet-pg` package; the old `cashfree_pg` package tops out at 5.0.6)
 ```csharp
 using cashfree_pg.Client;
 using cashfree_pg.Model;

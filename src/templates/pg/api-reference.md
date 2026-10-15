@@ -255,7 +255,7 @@ Eliminates redirects by collecting OTP on your own UI.
 
 ```
 POST /orders/pay/authenticate/{cf_payment_id}
-Headers: x-api-version: 2025-01-01, Content-Type: application/json
+Headers: x-api-version: 2026-01-01, Content-Type: application/json
 ```
 
 ```json
@@ -298,7 +298,7 @@ Continue until terminal status: `SUCCESS`, `FAILED`, or `USER_DROPPED`.
 
 ```
 POST /orders/{order_id}/refunds
-Headers: x-client-id, x-client-secret, x-api-version: 2025-01-01, Content-Type: application/json
+Headers: x-client-id, x-client-secret, x-api-version: 2026-01-01, Content-Type: application/json
 ```
 
 ```json
@@ -371,7 +371,7 @@ async function createOrderWithRetry(payload) {
                 headers: {
                     "x-client-id": APP_ID,
                     "x-client-secret": SECRET_KEY,
-                    "x-api-version": "2025-01-01",
+                    "x-api-version": "2026-01-01",
                     "x-idempotency-key": idempotencyKey,
                     "Content-Type": "application/json",
                 },

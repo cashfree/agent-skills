@@ -143,8 +143,8 @@ Each mistake follows the format: **What goes wrong → Why it happens → How to
 **Why it happens:** The header is omitted, misspelled, or set to an outdated version.
 
 **How to fix it:**
-- Always include `x-api-version: 2025-01-01` (latest) in every API call.
-- In SDK calls, pass `"2025-01-01"` as the first parameter to every method.
+- Always include `x-api-version: 2026-01-01` (latest) in every direct REST call (pin `2025-01-01` only if you need the previous contract).
+- On current SDK majors (v5+/v6) the version is **not** a method argument — the client carries it; set the client's `XApiVersion` field to override the default. (Passing the version as the first parameter is the pre-v5 legacy style.)
 - Use the same version consistently across all API calls and webhook configurations.
 
 ---
@@ -568,13 +568,13 @@ componentWillUnmount() {
 **What goes wrong:**
 
 ```python
-cashfree_client.PGCreateOrder('2025-01-01', payload)   # ok
+cashfree_client.PGCreateOrder('2026-01-01', payload)   # ok
 cashfree_client.PGFetchOrder(order_id)                  # ❌ missing version
 ```
 
 **Why it happens:** In the static/legacy call style, the SDK requires the version as the first positional arg on **every** method. AI agents often apply it to `PGCreateOrder` and forget the rest.
 
-**Fix:** Pick **one** style per client. Either pass `'2025-01-01'` first on **every** method (static/legacy style), or use the instance style (`new Cashfree(env, id, secret)`) and omit the version everywhere. Mixing the two is the most common migration bug. See `pg/backend-sdks/SKILL.md` §2.
+**Fix:** Pick **one** style per client. Either pass `'2026-01-01'` first on **every** method (static/legacy style), or use the instance style (`new Cashfree(env, id, secret)`) and omit the version everywhere. Mixing the two is the most common migration bug. See `pg/backend-sdks/SKILL.md` §2.
 
 ### E.6.2. `return_url` with literal `{order_id}` inside a Python f-string
 
@@ -716,7 +716,7 @@ Run through this checklist before switching from sandbox to production:
 - [ ] Website includes required policy pages (Contact Us, Terms & Conditions, Refunds & Cancellations).
 
 ### Order Creation
-- [ ] `x-api-version: 2025-01-01` is set on all API calls.
+- [ ] `x-api-version: 2026-01-01` is set on all API calls.
 - [ ] All required fields are provided: `order_amount`, `order_currency`, `customer_details.customer_id`, `customer_details.customer_phone`.
 - [ ] `payment_session_id` is stored and passed to frontend/mobile SDK.
 
@@ -763,7 +763,7 @@ Use this decision tree when a developer says "it's not working":
 
 1. **Is the API returning an error?**
    - If `401 authentication_error` → Check credentials. Are you using the right environment's keys? (See A2)
-   - If `400 version_missing` → Add `x-api-version: 2025-01-01` header. (See B2)
+   - If `400 version_missing` → Add `x-api-version: 2026-01-01` header. (See B2)
    - If `400` with a field-specific error → Check required fields. (See B1)
    - If `429 Too Many Requests` → You're rate limited. Implement backoff. (See F1)
    - If `502 bank_processing_failure` → Bank-side issue. Retry or try a different payment method.

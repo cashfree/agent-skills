@@ -49,7 +49,7 @@ description: >
 
 ### Environments & auth
 
-Same PG base URLs, same headers: `x-client-id`, `x-client-secret`, `x-api-version: 2025-01-01`.
+Same PG base URLs, same headers: `x-client-id`, `x-client-secret`, `x-api-version: 2026-01-01`.
 
 ### Endpoints
 

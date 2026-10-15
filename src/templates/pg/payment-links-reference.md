@@ -275,7 +275,7 @@ _, _, err = cashfree.PGCancelLink(linkId, nil, nil, nil)
 curl -X POST "https://api.cashfree.com/pg/links" \
     -H "x-client-id: $CASHFREE_APP_ID" \
     -H "x-client-secret: $CASHFREE_SECRET_KEY" \
-    -H "x-api-version: 2025-01-01" \
+    -H "x-api-version: 2026-01-01" \
     -H "Content-Type: application/json" \
     -H "x-idempotency-key: link:invoice_4402:v1" \
     -d '{
@@ -290,20 +290,20 @@ curl -X POST "https://api.cashfree.com/pg/links" \
 curl "https://api.cashfree.com/pg/links/invoice_4402_v1" \
     -H "x-client-id: $CASHFREE_APP_ID" \
     -H "x-client-secret: $CASHFREE_SECRET_KEY" \
-    -H "x-api-version: 2025-01-01"
+    -H "x-api-version: 2026-01-01"
 
 # Cancel
 curl -X POST "https://api.cashfree.com/pg/links/invoice_4402_v1/cancel" \
     -H "x-client-id: $CASHFREE_APP_ID" \
     -H "x-client-secret: $CASHFREE_SECRET_KEY" \
-    -H "x-api-version: 2025-01-01"
+    -H "x-api-version: 2026-01-01"
 
 # List underlying orders — default status=PAID; pass ?status=ALL for reconciliation.
 # Returns order HEADERS (no cf_payment_id); re-fetch /pg/orders/{order_id}/payments for payment details.
 curl "https://api.cashfree.com/pg/links/invoice_4402_v1/orders?status=ALL" \
     -H "x-client-id: $CASHFREE_APP_ID" \
     -H "x-client-secret: $CASHFREE_SECRET_KEY" \
-    -H "x-api-version: 2025-01-01"
+    -H "x-api-version: 2026-01-01"
 ```
 
 ---

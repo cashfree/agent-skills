@@ -61,7 +61,7 @@ Same as the rest of the PG API:
 | Sandbox | `https://sandbox.cashfree.com/pg` |
 | Production | `https://api.cashfree.com/pg` |
 
-Headers: `x-client-id`, `x-client-secret`, `x-api-version: 2025-01-01`, `Content-Type: application/json`.
+Headers: `x-client-id`, `x-client-secret`, `x-api-version: 2026-01-01`, `Content-Type: application/json`.
 
 ### Endpoints
 

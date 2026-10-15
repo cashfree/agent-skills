@@ -56,7 +56,7 @@ Same as the rest of the PG API:
 | Sandbox | `https://sandbox.cashfree.com/pg` |
 | Production | `https://api.cashfree.com/pg` |
 
-Headers on every call: `x-client-id`, `x-client-secret`, `x-api-version: 2025-01-01`, `Content-Type: application/json`.
+Headers on every call: `x-client-id`, `x-client-secret`, `x-api-version: 2026-01-01`, `Content-Type: application/json`.
 
 ### Endpoints
 
@@ -89,7 +89,7 @@ Webhook: `PAYMENT_LINK_EVENT` (fires on every link state transition).
 
 ```
 POST /pg/links
-Headers: x-client-id, x-client-secret, x-api-version: 2025-01-01, Content-Type: application/json
+Headers: x-client-id, x-client-secret, x-api-version: 2026-01-01, Content-Type: application/json
 ```
 
 ```json

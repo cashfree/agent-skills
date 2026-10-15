@@ -51,7 +51,7 @@ Juspay and Cashfree both let you create an order, open checkout, verify status o
 | # | Gotcha | Juspay | Cashfree |
 |---|---|---|---|
 | 1 | **Product shape** | Payment **orchestrator**. Can sit above multiple gateways and route dynamically | Direct payment gateway integration. No Juspay-style multi-PG routing layer |
-| 2 | **API auth** | Basic Auth (`base64(api_key:)`) + `x-merchantid` + `x-routing-id` | `x-client-id`, `x-client-secret`, `x-api-version: 2025-01-01` |
+| 2 | **API auth** | Basic Auth (`base64(api_key:)`) + `x-merchantid` + `x-routing-id` | `x-client-id`, `x-client-secret`, `x-api-version: 2026-01-01` |
 | 3 | **Checkout handoff** | Backend returns `sdk_payload` or `client_auth_token`; frontend calls Hyper SDK `process(...)` or opens `payment_links` | Backend returns **`payment_session_id`**; frontend calls Cashfree.js or mobile SDK with that session id |
 | 4 | **Webhook trust model** | Dashboard-configured Basic Auth username/password and optional custom headers on incoming webhooks | Verify `x-webhook-signature` using HMAC-SHA256 over `x-webhook-timestamp + rawBody`, then base64-compare |
 | 5 | **Status model** | One order status field: `NEW`, `PENDING_VBV`, `CHARGED`, `AUTHORIZED`, etc. | Separate **order status** (`ACTIVE`, `PAID`, `EXPIRED`, `TERMINATED`) and **payment status** (`SUCCESS`, `FAILED`, `PENDING`, `USER_DROPPED`, etc.) |

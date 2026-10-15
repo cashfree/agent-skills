@@ -192,7 +192,7 @@ Content-Type: multipart/form-data
 ```bash
 # Contest = upload each required document (SDK: PGUploadDisputesDocuments)
 curl -X POST "https://api.cashfree.com/pg/disputes/{dispute_id}/documents" \
-  -H "x-client-id: $APP_ID" -H "x-client-secret: $SECRET_KEY" -H "x-api-version: 2025-01-01" \
+  -H "x-client-id: $APP_ID" -H "x-client-secret: $SECRET_KEY" -H "x-api-version: 2026-01-01" \
   -F "file=@order_42_delivery_proof.pdf" \
   -F "doc_type=DeliveryProof" \
   -F "note=Delivered to billing address on 2026-04-01, AWB123456, signed."
