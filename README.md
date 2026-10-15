@@ -121,6 +121,9 @@ cashfree-skills/
 ├── auto-collect/
 │   ├── SKILL.md                     ← Virtual bank accounts, static UPI VPAs, QR codes
 │   └── references/REFERENCE.md      ← VBA schema, bank rails (Axis/ICICI/Yes), credit webhook
+├── bbps-cou/
+│   ├── SKILL.md                     ← BBPS bill payments as an Agent Institution: biller discovery, fetch/validate/direct-pay flows, PG order with bbps block, async + opt-in sync responses, tickets, wallet
+│   └── references/REFERENCE.md      ← Full schemas, sandbox agent IDs & bill simulator, polling strategy, D11–D32 dispositions, BFR/BVR/BPR/COU error codes
 ├── migrate-from-razorpay/
 │   ├── SKILL.md                     ← Razorpay → Cashfree migration: concept map, 7-step cutover, code diffs
 │   └── references/REFERENCE.md      ← Endpoint map, per-language SDK rewrites, webhook payload diff, RazorpayX → Payouts
@@ -238,6 +241,12 @@ AI: *reads pg/disputes/SKILL.md → pg/disputes/references/REFERENCE.md* → Fet
 
 You: "Match this UTR on our bank statement back to a Cashfree settlement"
 AI: *reads settlements-and-reconciliation/SKILL.md → references/REFERENCE.md* → Calls GET /pg/settlements by UTR, walks recon events, reconciles fees/TDS
+
+You: "Let customers pay their electricity bill from our app via BBPS"
+AI: *reads bbps-cou/SKILL.md → bbps-cou/references/REFERENCE.md* → Looks up biller info to pick FETCH_AND_PAY / VALIDATE_AND_PAY / DIRECT_PAY, fetches the bill, creates a PG order with the bbps block, initiates bill payment, and handles both 200 (sync) and 202 (poll with backoff) responses
+
+You: "Customer says the bill payment was debited but the biller hasn't updated it"
+AI: *reads bbps-cou/SKILL.md → bbps-cou/references/REFERENCE.md* → Checks bill payment status by transaction_ref_id, raises a ticket with the right D11–D32 disposition code, and polls ticket status
 
 You: "Migrate my Express app from Razorpay to Cashfree"
 AI: *reads migrate-from-razorpay/SKILL.md → migrate-from-razorpay/references/REFERENCE.md* → Maps keys/amounts/signatures, rewrites orders/checkout/webhook with Cashfree SDK, plans parallel-run cutover
