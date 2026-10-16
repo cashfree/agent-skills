@@ -37,7 +37,7 @@ All BBPS COU API calls require these three headers:
 ```http
 x-client-id: <your-client-id>
 x-client-secret: <your-client-secret>
-x-api-version: 2025-01-01
+x-api-version: 2025-01-01  // optional — defaults to 2025-01-01 if omitted; use 2026-10-01 for LIST biller support
 ```
 
 ---
@@ -121,7 +121,12 @@ Error response (4xx / 5xx) — uses `message`, `code`, and `type` fields (no `st
     "biller_accepts_adhoc": false,
     "biller_coverage": "NA",
     "fetch_requirement": "MANDATORY",                  // MANDATORY | OPTIONAL | NOT_SUPPORTED
-    "payment_amount_exactness": "Exact",               // Exact | Exact and above | Exact and below
+    "payment_amount_exactness": "Exact",               // Exact | Exact and above | Exact and below | RANGE
+                                                   // RANGE = biller defines min/max range; customer pays any amount within range
+    "biller_response_type": "SINGLE",                  // SINGLE | LIST | null
+                                                   // LIST = biller can return multiple bills in a single fetch; use x-api-version: 2026-10-01 for these billers
+    "selection_type": "SINGLE",                        // SINGLE | MULTIPLE | ALL | null — only for LIST billers
+                                                   // SINGLE = customer picks one bill; MULTIPLE = customer picks multiple; ALL = customer must pay all bills
     "support_bill_validation": "MANDATORY",            // MANDATORY | OPTIONAL | NOT_SUPPORTED
     "biller_effctv_from": "2023-01-01",
     "biller_effctv_to": "9999-12-31",
@@ -277,11 +282,60 @@ Returned only when synchronous responses are enabled for the merchant and the re
     "bill_date": "2024-11-01",
     "bill_number": "BILL2024001",
     "bill_period": "NOV-2024",
-    "tag": [{ "name": "Additional Field", "value": "value" }]
+    "label": "Electricity Bill - Zone A", // optional — display label from the biller; pass back as received in payment request
+    "min_amount": "100.00",               // optional — present when payment_amount_exactness is RANGE
+    "max_amount": "1500.00",              // optional — present when payment_amount_exactness is RANGE
+    "amount_multiple": null,              // optional — amount must be a multiple of this value, if set
+    "tag": [
+      {
+        "name": "Additional Field",
+        "value": "value",
+        "min_amount": "50.00",            // optional — minimum payable for this breakup component
+        "max_amount": "150.00",           // optional — maximum payable for this breakup component
+        "amount_multiple": null           // optional — amount must be a multiple of this value for this component
+      }
+    ]
   },
   "additional_info": {
     "tag": [{ "name": "key", "value": "val" }]
   }
+}
+```
+
+```jsonc
+// --- x-api-version: 2026-10-01 (LIST billers only) ---
+// biller_response is null; biller_responses array is returned instead:
+{
+  "bill_fetch_response": { ... },
+  "bill_details": { ... },
+  "biller_responses": [
+    {
+      "customer_name": "John Doe",
+      "amount": "200.00",              // total bill amount in rupees
+      "due_date": "2024-12-31",
+      "bill_date": "2024-11-01",
+      "bill_number": "BILL001",
+      "bill_period": "NOV-2024",
+      "label": "Electricity Bill - Zone A",  // display label to distinguish bills for same customer
+      "min_amount": "100.00",          // present when payment_amount_exactness is RANGE
+      "max_amount": "400.00",          // present when payment_amount_exactness is RANGE
+      "amount_multiple": null,         // amount must be a multiple of this value, if set
+      "tag": [                         // selectable payment options (e.g. Part Payment, Foreclosure)
+        {                              // customer picks ONE option; echo chosen entry in amount.tag in payment request
+          "name": "Part Payment",
+          "min_amount": "50.00",
+          "max_amount": "150.00"
+        },
+        {
+          "name": "Foreclosure",
+          "min_amount": "100.00",
+          "max_amount": "200.00",
+          "amount_multiple": "50.00"
+        }
+      ]
+    }
+  ],
+  "additional_info": { ... }
 }
 ```
 
@@ -331,7 +385,9 @@ All three fields inside the `bbps` block are required. Omitting any one returns 
   "bill_payment_request": {
     "head": {
       "bill_fetch_ref_id": "REF20241201001",   // required — ref_id from bill fetch
-      "pg_reference_id": "PG_ORDER_001"         // required — Agent Institution's internal order ID
+      "pg_reference_id": "PG_ORDER_001",        // required when skip_pg_transaction is false or omitted; omit when skip_pg_transaction is true
+      "skip_pg_transaction": false              // optional for prefunding Agent Institutions; mandatory for postfunding Agent Institutions
+                                               // set true when the Agent Institution has not performed a PG transaction and the full bill amount is remitted via the shortfall wallet
     },
     "customer": {
       "mobile": "9999999999",                  // required
@@ -360,6 +416,7 @@ All three fields inside the `bbps` block are required. Omitting any one returns 
       }
     },
     "biller_response": {                       // echo back from bill fetch status (mandatory for Electricity, DTH, Gas etc.)
+                                           // DO NOT pass for LIST type billers (biller_response_type: LIST) — use amount_break_up instead
       "customer_name": "John Doe",
       "amount": "1200.00",                     // rupees — echo exactly as received from fetch response
       "due_date": "2024-12-31",
@@ -383,6 +440,20 @@ All three fields inside the `bbps` block are required. Omitting any one returns 
         "cust_conv_fee": "10.00",              // required — customer convenience fee (CCF1) in rupees; "0.00" if none
         "cou_cust_conv_fee": "15.00",          // required — COU convenience fee (CCF2) in rupees; "0.00" if none
         "currency": "356"                      // required — numeric INR code (not "INR")
+      },
+      "tag": [                                 // required when biller returns payment options (tag[]) in biller_responses from fetch
+        {                                      // echo the chosen option back; set value to the amount the customer chose to pay
+          "name": "Part Payment",              // name echoed from biller_responses[].tag[].name
+          "value": "100.00",                   // amount chosen by customer for this option
+          "min_amount": "50.00",               // echoed from fetch response
+          "max_amount": "150.00"               // echoed from fetch response
+        }
+      ],
+      "amount_break_up": {                     // required for LIST type billers (x-api-version: 2026-10-01)
+        "bill_amt": [                          // one entry per bill being paid
+          { "bill_number": "BILL001", "amount": "600.00" },
+          { "bill_number": "BILL002", "amount": "600.00" }
+        ]
       }
     },
     "payment_information": {                   // required — payment instrument details for the selected mode
@@ -395,6 +466,9 @@ All three fields inside the `bbps` block are required. Omitting any one returns 
         // Wallet: WalletName, MobileNo
         // AEPS: Aadhaar, IIN
       ]
+    },
+    "payment_breakdown": {                     // optional for prefunding; mandatory for postfunding Agent Institutions
+      "shortfall_amount": "200.00"             // amount drawn from Agent Institution's shortfall wallet to complete payment
     }
   }
 }
@@ -467,6 +541,16 @@ Poll on the top-level `message` field, not `data.*`:
         "bill_number": "BILL2024001",
         "bill_period": "NOV-2024"
       },
+      // x-api-version: 2026-10-01 (LIST billers): biller_response is null; biller_responses array is returned instead
+      "biller_responses": [                     // populated on SUCCESS for LIST billers with x-api-version: 2026-10-01
+        {
+          "customer_name": "John Doe",
+          "amount": "600.00",
+          "bill_number": "BILL001",
+          "bill_period": "NOV-2024",
+          "label": "Bill - Zone A"
+        }
+      ],
       "additional_info": { ... }                // populated when biller returns it; null otherwise
     }
   }
@@ -749,3 +833,321 @@ These indicate transport or switch-level failures between operating units, not a
 | `COU006` | Connect timeout at COU | `RETRIABLE` |
 | `COU007` | Read timeout at COU | `RETRIABLE` |
 | `COU008` | Unable to connect to COU | `RETRIABLE` |
+
+---
+
+## 15. Webhooks
+
+Cashfree sends webhook events via HTTP POST to your configured endpoint. Webhooks are delivered in addition to polling APIs — implement polling as a fallback.
+
+### Signature verification
+
+Every request includes two headers:
+
+| Header | Description |
+|---|---|
+| `X-Webhook-Signature` | Hex-encoded HMAC-SHA256 signature of the signed payload. |
+| `X-Webhook-Timestamp` | Unix timestamp in milliseconds when the webhook was sent. |
+
+**Algorithm:**
+```
+signedPayload     = X-Webhook-Timestamp + "." + rawBody
+expectedSignature = HexEncode(HMAC-SHA256(signedPayload, secretKey))
+```
+
+Note the dot (`.`) separator. Always compute from the **raw request body string** — parsing and re-serialising JSON breaks verification. Use `crypto.timingSafeEqual` (Node.js) or `MessageDigest.isEqual` (Java) for timing-safe comparison.
+
+---
+
+### Common fields
+
+All events share these top-level fields. Payloads are **flat** — there is no nested `data` wrapper.
+
+| Field | Type | Description |
+|---|---|---|
+| `webhook_id` | string | Unique delivery identifier. Store and use to deduplicate retries. |
+| `version` | string | Payload version. Current value is `"1.0"`. |
+| `event` | string | Event type discriminator. |
+| `status` | string | `"SUCCESS"` or `"FAILURE"`. Absent on `BILLER_MDM_UPDATED`. |
+| `agent_id` | string | Agent Institution ID that initiated the request. |
+
+---
+
+### BILL_FETCH_STATUS
+
+Sent when a `FETCH_AND_PAY` flow bill fetch reaches a terminal state.
+
+**All fields:**
+
+| Field | Type | Description |
+|---|---|---|
+| `webhook_id` | string | Unique webhook delivery identifier. |
+| `version` | string | `"1.0"` |
+| `event` | string | `"BILL_FETCH_STATUS"` |
+| `status` | string | `"SUCCESS"` or `"FAILURE"` |
+| `agent_id` | string | Agent Institution ID. |
+| `bill_fetch_ref_id` | string | The `ref_id` from the Bill Fetch Request API. Use to correlate with your request. |
+| `approval_ref_num` | string \| null | Biller reference number. Present on success only. |
+| `response_code` | string \| null | `"000"` = success; any other value = failure. |
+| `response_reason` | string \| null | Human-readable description of the response code. |
+| `compliance_resp_cd` | string \| null | BFR/BVR error code from the biller. Present on failure only. See Section 14. |
+| `compliance_reason` | string \| null | Human-readable failure reason. Present on failure only. |
+| `bill_details` | object \| null | Customer reference parameters echoed back from the request. Present on `FETCH_AND_PAY` success only. |
+| `bill_details.customer_params.tag[]` | array | Each entry: `name` (string), `value` (string). |
+| `biller_response` | object \| null | Bill details from the biller. Present on `FETCH_AND_PAY` success only. |
+| `biller_response.customer_name` | string | Customer name as returned by the biller. |
+| `biller_response.amount` | string | Bill amount in rupees. |
+| `biller_response.due_date` | string | Due date in `YYYY-MM-DD` format. |
+| `biller_response.bill_date` | string | Bill generation date in `YYYY-MM-DD` format. |
+| `biller_response.bill_number` | string | Bill number assigned by the biller. |
+| `biller_response.bill_period` | string | Billing period, e.g. `"MONTHLY"`. |
+| `biller_response.tag` | array \| null | Additional biller-defined key-value pairs. |
+| `additional_info` | object \| null | Biller-specific additional fields. Present on success only. |
+
+```jsonc
+// Success
+{
+  "webhook_id": "BILL_FETCH_1398",
+  "version": "1.0",
+  "event": "BILL_FETCH_STATUS",
+  "status": "SUCCESS",
+  "agent_id": "CH01CH02INB516193127",
+  "bill_fetch_ref_id": "188417f3fd70452697bb632446862811942",
+  "approval_ref_num": "SWAR_REF_TEST_6702",
+  "response_code": "000",
+  "response_reason": "Successful",
+  "bill_details": {
+    "customer_params": {
+      "tag": [
+        { "name": "Loan Account Number", "value": "LN0098766702" },
+        { "name": "Mobile Number", "value": "7428776702" }
+      ]
+    }
+  },
+  "biller_response": {
+    "customer_name": "Rahul Kumar",
+    "amount": "250.00",
+    "due_date": "2026-07-31",
+    "bill_date": "2026-07-20",
+    "bill_number": "SWAR_REF_TEST_6702",
+    "bill_period": "MONTHLY"
+  }
+}
+
+// Failure
+{
+  "webhook_id": "BILL_FETCH_1397",
+  "version": "1.0",
+  "event": "BILL_FETCH_STATUS",
+  "status": "FAILURE",
+  "agent_id": "CH01CH02INB516193127",
+  "bill_fetch_ref_id": "06b867dc716240b1b9bcbb243bb62811939",
+  "response_code": "200",
+  "response_reason": "Failure",
+  "compliance_resp_cd": "BFR004",
+  "compliance_reason": "Payment received for the billing period, no bill due"
+}
+```
+
+---
+
+### BILL_VALIDATION_STATUS
+
+Sent when a `VALIDATE_AND_PAY` flow validation reaches a terminal state. Uses `ref_id` (not `bill_fetch_ref_id`) for correlation. `bill_details` and `biller_response` are **not** returned for validation flow.
+
+**All fields:**
+
+| Field | Type | Description |
+|---|---|---|
+| `webhook_id` | string | Unique webhook delivery identifier. |
+| `version` | string | `"1.0"` |
+| `event` | string | `"BILL_VALIDATION_STATUS"` |
+| `status` | string | `"SUCCESS"` or `"FAILURE"` |
+| `agent_id` | string | Agent Institution ID. |
+| `ref_id` | string | The `ref_id` from the Bill Fetch Request API (validation flow). Use to correlate. |
+| `approval_ref_num` | string \| null | Biller reference number. Present on success only. |
+| `response_code` | string \| null | `"000"` = success; any other value = failure. |
+| `response_reason` | string \| null | Human-readable description. |
+| `compliance_resp_cd` | string \| null | BVR error code. Present on failure only. See Section 14. |
+| `compliance_reason` | string \| null | Human-readable failure reason. Present on failure only. |
+| `additional_info` | object \| null | Biller-specific additional fields. |
+
+```jsonc
+// Success
+{
+  "webhook_id": "BILL_VALIDATION_2001",
+  "version": "1.0",
+  "event": "BILL_VALIDATION_STATUS",
+  "status": "SUCCESS",
+  "agent_id": "CH01CH02INB516193127",
+  "ref_id": "BV20240501GHI789",
+  "approval_ref_num": "AB234567",
+  "response_code": "000",
+  "response_reason": "Successful",
+  "additional_info": {
+    "tag": [{ "name": "PlanName", "value": "Prepaid 499" }]
+  }
+}
+
+// Failure
+{
+  "webhook_id": "BILL_VALIDATION_2002",
+  "version": "1.0",
+  "event": "BILL_VALIDATION_STATUS",
+  "status": "FAILURE",
+  "agent_id": "CH01CH02INB516193127",
+  "ref_id": "BV20240501JKL012",
+  "response_code": "200",
+  "response_reason": "Incorrect or invalid customer account",
+  "compliance_resp_cd": "BFR001",
+  "compliance_reason": "Incorrect or invalid customer account"
+}
+```
+
+---
+
+### BILL_PAYMENT_STATUS
+
+Sent when a bill payment reaches a terminal state. Use both `bill_fetch_ref_id` and `transaction_ref_id` for correlation. `bill_fetch_ref_id` is `null` for DIRECT_PAY billers.
+
+**All fields:**
+
+| Field | Type | Description |
+|---|---|---|
+| `webhook_id` | string | Unique webhook delivery identifier. |
+| `version` | string | `"1.0"` |
+| `event` | string | `"BILL_PAYMENT_STATUS"` |
+| `status` | string | `"SUCCESS"` or `"FAILURE"` |
+| `agent_id` | string | Agent Institution ID. |
+| `bill_fetch_ref_id` | string \| null | The `ref_id` from the preceding bill fetch or validation step. `null` for DIRECT_PAY billers. |
+| `transaction_ref_id` | string | The `transaction_ref_id` from the Bill Payment Request API. |
+| `approval_ref_num` | string \| null | Biller reference number. Present on success only. |
+| `response_code` | string \| null | `"000"` = success; any other value = failure. |
+| `response_reason` | string \| null | Human-readable description. |
+| `compliance_resp_cd` | string \| null | BPR error code. Present on failure only. See Section 14. |
+| `compliance_reason` | string \| null | Human-readable failure reason. Present on failure only. |
+| `bill_details` | object \| null | Customer reference parameters. Present on success. |
+| `bill_details.customer_params.tag[]` | array | Each entry: `name` (string), `value` (string). |
+| `biller_response` | object \| null | Bill details from the biller. Present on success. |
+| `biller_response.customer_name` | string | Customer name. |
+| `biller_response.amount` | string | Bill amount in rupees. |
+| `biller_response.customer_convenience_fee` | string | Convenience fee in rupees. |
+| `biller_response.due_date` | string | Due date in `YYYY-MM-DD` format. |
+| `biller_response.bill_date` | string | Bill generation date. |
+| `biller_response.bill_number` | string | Bill number. |
+| `biller_response.bill_period` | string | Billing period. |
+| `additional_info` | object \| null | Biller-specific additional fields. |
+
+```jsonc
+// Success
+{
+  "webhook_id": "BILL_PAYMENT_1320",
+  "version": "1.0",
+  "event": "BILL_PAYMENT_STATUS",
+  "status": "SUCCESS",
+  "agent_id": "CH01CH02INB516193127",
+  "bill_fetch_ref_id": "188417f3fd70452697bb632446862811942",
+  "transaction_ref_id": "CH016281FSNF02XE07D3",
+  "approval_ref_num": "DAD1BC4E15D14D96AA80204EE2FF25AB",
+  "response_code": "000",
+  "response_reason": "Successful",
+  "bill_details": {
+    "customer_params": {
+      "tag": [
+        { "name": "Loan Account Number", "value": "LN0098766702" },
+        { "name": "Mobile Number", "value": "7428776702" }
+      ]
+    }
+  },
+  "biller_response": {
+    "customer_name": "Rahul Kumar",
+    "amount": "250.00",
+    "customer_convenience_fee": "0.00",
+    "due_date": "2026-07-31",
+    "bill_date": "2026-07-20",
+    "bill_number": "SWAR_REF_TEST_6702",
+    "bill_period": "MONTHLY"
+  }
+}
+
+// Failure
+{
+  "webhook_id": "BILL_PAYMENT_3002",
+  "version": "1.0",
+  "event": "BILL_PAYMENT_STATUS",
+  "status": "FAILURE",
+  "agent_id": "CH01CH02INB516193127",
+  "bill_fetch_ref_id": "188417f3fd70452697bb632446862811942",
+  "transaction_ref_id": "CH0162455XTQK9MIPNYZ",
+  "response_code": "200",
+  "response_reason": "Invalid combination of customer parameters",
+  "compliance_resp_cd": "BPR002",
+  "compliance_reason": "Invalid combination of customer parameters"
+}
+```
+
+---
+
+### BILLER_MDM_UPDATED
+
+Sent when one or more biller MDM records change. Use to refresh your local biller cache — no need to poll Billers Info API after receiving this event. Contains a `billers[]` array; each entry is a full biller object with the same schema as the Billers Info response (see Section 5). Key fields: `biller_response_type` (`SINGLE` | `LIST`) and `selection_type` (`SINGLE` | `MULTIPLE` | `ALL`).
+
+```jsonc
+{
+  "webhook_id": "MDM_UPDATE_4001",
+  "version": "1.0",
+  "event": "BILLER_MDM_UPDATED",
+  "billers": [
+    {
+      "biller_id": "VODA00000MUM03",
+      "biller_alias_name": "Vodafone MUM",
+      "biller_name": "Vodafone Mumbai",
+      "biller_category_name": "Mobile Postpaid",
+      "biller_mode": "ONLINE",
+      "biller_accepts_adhoc": false,
+      "biller_coverage": "IND",
+      "fetch_requirement": "MANDATORY",
+      "payment_amount_exactness": "EXACT",
+      "biller_response_type": "SINGLE",   // SINGLE | LIST
+      "selection_type": "SINGLE",         // SINGLE | MULTIPLE | ALL — only for LIST billers
+      "support_bill_validation": "N",
+      "biller_effctv_from": "2020-01-01",
+      "biller_effctv_to": "9999-12-31",
+      "status": "ACTIVE",
+      "plan_mdm_requirement": "NOT_SUPPORTED",
+      "biller_customer_params": [
+        {
+          "param_name": "Mobile Number",
+          "data_type": "NUMERIC",
+          "optional": false,
+          "min_length": 10,
+          "max_length": 10,
+          "regex": "^[6-9][0-9]{9}$",
+          "visibility": true
+        }
+      ],
+      "biller_payment_modes": [
+        { "payment_mode": "Internet Banking", "min_limit": 1, "max_limit": 100000, "support_pending_status": "N" },
+        { "payment_mode": "UPI", "min_limit": 1, "max_limit": 100000, "support_pending_status": "N" }
+      ],
+      "biller_payment_channels": [
+        { "payment_channel": "INT", "min_limit": 1, "max_limit": 100000, "support_pending_status": "N" }
+      ],
+      "biller_response_params": {
+        "amount_options": [{ "amount_breakup_set": ["BASE_BILL_AMOUNT"] }]
+      },
+      "biller_additional_info": [],
+      "biller_additional_info_payment": [],
+      "plan_additional_info": [],
+      "interchange_fee_conf": [],
+      "interchange_fee": []
+    }
+  ]
+}
+```
+
+**Key points:**
+- Payloads are flat — event-specific fields sit at the top level, not inside a `data` object.
+- `response_code` in webhook payloads is always `"200"` (HTTP level). Check `compliance_resp_cd` for biller-level failures.
+- Fields not returned by the biller (e.g. `compliance_resp_cd` on success, `bill_details` on failure) are omitted from the payload, not present as `null`.
+- Always verify `X-Webhook-Signature` before processing. See SKILL.md Section 7 for code samples.
