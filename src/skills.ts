@@ -69,6 +69,10 @@ import {
     getChangelogSubscriptionsTemplate,
 } from "./templates/changelog.js";
 import { getUpgradeAdvisorSkillTemplate } from "./templates/upgrade-advisor.js";
+import {
+    getSecurityReviewSkillTemplate,
+    getSecurityReviewReferenceTemplate,
+} from "./templates/security-review.js";
 
 export type Skill = { dir: string; fileName?: string; getTemplate: () => string };
 
@@ -142,6 +146,10 @@ export const ALL_SKILLS: Skill[] = [
     { dir: "changelog/references", fileName: "verification-secure-id.md", getTemplate: getChangelogVerificationSecureIdTemplate },
     { dir: "changelog/references", fileName: "subscriptions.md", getTemplate: getChangelogSubscriptionsTemplate },
     { dir: "upgrade-advisor", getTemplate: getUpgradeAdvisorSkillTemplate },
+
+    // --- Cross-cutting: security review (payment-flow audit + fix) ---
+    { dir: "security-review", getTemplate: getSecurityReviewSkillTemplate },
+    { dir: "security-review/references", fileName: "REFERENCE.md", getTemplate: getSecurityReviewReferenceTemplate },
 
     // --- End: validation, testing & troubleshooting ---
     { dir: "validation-and-testing", getTemplate: getValidationAndTestingSkillTemplate },

@@ -142,6 +142,9 @@ cashfree-skills/
 │       └── subscriptions.md         ← Subscriptions API + SDK methods
 ├── upgrade-advisor/
 │   └── SKILL.md                     ← Plan an SDK/API version upgrade: detect current → diff changelog → migration plan + tests
+├── security-review/
+│   ├── SKILL.md                     ← Audit & fix payment-flow vulnerabilities (verify, webhooks, secrets, PCI, authz, deps)
+│   └── references/REFERENCE.md      ← Per-vuln insecure/secure diffs + dependency scanner (npm audit/pip-audit/govulncheck/osv-scanner)
 ├── validation-and-testing/
 │   └── SKILL.md                     ← Post-integration validation & testing
 └── common-mistakes/
@@ -253,6 +256,9 @@ AI: *reads common-mistakes/SKILL.md* → Multiple account IP mismatch + dynamic 
 
 You: "Why isn't my webhook firing / payment not being fulfilled?"
 AI: *reads common-mistakes/SKILL.md* → Diagnostic tree narrows to exact cause and fix
+
+You: "Security-review my payment flow before we go live"
+AI: *reads security-review/SKILL.md → references/REFERENCE.md* → Audits only the Cashfree payment code for client-trusted status, amount tampering, weak/missing webhook signature verification, exposed secrets and PCI leaks; then shells out to a live scanner (npm audit / pip-audit / govulncheck / osv-scanner) for vulnerable payment-path dependencies and proposes fixes as diffs
 
 You: "What changed between cashfree-pg 4.x and 6.x — is it breaking?"
 AI: *reads changelog/SKILL.md → references/pg-backend-sdks.md* → Lists the 5.0.0 instance-client break and the 6.x spec bump, with what to fix and what to test per version
