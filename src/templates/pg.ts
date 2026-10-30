@@ -99,11 +99,3 @@ export function getPGOffersSkillTemplate(): string {
 export function getPGOffersReferenceTemplate(): string {
     return fs.readFileSync(path.join(__dirname, "pg/offers-reference.md"), "utf8");
 }
-
-export function getPGSecurityReviewSkillTemplate(): string {
-    return fs.readFileSync(path.join(__dirname, "pg/security-review.md"), "utf8");
-}
-
-export function getPGSecurityReviewReferenceTemplate(): string {
-    return fs.readFileSync(path.join(__dirname, "pg/security-review-reference.md"), "utf8");
-}
