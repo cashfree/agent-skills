@@ -26,6 +26,8 @@ import {
     getPGEasySplitReferenceTemplate,
     getPGOffersSkillTemplate,
     getPGOffersReferenceTemplate,
+    getPGSecurityReviewSkillTemplate,
+    getPGSecurityReviewReferenceTemplate,
 } from "./templates/pg.js";
 import { getSecureIdSkillTemplate, getSecureIdReferenceTemplate } from "./templates/secure-id.js";
 import { getSubscriptionsSkillTemplate, getSubscriptionsReferenceTemplate } from "./templates/subscriptions.js";
@@ -108,6 +110,8 @@ export const ALL_SKILLS: Skill[] = [
     { dir: "pg/easy-split/references", fileName: "REFERENCE.md", getTemplate: getPGEasySplitReferenceTemplate },
     { dir: "pg/offers", getTemplate: getPGOffersSkillTemplate },
     { dir: "pg/offers/references", fileName: "REFERENCE.md", getTemplate: getPGOffersReferenceTemplate },
+    { dir: "pg/security-review", getTemplate: getPGSecurityReviewSkillTemplate },
+    { dir: "pg/security-review/references", fileName: "REFERENCE.md", getTemplate: getPGSecurityReviewReferenceTemplate },
     { dir: "secure-id", getTemplate: getSecureIdSkillTemplate },
     { dir: "secure-id/references", fileName: "REFERENCE.md", getTemplate: getSecureIdReferenceTemplate },
     { dir: "subscriptions", getTemplate: getSubscriptionsSkillTemplate },

@@ -100,9 +100,12 @@ cashfree-skills/
 │   ├── easy-split/
 │   │   ├── SKILL.md                 ← Marketplace splits, vendor management, static vs dynamic
 │   │   └── references/REFERENCE.md  ← Vendor KYC schema, on-demand transfer, vendor recon
-│   └── offers/
-│       ├── SKILL.md                 ← Bank/BIN offers, discounts, cashback, no-cost EMI recipe
-│       └── references/REFERENCE.md  ← payment_method filter variants, stacking rules, tenure table
+│   ├── offers/
+│   │   ├── SKILL.md                 ← Bank/BIN offers, discounts, cashback, no-cost EMI recipe
+│   │   └── references/REFERENCE.md  ← payment_method filter variants, stacking rules, tenure table
+│   └── security-review/
+│       ├── SKILL.md                 ← Audit & fix payment-flow vulnerabilities (verify, webhooks, secrets, PCI, authz)
+│       └── references/REFERENCE.md  ← Per-vuln insecure/secure diffs + dependency scanner (npm audit/pip-audit/govulncheck/osv-scanner)
 ├── secure-id/
 │   ├── SKILL.md                     ← Bank account verification, PAN, GSTIN, DigiLocker
 │   └── references/REFERENCE.md      ← All 39+ API endpoints, webhook payloads, frontend SDKs
@@ -253,6 +256,9 @@ AI: *reads common-mistakes/SKILL.md* → Multiple account IP mismatch + dynamic 
 
 You: "Why isn't my webhook firing / payment not being fulfilled?"
 AI: *reads common-mistakes/SKILL.md* → Diagnostic tree narrows to exact cause and fix
+
+You: "Security-review my payment flow before we go live"
+AI: *reads pg/security-review/SKILL.md → references/REFERENCE.md* → Audits only the Cashfree payment code for client-trusted status, amount tampering, weak/missing webhook signature verification, exposed secrets and PCI leaks; then shells out to a live scanner (npm audit / pip-audit / govulncheck / osv-scanner) for vulnerable payment-path dependencies and proposes fixes as diffs
 
 You: "What changed between cashfree-pg 4.x and 6.x — is it breaking?"
 AI: *reads changelog/SKILL.md → references/pg-backend-sdks.md* → Lists the 5.0.0 instance-client break and the 6.x spec bump, with what to fix and what to test per version

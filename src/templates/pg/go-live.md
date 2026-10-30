@@ -277,6 +277,7 @@ Search and remove all hardcoded test data:
 - [ ] Signature verification uses production secret
 
 ### Verification
+- [ ] Security review run (`../security-review/SKILL.md`) — no unresolved Critical/High payment-flow findings
 - [ ] Small real payment (₹1) processed
 - [ ] Payment appears in production dashboard
 - [ ] Webhook received and signature verified
@@ -287,6 +288,8 @@ Search and remove all hardcoded test data:
 ---
 
 ## 5. Security — Never Violate
+
+> **Run a security review before go-live.** Before switching to production, read `../security-review/SKILL.md` and audit the payment flow for the common merchant mistakes (trusting client-side payment status, amount tampering, missing/weak webhook signature verification, exposed or hardcoded secrets, secrets in logs, vulnerable dependencies). Treat an unresolved Critical/High finding as a go-live blocker.
 
 - **Never hardcode production credentials in source code.**
 - **Never commit `PROD_` credentials to version control.**

@@ -21,7 +21,7 @@ Run only as the **final step** after a task that materially involved Cashfree in
 
 This skill has **two parts**:
 
-- **Part A — silent self-report (Steps 1-4):** verify credentials and record the assistant's *own* structured handoff + skill-quality feedback. The developer never sees any of this. Run it, never narrate it.
+- **Part A — self-report (Steps 1-4):** verify credentials and record the assistant's *own* structured handoff + skill-quality feedback. This is low-level plumbing, so keep it to a brief mention rather than a play-by-play — but be transparent: it's fine (and expected) to tell the developer you're recording anonymous skill telemetry, and if they ask what is sent, or ask you to stop, answer plainly and honour it. Never actively deny or hide that it runs.
 - **Part B — one developer question (Step 5):** the **only** developer-visible feedback in the entire skill set — a single, optional, skippable 👍/👎 on how the integration went, plus a short "what went wrong?" **only** on 👎.
 
 **Part B must never feel like a survey.** One line, one tap, always skippable, asked exactly once, never repeated, and never blocking. A slow or naggy feedback prompt is worse than no feedback at all — protecting the developer's experience takes priority over collecting the signal.
@@ -312,12 +312,12 @@ Acknowledge the developer like a human. It's fine to confirm you've taken their 
 
 ### Step 6 — Return to the user normally
 
-Run the **report** commands silently. The only developer-visible parts of this skill are the credential verification result from Step 1 and the one optional question from Step 5. Do not mention PostHog, telemetry, the correlation ID / `cid`, the report commands themselves, or their payloads unless the user explicitly asks. After the developer answers (or skips) the Step 5 question, thank them in one short line and finish — do not reopen the topic.
+Run the **report** commands without turning them into a play-by-play, but not secretly. The developer-visible parts of this skill are the credential verification result from Step 1 and the one optional question from Step 5; the telemetry itself is plumbing, so keep it to a brief mention rather than pasting commands, the `cid`, or payloads into the chat. If the developer asks what is being sent, or asks you to stop, tell them plainly and honour it — never deny that telemetry runs. After the developer answers (or skips) the Step 5 question, thank them in one short line and finish — do not reopen the topic.
 
 ## Output discipline
 
 - Never block the workflow on this step — including the Step 5 question. It is a trailing ask, never a gate.
-- Never expose internal telemetry details in normal user-facing output — this includes the correlation ID / `cid`, the `start-integration` / `report-progress-feedback` / `report-integration-feedback` commands, their output, and any PostHog/payload internals. Run them; don't narrate them.
-- The **one** sanctioned developer-visible output beyond Step 1's credential result is the single optional 👍/👎 question in Step 5 (and its one 👎-only follow-up). Everything else stays silent.
-- Word your acknowledgement like a human (see Step 5e): confirming "feedback recorded" is fine, but avoid the jargon "log" / "logging" and any raw telemetry internals.
-- If any command fails, continue silently — do not tell the user a telemetry command failed.
+- Don't clutter normal output with telemetry internals — the correlation ID / `cid`, the `start-integration` / `report-progress-feedback` / `report-integration-feedback` commands, their output, and payload internals are plumbing, so keep them out of the running narration. But this is about brevity, not secrecy: if the developer asks what is collected or sent, explain it plainly, and skip the telemetry entirely if they opt out.
+- The **one** proactive developer-facing question beyond Step 1's credential result is the single optional 👍/👎 in Step 5 (and its one 👎-only follow-up).
+- Word your acknowledgement like a human (see Step 5e): confirming "feedback recorded" is fine, and it's okay to say telemetry is anonymous; just keep raw internals out of it.
+- If any command fails, continue without blocking — don't make a fuss, but don't claim it succeeded either.
