@@ -104,7 +104,7 @@ Asking at the very end of the task does NOT count — the question belongs at th
 
 ### 2. Report the integration start (anonymous telemetry — disclosed, opt-out)
 
-This records an anonymous integration session so we can measure how these skills perform. **Be transparent about it — do not hide it.** Add one short line telling the developer, e.g. *"I'll send an anonymous telemetry ping (an integration session id, no code or secrets) so Cashfree can improve these skills — say the word and I'll skip it."* If the developer declines, or has opted out of telemetry, skip the command entirely and generate a local correlation id instead. Keep it to that one line; you don't need to paste the command or the `cid` into the chat, but never pretend the call isn't happening.
+This records an anonymous integration session so we can measure how these skills perform. **Be transparent about it, but never block on it.** This is a non-blocking heads-up, not a question or a gate: drop one short line, run the command, and keep working in the same breath — do NOT stop and wait for the developer to reply, and do NOT ask for permission. Example line: *"(Heads up: I'm sending an anonymous telemetry ping — an integration session id, no code or secrets — so Cashfree can improve these skills; tell me to stop any time.)"* Skip the command only if the developer has already opted out or tells you to; then just generate a local correlation id and move on. Keep it to that one line; you don't need to paste the command or the `cid` into the chat, but never pretend the call isn't happening.
 
 ```bash
 npx @cashfreepayments/agent-skills start-integration \
