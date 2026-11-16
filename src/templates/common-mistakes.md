@@ -41,7 +41,7 @@ This skill covers mistakes across **six categories**, matching the layers of a t
 
 | Category | What It Covers |
 |---|---|
-| **A. Security & Credentials** | Secret key exposure, credential misconfiguration, environment mismatches |
+| **A. Security & Credentials** | Secret key exposure, credential misconfiguration, environment mismatches, cross-product key reuse |
 | **B. Order Creation** | Missing required fields, invalid amounts, API version issues |
 | **C. Payment Verification** | Trusting frontend callbacks, not checking order status, race conditions |
 | **D. Webhook Integration** | Signature mismatches, missed webhooks, duplicate processing, IP whitelisting |
@@ -85,6 +85,19 @@ Each mistake follows the format: **What goes wrong → Why it happens → How to
 | Production | `https://api.cashfree.com/pg` | `Cashfree.Environment.PRODUCTION` |
 
 - Never hardcode the environment — derive it from a config variable (`NODE_ENV`, `DJANGO_SETTINGS_MODULE`, etc.).
+
+---
+
+### A2.1. Reusing one product's API keys for another product
+
+**What goes wrong:** An app that uses more than one Cashfree product (e.g. PG + Payouts + Secure ID) gets **401s from one product** while the others work. The request code looks correct, so it gets debugged as a code bug.
+
+**Why it happens:** Payment Gateway, Payouts and Secure ID each have their **own** client ID / secret, generated in their own dashboard section, and their own `x-api-version`. Reusing one product's env vars for another (e.g. `CASHFREE_PAYOUT_CLIENT_ID` / `SECRET` for Secure ID), or dropping/copying `x-api-version`, fails authentication.
+
+**How to fix it:**
+- Generate keys in each product's own dashboard (PG / Payouts / Secure ID → Developers → API Keys) and keep **one env-var pair per product**.
+- Send each product's own `x-api-version`: PG `2026-01-01`, Payouts `2024-01-01`, Secure ID `2024-12-01`.
+- See the **Credentials per Product** table in `getting-started/SKILL.md`.
 
 ---
 

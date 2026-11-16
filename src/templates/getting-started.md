@@ -22,11 +22,25 @@ Use this skill when the user needs help with initial Cashfree Payments setup, au
 1. **Create a Cashfree Merchant Account** at https://www.cashfree.com. Sign up and complete KYC verification. Entity-wise document checklists are available in the dashboard.
 2. **Log in to the Merchant Dashboard** to access Payment Gateway, generate API keys, and configure settings.
 
-## API Key Generation
+## Credentials per Product
 
-Each Cashfree product (Payments, Payouts, Secure ID, etc.) requires its **own unique client ID and client secret**. You cannot share keys across products.
+Each Cashfree product (Payments, Payouts, Secure ID, etc.) requires its **own unique client ID and client secret**, generated in **that product's own dashboard section**. You cannot share keys across products: a Payouts key sent to the Secure ID API (or a PG key sent to Payouts) fails with **HTTP 401**, which looks like a code bug but is a credentials mix-up. Each product also pins its **own `x-api-version`**.
 
-Steps to generate Payment Gateway API keys:
+| Product | Where to generate keys | Base URL (sandbox / production) | `x-api-version` | Suggested env vars |
+|---|---|---|---|---|
+| **Payment Gateway** (incl. Subscriptions, Refunds, Settlements, Payment Links) | Payment Gateway Dashboard → Developers → API Keys | `https://sandbox.cashfree.com/pg` / `https://api.cashfree.com/pg` | `2026-01-01` | `CASHFREE_APP_ID`, `CASHFREE_SECRET_KEY` |
+| **Payouts** | Payouts Dashboard → Developers → API Keys | `https://sandbox.cashfree.com/payout` / `https://api.cashfree.com/payout` | `2024-01-01` | `CASHFREE_PAYOUT_CLIENT_ID`, `CASHFREE_PAYOUT_CLIENT_SECRET` |
+| **Secure ID** (verification / KYC) | Secure ID Dashboard → Developers → API Keys | `https://sandbox.cashfree.com/verification` / `https://api.cashfree.com/verification` | `2024-12-01` | `CASHFREE_SECUREID_CLIENT_ID`, `CASHFREE_SECUREID_CLIENT_SECRET` |
+
+Other products (Auto Collect, Cross-Border, BBPS) document their own base URL, `x-api-version` and key source in their own skill — check it rather than assuming the PG values.
+
+**Rules when an app uses more than one product:**
+- Keep **one env-var pair per product** (as above) and pass each product's client its own pair. Never reuse `CASHFREE_PAYOUT_*` for Secure ID or `CASHFREE_APP_ID` for Payouts, even when the code "looks the same".
+- Send that product's `x-api-version` on **every** call. Don't drop it or copy another product's value.
+- Sandbox and production keys are also separate, per product.
+- If a product's API returns 401 while another product's calls succeed, check first that its keys came from **its** dashboard section — before debugging code.
+
+Steps to generate Payment Gateway API keys (Payouts and Secure ID follow the same pattern in their own dashboards — see their skills):
 1. Go to **Payment Gateway Dashboard > Developers** (or click the Developers icon in the right navigation).
 2. Click **API Keys** under Payment Gateway.
 3. In the **test environment**, API keys are auto-generated.
@@ -70,15 +84,13 @@ If building a platform on behalf of merchants, use:
 | **Sandbox (Test)** | `https://sandbox.cashfree.com/pg` |
 | **Production** | `https://api.cashfree.com/pg` |
 
-Other products have their own base URLs:
-- **Payouts**: `https://sandbox.cashfree.com/payout` (test) / `https://api.cashfree.com/payout` (production)
-- **Verification (Secure ID)**: `https://sandbox.cashfree.com/verification` (test) / `https://api.cashfree.com/verification` (production)
+Other products have their own base URLs, keys and API versions — see **Credentials per Product** above.
 
 ## API Versioning
 
 The latest Payment Gateway API version is **2026-01-01** (v6). Previous versions: 2025-01-01, 2023-08-01, 2022-09-01, 2022-01-01, 2021-05-21.
 
-Set the version via the `x-api-version` header (format: `YYYY-MM-DD`). Use `2026-01-01` for new integrations. It has breaking response-schema changes vs `2025-01-01`, so pin `2025-01-01` only if you need the previous contract.
+Set the version via the `x-api-version` header (format: `YYYY-MM-DD`). Use `2026-01-01` for new PG integrations (Payouts and Secure ID use their own versions — see **Credentials per Product**). It has breaking response-schema changes vs `2025-01-01`, so pin `2025-01-01` only if you need the previous contract.
 
 ## Before You Start: Register the Integration Session
 

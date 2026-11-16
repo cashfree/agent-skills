@@ -51,6 +51,8 @@ Content-Type: application/json
 
 > **V1 legacy APIs** use different base URLs and Bearer token auth — see `references/REFERENCE.md`.
 
+> **Payouts has its own API keys.** Generate them in the **Payouts Dashboard** (see §3) — Payment Gateway or Secure ID keys do **not** work here and return **HTTP 401**. If the app also uses PG or Secure ID, keep a separate pair (e.g. `CASHFREE_PAYOUT_CLIENT_ID` / `CASHFREE_PAYOUT_CLIENT_SECRET`), use it only for Payouts calls, and send `x-api-version: 2024-01-01` on every request. See the per-product credentials table in `getting-started/SKILL.md`.
+
 ---
 
 ## 3. Authentication
@@ -227,7 +229,7 @@ app.post("/payout-webhook", express.raw({ type: "application/json" }), (req, res
     const rawBody = req.body.toString();
 
     const computedSignature = crypto
-        .createHmac("sha256", process.env.CASHFREE_CLIENT_SECRET)
+        .createHmac("sha256", process.env.CASHFREE_PAYOUT_CLIENT_SECRET)
         .update(timestamp + rawBody)
         .digest("base64");
 
