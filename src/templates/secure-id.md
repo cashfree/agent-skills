@@ -53,6 +53,8 @@ Content-Type: application/json
 
 > **`x-api-version: 2024-12-01` is required on every current (v2) Secure ID call.** A few legacy PAN-era endpoints also accept `2022-10-26`. Send it on every request — the examples below include it.
 
+> **Secure ID has its own API keys.** Generate them in the **Secure ID Dashboard** (see §3) — Payment Gateway or Payouts keys do **not** work here and return **HTTP 401**, which looks like a code bug. If the app also uses PG or Payouts, keep a separate pair (e.g. `CASHFREE_SECUREID_CLIENT_ID` / `CASHFREE_SECUREID_CLIENT_SECRET`) and never reuse `CASHFREE_PAYOUT_*` or `CASHFREE_APP_ID` / `CASHFREE_SECRET_KEY` for Secure ID calls. See the per-product credentials table in `getting-started/SKILL.md`.
+
 ### Optional Headers
 
 ```
@@ -236,7 +238,7 @@ function verifySecureIdWebhook(req) {
   const signature = req.headers['x-webhook-signature'];
 
   const computed = crypto
-    .createHmac('sha256', process.env.CASHFREE_CLIENT_SECRET)
+    .createHmac('sha256', process.env.CASHFREE_SECUREID_CLIENT_SECRET)
     .update(timestamp + rawBody)
     .digest('base64');
 
